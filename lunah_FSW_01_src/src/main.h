@@ -9,7 +9,7 @@
 #define SRC_MAIN_H_
 
 #include <stdio.h>
-#include <stdlib.h>
+// #include <stdlib.h
 #include "platform.h"
 #include "ps7_init.h"
 #include <xil_io.h>
@@ -60,9 +60,16 @@
 #define DATA_PACKET_SIZE	2040
 #define PAYLOAD_MAX_SIZE	2028
 */
+#ifdef USE_CCSDS
+#define SYNC_MARKER 0x35,0x2e,0xf8,0x53
+unsigned char error_buff[] = {SYNC_MARKER, };
+unsigned char break_buff[] = {};
+unsigned char success_buff[] = {};
+#else
 unsigned char error_buff[] = "FFFFFF\n";
 unsigned char break_buff[] = "FAFAFA\n";
 unsigned char success_buff[] = "AAAAAA\n";
+#endif
 int err_buff_size = sizeof(error_buff);
 int break_buff_size = sizeof(break_buff);
 int success_buff_size = sizeof(success_buff);

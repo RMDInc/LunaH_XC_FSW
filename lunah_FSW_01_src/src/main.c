@@ -48,7 +48,7 @@
 #include "main.h"
 
 //this is Flight Software Version 2.1
-//Updated 6-4-2018, 12:08
+//Updated 8-17-2018, 12:08
 
 //struct info
 struct header_info{
@@ -64,7 +64,7 @@ struct header_info{
 
 int main()
 {
-    init_platform();
+    init_platform();	//does nothing //get rid of this
 
     // Initialize System
 	init_platform();  		// This initializes the platform, which is ...
@@ -92,7 +92,8 @@ int main()
 	//******************Setup and Initialize IIC*********************//
 	//IIC0 = sensor head
 	//IIC1 = thermometer
-	XIicPs Iic;
+	//XIicPs Iic;
+
 	//*******************Receive and Process Packets **********************//
 	Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, 0);	//baseline integration time	//subtract 38 from each int
 	Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, 35);	//short
@@ -149,6 +150,8 @@ int main()
 		filptr_clogFile += numBytesWritten;						//update the write pointer
 		ffs_res = f_close(&logFile);							//close the file
 	}
+
+	InitConfig();
 
 	//we are going to skip this code and not write a directory log file
 	// because we can use an SD card function to write out the contents
@@ -226,8 +229,10 @@ int main()
 	unsigned int sync_marker = 0x352EF853;
 	unsigned long long int i_real_time = 0;
 	int i_integration_times[4] = {};
-	float ECut[2];
-	float PCut[2];
+	float ECut_1;
+	float PCut_1;
+	float ECut_2;
+	float PCut_2;
 	int HvPmtId, HvValue;
 
 	struct header_info file_header = {};
@@ -267,6 +272,12 @@ int main()
 			bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
 			break;
 		case DAQ__CMD: //DAQ mode
+#ifdef BREAKUP_MAIN_DAQ
+			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
+			DataAcqInit(menusel, i_orbit_number);
+			break;
+#else
+
 			//can check this later to see if we are coming from the a new DAQ call
 			// or if we are trying to jump back in during a run
 			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
@@ -444,6 +455,7 @@ int main()
 			iSprintfReturn = snprintf(report_buff, LOG_FILE_BUFF_SIZE, "%u\n", i_neutron_total);	//return value for END_
 			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
 			break;
+#endif
 		case WF_CMD: //Capture WF data
 
 			break;
@@ -606,14 +618,13 @@ int main()
 				bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
 			break;
 #endif
-		case 11: //NGATES, set neutron cut gates
-			sscanf(RecvBuffer + 3 + 1, " %f_%f_%f_%f", &ECut[0], &ECut[1], &PCut[0], &PCut[1]);
-			SetNeutronCutGates(ECut[0], ECut[1], PCut[0], PCut[1]);
-
+		case NGATES_CMD: //NGATES, set neutron cut gates
+			sscanf(RecvBuffer + strlen("NGATES_"), " %f_%f_%f_%f", &(ECut_1), &(ECut_2), &(PCut_1), &(PCut_2));
+			SetNeutronCutGates(ECut_1, ECut_2, PCut_1, PCut_2);
 			break;
 		case HV_CMD:
 #ifdef BREAKUP_MAIN
-			sscanf(RecvBuffer + 3 + 1, " %d_%d", &HvPmtId, &HvValue);
+			sscanf(RecvBuffer + strlen("HV_"), " %d_%d", &HvPmtId, &HvValue);
 			SetHighVoltage(HvPmtId, HvValue);
 			break;
 #else
@@ -674,7 +685,10 @@ int main()
 				Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 				a = i2c_Recv_Buffer[0]<< 5;
 				b = a | i2c_Recv_Buffer[1] >> 3;
-				b /= 16;
+				if(i2c_Recv_Buffer[0] >= 128)
+					b = (b - 8192) / 16;
+				else
+					b = b / 16;
 				//check to see if the temp reported is the temp requested by the user
 				//if it is, break out
 				//check temp is not outside of acceptable range
@@ -723,7 +737,10 @@ int main()
 			Status = IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 			a = i2c_Recv_Buffer[0]<< 5;
 			b = a | i2c_Recv_Buffer[1] >> 3;
-			b /= 16;
+			if(i2c_Recv_Buffer[0] >= 128)
+				b = (b - 8192) / 16;
+			else
+				b = b / 16;
 			xil_printf("%d\xf8\x43\n\r", b); //take integer, which is in degrees C \xf8 = degree symbol, \x43 = C
 			sleep(1); //built in latency
 			break;
@@ -736,7 +753,10 @@ int main()
 			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 			a = i2c_Recv_Buffer[0]<< 5;
 			b = a | i2c_Recv_Buffer[1] >> 3;
-			b /= 16;
+			if(i2c_Recv_Buffer[0] >= 128)
+				b = (b - 8192) / 16;
+			else
+				b = b / 16;
 			xil_printf("%d\xf8\x43\n\r", b);
 			sleep(1); //built in latency
 			break;
@@ -749,7 +769,10 @@ int main()
 			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 			a = i2c_Recv_Buffer[0]<< 5;
 			b = a | i2c_Recv_Buffer[1] >> 3;
-			b /= 16;
+			if(i2c_Recv_Buffer[0] >= 128)
+				b = (b - 8192) / 16;
+			else
+				b = b / 16;
 			xil_printf("%d\xf8\x43\n\r", b);
 			sleep(1); //built in latency
 			break;
@@ -868,7 +891,10 @@ int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
 	IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 	a = i2c_Recv_Buffer[0]<< 5;
 	b = a | i2c_Recv_Buffer[1] >> 3;
-	b /= 16;
+	if(i2c_Recv_Buffer[0] >= 128)
+		b = (b - 8192) / 16;
+	else
+		b = b / 16;
 	analog_board_temp = b;
 
 	//digital board temp - case 13
@@ -877,7 +903,10 @@ int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
 	IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 	a = i2c_Recv_Buffer[0]<< 5;
 	b = a | i2c_Recv_Buffer[1] >> 3;
-	b /= 16;
+	if(i2c_Recv_Buffer[0] >= 128)
+		b = (b - 8192) / 16;
+	else
+		b = b / 16;
 	digital_board_temp = b;
 
 	i_sprintf_ret = snprintf(report_buff, 100, "%d_%d_%u_%llu\n", analog_board_temp, digital_board_temp, i_neutron_total, local_time);
@@ -910,11 +939,18 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 	int dram_base = 0xa000000;
 	int dram_ceiling = 0xA004000;
 	int ipollReturn = 0;	//keep track of user input
+	//2DH variables
+	int i_xnumbins = 1000;
+	int i_ynumbins = 50;
 	//buffers are 4096 ints long (512 events total)
 	unsigned int * data_array;
 	unsigned int * data_array_holder;
-	data_array = (unsigned int *)malloc(sizeof(unsigned int)*4096*4);
-	memset(data_array, '0', 4096 * sizeof(unsigned int)); //zero out the array
+	data_array = (unsigned int *)malloc(sizeof(unsigned int)*DATA_BUFFER_SIZE*4);
+	memset(data_array, '0', DATA_BUFFER_SIZE * sizeof(unsigned int)); //zero out the array
+	unsigned short twoDH_pmt1[i_xnumbins][i_ynumbins];
+	unsigned short twoDH_pmt2[i_xnumbins][i_ynumbins];
+	unsigned short twoDH_pmt3[i_xnumbins][i_ynumbins];
+	unsigned short twoDH_pmt4[i_xnumbins][i_ynumbins];
 	FIL data_file;
 	FIL data_file_dest;
 
@@ -957,43 +993,46 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 					dram_addr+=4;
 					array_index++;
 				}
+				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
 				ClearBuffers();
 				buff_num++;
 				break;
 			case 1:
 				//fetch the data from the DRAM //data_array + 4096
-				data_array_holder = data_array + 4096; //move the pointer to the buffer
+				data_array_holder = data_array + DATA_BUFFER_SIZE; //move the pointer to the buffer
 				while(dram_addr <= dram_ceiling)
 				{
 					data_array_holder[array_index] = Xil_In32(dram_addr);
 					dram_addr+=4;
 					array_index++;
 				}
+				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
 				ClearBuffers();
 				buff_num++;
 				break;
 			case 2:
 				//fetch the data from the DRAM //data_array + 8192
-				data_array_holder = data_array + 8192;
+				data_array_holder = data_array + DATA_BUFFER_SIZE*2;
 				while(dram_addr <= dram_ceiling)
 				{
 					data_array_holder[array_index] = Xil_In32(dram_addr);
 					dram_addr+=4;
 					array_index++;
 				}
+				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
 				ClearBuffers();
 				buff_num++;
 				break;
 			case 3:
 				//fetch the data from the DRAM //data_array + 12288
-				data_array_holder = data_array + 12288;
+				data_array_holder = data_array + DATA_BUFFER_SIZE*3;
 				while(dram_addr <= dram_ceiling)
 				{
 					data_array_holder[array_index] = Xil_In32(dram_addr);
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array, data_file);
+				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
 				ClearBuffers();
 				buff_num = 0;
 

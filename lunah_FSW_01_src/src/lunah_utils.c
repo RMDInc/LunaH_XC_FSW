@@ -13,7 +13,13 @@
 #include "lunah_defines.h"
 #include "lunah_utils.h"
 
+FILINFO CnfFno;
+char cConfigFile[] = "1:/ConfigFile.cnf";
+FIL ConfigFile;
+int filptr_cConfigFile = 0;
+
 CONFIG_STRUCT_TYPE ConfigBuff;
+int ConfigSize = sizeof(ConfigBuff);
 
 static XTime LocalTime = 0;
 static XTime LocalTimeStart;
@@ -108,7 +114,14 @@ int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
 	IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 	a = i2c_Recv_Buffer[0]<< 5;
 	b = a | i2c_Recv_Buffer[1] >> 3;
-	b /= 16;
+	if(i2c_Recv_Buffer[0] >= 128)
+	{
+		b = (b - 8192) / 16;
+	}
+	else
+	{
+		b = b / 16;
+	}
 	analog_board_temp = b;
 
 	//digital board temp - case 13
@@ -117,7 +130,14 @@ int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
 	IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
 	a = i2c_Recv_Buffer[0]<< 5;
 	b = a | i2c_Recv_Buffer[1] >> 3;
-	b /= 16;
+	if(i2c_Recv_Buffer[0] >= 128)
+	{
+		b = (b - 8192) / 16;
+	}
+	else
+	{
+		b = b / 16;
+	}
 	digital_board_temp = b;
 
 	i_sprintf_ret = snprintf(report_buff, 100, "%d_%d_%u_%llu\n", analog_board_temp, digital_board_temp, i_neutron_total, local_time);
@@ -135,12 +155,92 @@ int ls_commnad(void)
     return 0;
 }
 
-int SaveConfigFile()
+int CreatDefaultConfig(void)
 {
+	ConfigBuff = (CONFIG_STRUCT_TYPE){.ConfigLen=1,.TriggerThreshold=2,
+	  	.EnergyCut[0]=3.0f,.EnergyCut[1]=4.0f,.PsdCut[0]=5.0f,.PsdCut[1]=6.0f,
+		.WideEnergyCut[0]=7.0f,.WideEnergyCut[1]=8.0f,.WidePsdCut[0]=9.0f,.WidePsdCut[1]=10.0f,
+	    .HighVoltageValue[0]=11,.HighVoltageValue[1]=11,.HighVoltageValue[2]=11,.HighVoltageValue[3]=11,
+		.IntegrationBaseline=0,.IntegrationShort=35,.IntegrationLong=131,.IntegrationFull=1531,
+		.ECalSlope=12.0f,.EcalIntercept=13.0f,.ConfigChecksum=14};
+}
+
+int AltCreatDefaultConfig(void)
+{
+  CONFIG_STRUCT_TYPE DefaultConfigValues = {.ConfigLen=1,.TriggerThreshold=2,
+		  	.EnergyCut[0]=3.0f,.EnergyCut[1]=4.0f,.PsdCut[0]=5.0f,.PsdCut[1]=6.0f,
+			.WideEnergyCut[0]=7.0f,.WideEnergyCut[1]=8.0f,.WidePsdCut[0]=9.0f,.WidePsdCut[1]=10.0f,
+		    .HighVoltageValue[0]=11,.HighVoltageValue[1]=11,.HighVoltageValue[2]=11,.HighVoltageValue[3]=11,
+			.IntegrationBaseline=0,.IntegrationShort=35,.IntegrationLong=131,.IntegrationFull=1531,
+			.ECalSlope=12.0f,.EcalIntercept=13.0f,.ConfigChecksum=14};
+
+	ConfigBuff = DefaultConfigValues;
+
+}
+
+// #define INIT_CONFIG_TESTED
+int InitConfig(void)
+{
+  uint NumBytesWr;
+  uint NumBytesRd;
+  FRESULT F_RetVal;
+//  int RetVal;
+#define INIT_CONFIG_TESTED
+#ifndef INIT_CONFIG_TESTED
+     return 0;
+#else
+	// check that config file exists
+	if( f_stat( cConfigFile, &CnfFno) )
+	{	// f_stat returns non-zero(false) if no file exists, create default buffer and open/create the file
+		CreatDefaultConfig();
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+		F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+		filptr_cConfigFile += NumBytesWr;
+		F_RetVal = f_close(&ConfigFile);
+	}
+	else // If the file exists, read it
+	{
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+		F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+		F_RetVal = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);	//Read the config file into ConfigBuff
+
+		F_RetVal = f_close(&ConfigFile);							//close the file
+	}
+#endif
+}
+
+#define SAVE_CONFIG_TESTED
+int SaveConfig()
+{
+	uint NumBytesWr;
+	FRESULT F_RetVal;
+	int RetVal;
+
+#ifndef SAVE_CONFIG_TESTED
+	    return 0;
+#else
+
+		// check that config file exists
+		if( f_stat( cConfigFile, &CnfFno) )
+		{	// f_stat returns non-zero(false) if no file exists, so open/create the file
+			F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+			filptr_cConfigFile += NumBytesWr;
+			F_RetVal = f_close(&ConfigFile);
+		}
+		else // If the file exists, write it
+		{
+			F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);	//Write the ConfigBuff to config file
+
+			F_RetVal = f_close(&ConfigFile);							//close the file
+		}
 
 
 
 
-
+    return RetVal;
+#endif
 }
 

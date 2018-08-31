@@ -40,6 +40,7 @@ int PollUart(char * RecvBuffer, XUartPs *Uart_PS);
 #define START_CMD 16
 #define END_CMD 17
 #define END_TMP_CMD 18
+#define READ_TMP_CMD 19
 
 #define INPUT_OVERFLOW 100
 #define NO_CMD_INPUT 999

@@ -21,6 +21,26 @@
 #define	TEC_PIN				18
 #define DATA_PACKET_SIZE	2040
 #define PAYLOAD_MAX_SIZE	2028
+#define DATA_BUFFER_SIZE	4096
 
+enum LoopStateTypes
+{
+    MainLoopState,
+	DataQState,
+	WaitStartState,
+	CollectDataState,
+};
+
+enum ReadTempState
+{
+   AlogTempCmdSent,
+   AlogTempCmdRcved,
+   DigTempCmdSent,
+   DigTempCmdRcved,
+   ModTempCmdSent,
+   ModTempCmdRcved,
+};
+
+int DataAcqInit(int Command, int orbit_number);
 
 #endif /* SRC_LUNAH_DEFINES_H_ */

@@ -11,6 +11,6 @@
 #include "ff.h"
 
 //function prototype
-int process_data(unsigned int * data_array, FIL data_file);
+int process_data(unsigned int * data_array, unsigned short ** twoDH_pmt1, unsigned short ** twoDH_pmt2, unsigned short ** twoDH_pmt3, unsigned short ** twoDH_pmt4);
 
 #endif /* SRC_PROCESS_DATA_H_ */

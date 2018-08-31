@@ -10,6 +10,7 @@
 
 #include <xtime_l.h>
 #include <xuartps.h>
+#include "ff.h"
 
 // prototypes
 void InitStartTime(void);
@@ -17,11 +18,13 @@ XTime GetLocalTime(void);
 int GetNeuronTotal(void);
 int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS);
 int CheckForSOH(void);
+int SaveConfig(void);
+
 
 
 // lunah_config structure
 typedef struct {
-    int ConfigFormatVer;    // usedful?
+    int ConfigLen;    // usedful?
 
 	// instrument parameters
 	int TriggerThreshold;
@@ -38,6 +41,12 @@ typedef struct {
 	float EcalIntercept;
 	int ConfigChecksum;         // needed?
 } CONFIG_STRUCT_TYPE;
+
+
+// lunah config defaults
+#define DFLT_TRIGG_THRES
+#define DFLT_ENERGY_CUT_1
+#define DFLT_ENERGY_CUT_2
 
 
 #endif /* SRC_LUNAH_UTILS_H_ */
