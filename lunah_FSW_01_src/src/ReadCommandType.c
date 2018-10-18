@@ -19,6 +19,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	//Variables
 	char is_line_ending = '0';
 	int ret = 0;
+	int detectorVal = 0;
 	int commandNum = 999;	//this value tells the main menu what command we read from the rs422 buffer
 	int firstVal = 0;
 	int secondVal = 0;
@@ -33,58 +34,56 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	char commandBuffer[20] = "";
 	char commandBuffer2[50] = "";
 
-	iPollBufferIndex += XUartPs_Recv(Uart_PS, (u8 *)RecvBuffer + iPollBufferIndex, 100 - iPollBufferIndex);
+	iPollBufferIndex += XUartPs_Recv(Uart_PS, (u8 *)RecvBuffer + iPollBufferIndex, 100 - iPollBufferIndex);	//pollbuffindex holds the number of bytes read from the user
 	if(iPollBufferIndex > 99)	//read too much
 		return 100;
 	if(iPollBufferIndex != 0)
 	{
-		is_line_ending = RecvBuffer[iPollBufferIndex - 1];
+		is_line_ending = RecvBuffer[iPollBufferIndex - 1];	//checks whether the last character is a line ending
 		if((is_line_ending == '\n') || (is_line_ending == '\r'))
 		{
 			ret = sscanf(RecvBuffer, " %[^_]", commandBuffer);	// copy the command (everything before the underscore)
 
 			if(!strcmp(commandBuffer, "DAQ"))
 			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &firstVal);	//check that there is one int after the underscore // may need a larger value here to take a 64-bit time
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &detectorVal, &firstVal);	//check that there is one int after the underscore // may need a larger value here to take a 64-bit time
 
-				if(ret != 1)	//invalid input
-				{
-					//xil_printf("Invalid input; real time not recognized.\n\r");
+				if(ret != 2)	//invalid input
 					commandNum = -1;
-				}
 				else			//proper input
 					commandNum = 0;
 
 			}
 			else if(!strcmp(commandBuffer, "WF"))
 			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &firstVal);	//check for the _number of the waveform
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &detectorVal, &firstVal);	//check for the _number of the waveform
 
-				if(ret != 1)	//invalid input
-				{
-					//xil_printf("Invalid input; wf_number not recognized.\n\r");
+				if(ret != 2)	//invalid input
 					commandNum = -1;
-				}
 				else
 					commandNum = 1;
 			}
 			else if(!strcmp(commandBuffer, "TMP"))
 			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &firstVal, &secondVal);	//check for the _number of the waveform
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);	//check for the _number of the waveform
 
-				if(ret != 2)	//invalid input
-				{
-					//xil_printf("Invalid input; _temperature_timeout not recognized.\n\r");
+				if(ret != 1)	//invalid input
 					commandNum = -1;
-				}
 				else
 					commandNum = 2;
 			}
 			else if(!strcmp(commandBuffer, "GETSTAT"))
-				commandNum = 3;
+			{
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);
+
+				if(ret != 1)	//invalid input
+					commandNum = -1;
+				else
+					commandNum = 3;
+			}
 			else if(!strcmp(commandBuffer, "DISABLE"))
 			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %s", commandBuffer2);	//check for the _number of the waveform
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %s_%d", commandBuffer2,&detectorVal);	//check for the _number of the waveform
 
 				if(ret != 1)	//invalid input
 				{
@@ -237,6 +236,13 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				commandNum = -1;	// a -1 indicates failure, a positive value indicates success
 				memset(RecvBuffer, '0', 100);
 			}
+
+			//now check to see if the command pertains to this detector
+			if(detectorVal == 0)	//this detector
+				detectorVal += 0;	//will pass on the command
+			else if(detectorVal ==1)	//the other detector
+				detectorVal += 900;		//will fail the command at the switch
+
 		}
 	}
 

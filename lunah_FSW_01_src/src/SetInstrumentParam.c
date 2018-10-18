@@ -123,6 +123,7 @@ int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, fl
 
 /*
  * Set High Voltage  (note: connections to pot 2 and pot 3 are reversed - handled in the function)
+ * ***********************this swap may need to be reversed, as the electronics (boards) may have been replaced!!!***********************
  * Syntax: SetHighVoltage(PMTID, Value)
  * �	PMTID = (Integer) PMT ID, 1 � 4, 5 to choose all tubes
  * �	Value =  (Integer) high voltage to set, 0 � 256 (not linearly mapped to volts)

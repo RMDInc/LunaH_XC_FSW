@@ -56,6 +56,7 @@ int DataAcqInit(int Command, int i_orbit_number)
 
 	LoopState = WaitStartState;
 
+	return 0;
 }
 
 
@@ -98,6 +99,7 @@ int StartDataAcqLoop(int i_orbit_number)
 
  	}
 
+	return 0;
 }
 
 /*
@@ -138,5 +140,5 @@ int DataAcqLoop(int Command, int i_orbit_number)
 
     CollectDataLoop(i_orbit_number);
 
-
+    return 0;
 }

@@ -64,10 +64,7 @@ struct header_info{
 
 int main()
 {
-    init_platform();	//does nothing //get rid of this
-
     // Initialize System
-	init_platform();  		// This initializes the platform, which is ...
 	ps7_post_config();
 	Xil_DCacheDisable();	// Disable the data cache
 	InitializeAXIDma();		// Initialize the AXI DMA Transfer Interface
@@ -110,10 +107,10 @@ int main()
 
 	//*******************Setup the UART **********************//
 	int Status = 0;
-//	XUartPs Uart_PS;
+	//XUartPs Uart_PS;	// instance of UART
 
 	XUartPs_Config *Config = XUartPs_LookupConfig(UART_DEVICEID);
-	if (NULL == Config) { return 1;}
+	if (Config == NULL) { return 1;}
 	Status = XUartPs_CfgInitialize(&Uart_PS, Config, Config->BaseAddress);
 	if (Status != 0){ xil_printf("XUartPS did not CfgInit properly.\n");	}
 
@@ -239,6 +236,45 @@ int main()
 
 	// ******************* APPLICATION LOOP *******************//
 
+	//temporary while loop to use for ASU testing on 10/15/2018
+	//This loop will continue forever and the program won't leave it
+	//This loop checks for input from the user, then checks to see if it's time to report SOH
+	//if input is received, then it reads the input for correctness
+	// if input is a valid LUNAH command, sends a command success packet
+	// if not, then sends a command failure packet
+	//after, SOH is checked to see if it is time to report SOH
+	//When it is time, reports a full CCSDS SOH packet
+	while(1){	//BEGIN TEMP ASU TESTING LOOP
+		memset(RecvBuffer, '0', 100);	// Clear RecvBuffer Variable
+		XUartPs_SetOptions(&Uart_PS, XUARTPS_OPTION_RESET_RX);
+		iPollBufferIndex = 0;
+
+		while(1)	//POLLING LOOP // MAIN MENU
+		{
+			menusel = 99999;
+			menusel = ReadCommandType(RecvBuffer, &Uart_PS);
+
+			if ( menusel > -1 && menusel <= 18 ){
+				//we found a valid LUNAH command
+				//report command success
+
+				break;
+			}
+			else if( menusel == -1){
+				//we found an invalid LUNAH command
+				//report command failure
+
+				break;
+			}
+
+			//until we have found something useful, check to see if we need
+			// to report SOH information, 1 Hz
+			CheckForSOH();
+		}//END POLLING LOOP //END MAIN MENU
+
+		ipollReturn = 999;
+	}//END TEMP ASU TESTING LOOP
+
 	while(1){
 		memset(RecvBuffer, '0', 100);	// Clear RecvBuffer Variable
 		XUartPs_SetOptions(&Uart_PS, XUARTPS_OPTION_RESET_RX);
@@ -254,21 +290,13 @@ int main()
 
 			//until we have found something useful, check to see if we need
 			// to report SOH information, 1 Hz
-#ifdef BREAKUP_MAIN
 			CheckForSOH();
-#else
-			XTime_GetTime(&local_time_current);
-			if(((local_time_current - local_time_start)/COUNTS_PER_SECOND) >= (local_time +  1))
-			{
-				local_time = (local_time_current - local_time_start)/COUNTS_PER_SECOND;
-				report_SOH(local_time, i_neutron_total, Uart_PS);
-			}
-#endif
 		}//END POLLING LOOP //END MAIN MENU
 
 		ipollReturn = 999;
 		switch (menusel) { // Switch-Case Menu Select
 		case -1:
+			//need to remove this in favor of a packetized COMMAND FAILURE PACKET as described in ICD
 			bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
 			break;
 		case DAQ__CMD: //DAQ mode
@@ -289,10 +317,11 @@ int main()
 			//create files and pass in filename to getWFDAQ function
 			snprintf(c_EVT_Filename0, 50, "0:/%04d_%04d_evt.bin",i_orbit_number, i_daq_run_number);	//assemble the filename
 			snprintf(c_CNT_Filename0, 50, "0:/%04d_%04d_cnt.bin",i_orbit_number, i_daq_run_number);
+			//2dh file here
 			snprintf(c_EVT_Filename1, 50, "1:/%04d_%04d_evt.bin",i_orbit_number, i_daq_run_number);
 			snprintf(c_CNT_Filename1, 50, "1:/%04d_%04d_cnt.bin",i_orbit_number, i_daq_run_number);
+			//2dh file here
 			iSprintfReturn = snprintf(report_buff, 100, "%s_%s\n", c_EVT_Filename0, c_CNT_Filename0);	//create the string to tell CDH
-			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);				//echo the name to bus? //if they aren't tracking file names, then don't do this
 
 			//poll for START, BREAK
 			memset(RecvBuffer, '0', 100);
@@ -328,16 +357,8 @@ int main()
 				}
 
 				//continue to loop and report SOH while waiting for user input
-#ifdef BREAKUP_MAIN
 				CheckForSOH();
-#else
-				XTime_GetTime(&local_time_current);
-				if(((local_time_current - local_time_start)/COUNTS_PER_SECOND) >= (local_time +  1))
-				{
-					local_time = (local_time_current - local_time_start)/COUNTS_PER_SECOND;
-					report_SOH(local_time, i_neutron_total, Uart_PS);
-				}
-#endif
+
 			}//END POLL UART
 
 			//if BREAK, leave the loop //nothing to turn off
@@ -349,7 +370,7 @@ int main()
 
 			//write to the log file
 
-			//write the headers and create the data files as listed above
+			//write the headers and create the data files as listed above //this is the Mini-NS Data Header
 			file_header.real_time = i_real_time;
 			file_header.orbit_number = i_orbit_number;
 			file_header.run_number = i_daq_run_number;
@@ -401,9 +422,9 @@ int main()
 			//go to the DAQ function
 			//go into the get_data function (renamed from GetWFDAQ())
 #ifdef BREAKUP_MAIN
-			get_data(c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, RecvBuffer);
+			get_data(&Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, RecvBuffer);
 #else
-			get_data(c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, i_neutron_total, RecvBuffer, local_time_start, local_time);
+			get_data(&Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, i_neutron_total, RecvBuffer, local_time_start, local_time);
 #endif
 			//Broke out of the DAQ loop, finalize the run
 			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//enable capture module
@@ -927,9 +948,9 @@ void ClearBuffers() {
 
 //////////////////////////// get_data ////////////////////////////////
 #ifndef BREAKUP_MAIN
-int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time)
+int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time)
 #else
-int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer)
+int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer)
 #endif
 {
 	int valid_data = 0; 	//BRAM buffer size
@@ -940,8 +961,8 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 	int dram_ceiling = 0xA004000;
 	int ipollReturn = 0;	//keep track of user input
 	//2DH variables
-	int i_xnumbins = 1000;
-	int i_ynumbins = 50;
+	int i_xnumbins = 260;
+	int i_ynumbins = 30;
 	//buffers are 4096 ints long (512 events total)
 	unsigned int * data_array;
 	unsigned int * data_array_holder;
@@ -958,7 +979,7 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 	XTime local_time_current;
 	local_time_current = 0;
 
-	XUartPs_SetOptions(&Uart_PS,XUARTPS_OPTION_RESET_RX);
+	XUartPs_SetOptions(Uart_PS,XUARTPS_OPTION_RESET_RX);
 
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000); 		// DMA Transfer Step 1
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);			// DMA Transfer Step 2
@@ -993,7 +1014,7 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
+				process_data(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
 				ClearBuffers();
 				buff_num++;
 				break;
@@ -1006,7 +1027,7 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
+				process_data(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
 				ClearBuffers();
 				buff_num++;
 				break;
@@ -1019,7 +1040,7 @@ int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, c
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
+				process_data(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
 				ClearBuffers();
 				buff_num++;
 				break;

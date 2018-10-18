@@ -6,7 +6,6 @@
  */
 
 #include "process_data.h"
-#include "lunah_defines.h"
 
 ///// Structure Definitions ////
 struct event_raw {			// Structure is 8+4+8+8+8+8= 44 bytes long
@@ -52,7 +51,11 @@ struct twoDHisto {
 	unsigned short twoDHisto[25][78];
 };
 
-int process_data(unsigned int * data_array, unsigned short ** twoDH_pmt1, unsigned short ** twoDH_pmt2, unsigned short ** twoDH_pmt3, unsigned short ** twoDH_pmt4)
+int process_data(unsigned int * data_array,
+		unsigned short twoDH_pmt1[TWODH_X_BINS][TWODH_Y_BINS],
+		unsigned short twoDH_pmt2[TWODH_X_BINS][TWODH_Y_BINS],
+		unsigned short twoDH_pmt3[TWODH_X_BINS][TWODH_Y_BINS],
+		unsigned short twoDH_pmt4[TWODH_X_BINS][TWODH_Y_BINS])
 {
 	//have the data we need to process in data_array, there are 512*4 events
 	//get access to buffers we will use to sort/process the data into
@@ -95,8 +98,8 @@ int process_data(unsigned int * data_array, unsigned short ** twoDH_pmt1, unsign
 	int i_yminrange = 0;
 	int i_ymaxrange = 2;
 	//set the number of bins for the 2DH
-	int i_xnumbins = 1000;
-	int i_ynumbins = 50;
+	int i_xnumbins = TWODH_X_BINS;
+	int i_ynumbins = TWODH_Y_BINS;
 	float f_xbinsize = 0;
 	float f_ybinsize = 0;
 	float f_xbinnum = 0;

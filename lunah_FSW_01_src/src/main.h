@@ -78,7 +78,7 @@ int success_buff_size = sizeof(success_buff);
 int iPollBufferIndex;
 
 // Hardware Interface
-XUartPs Uart_PS;					// instance of UART
+XUartPs Uart_PS;
 XGpioPs Gpio;						// Instance of the GPIO Driver Interface
 XGpioPs_Config *GPIOConfigPtr;		// GPIO configuration pointer
 static XScuGic_Config *GicConfig; 	// GicConfig
@@ -164,9 +164,9 @@ int SetUpInterruptSystem(XScuGic *XScuGicInstancePtr);
 void ClearBuffers();				// Clear Processeed Data Buffers
 int ReadDataIn(int numfilesWritten, FIL * filObj);// Take data from DRAM, process it, save it to SD
 #ifdef BREAKUP_MAIN
-int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer);
+int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer);
 #else
-int get_data(char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time);						// Print data skipping saving it to SD card
+int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time);						// Print data skipping saving it to SD card
 #endif
 // moved to lunah_defines.h int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS);
 

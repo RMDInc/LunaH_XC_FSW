@@ -23,6 +23,12 @@
 #define PAYLOAD_MAX_SIZE	2028
 #define DATA_BUFFER_SIZE	4096
 
+#define TWODH_X_BINS		260
+#define	TWODH_Y_BINS		30
+#define SYNC_MARKER_SIZE	4
+#define CHECKSUM_SIZE		4
+#define CCSDS_HEADER_SIZE	11
+
 enum LoopStateTypes
 {
     MainLoopState,
