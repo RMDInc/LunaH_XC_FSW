@@ -1,7 +1,0 @@
-//arch = zynq; split = false; format = MCS
-the_ROM_image:
-{
-	[bootloader]K:\users\GStoddard\LunaH_FSW_02_Debug_8_15\lunah_FSW_01_fsbl\Release\lunah_FSW_01_fsbl.elf
-	K:\users\GStoddard\LunaH_FSW_02_Debug_8_15\design_1_wrapper_hw_platform_0\design_1_wrapper.bit
-	K:\users\GStoddard\LunaH_FSW_02_Debug_8_15\lunah_FSW_01_src\Release\lunah_FSW_01_src.elf
-}
