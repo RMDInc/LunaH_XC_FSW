@@ -6,3 +6,9 @@
 		LunaH_XC_FSW/BOOT_Files
 
 - Version 3.2 has updated the BOOT files, as the previous ones did not properly program on the board. Trying a new set of files. Also updated the instructions for loading the program onto the board using Vivado Lab Tools.
+
+- Version 3.21 This update adds a set of BOOT files which are zipped instead of raw in the BOOT_Files folder
+
+- Version 3.22 This update includes a different set of zipped files in the BOOT_Files folder
+
+- Version 3.23 This update properly names the BOOT files within the zip file and updates the instructions for loading a board with the BOOT files.
