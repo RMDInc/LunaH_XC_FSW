@@ -14,3 +14,5 @@
 - Version 3.23 This update properly names the BOOT files within the zip file and updates the instructions for loading a board with the BOOT files.
 
 - Version 3.3 The zip files in the BOOT_Files folder are verified to work and the instructions for loading the board have been updated. 
+
+- Version 3.31 Updated a naming difference in the Loading Instructions.

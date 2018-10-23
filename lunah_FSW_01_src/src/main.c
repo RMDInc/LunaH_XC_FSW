@@ -296,8 +296,9 @@ int main()
 		ipollReturn = 999;
 		switch (menusel) { // Switch-Case Menu Select
 		case -1:
-			//need to remove this in favor of a packetized COMMAND FAILURE PACKET as described in ICD
-			bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
+			//we found an invalid LunaH command
+			//report command failure
+
 			break;
 		case DAQ__CMD: //DAQ mode
 #ifdef BREAKUP_MAIN_DAQ
@@ -480,22 +481,15 @@ int main()
 		case WF_CMD: //Capture WF data
 
 			break;
-		case 2: //TMP Set Loop
+		case TMP_CMD: //TMP Set Loop
 
 			break;
 		case GETSTAT_CMD: //Getstat
 			//calculate the time
-#ifdef BREAKUP_MAIN
 			local_time = GetLocalTime();
-	//		report_SOH(local_time, i_neutron_total, Uart_PS);
+			//instead of checking for SOH, just push one SOH packet out because it was requested
 			report_SOH(local_time, GetNeuronTotal(), Uart_PS);
 			break;
-#else
-			XTime_GetTime(&local_time_current);
-			local_time = (local_time_current - local_time_start)/COUNTS_PER_SECOND;
-			report_SOH(local_time, i_neutron_total, Uart_PS);
-			break;
-#endif
 		case DISABLE_ACT_CMD: //Disable Data Acquisition Components
 			//this is the power (5v and 3.3v) to the Analog board
 			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable system (disable capture module)
