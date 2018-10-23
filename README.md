@@ -16,3 +16,5 @@
 - Version 3.3 The zip files in the BOOT_Files folder are verified to work and the instructions for loading the board have been updated. 
 
 - Version 3.31 Updated a naming difference in the Loading Instructions.
+
+- Version 3.4 Updated the bitstream for the BOOT files. When programmed with the BOOT files, the board will transmit SOH packets at the higher baud rate of 921600.
