@@ -107,7 +107,8 @@ int main()
 
 	//*******************Setup the UART **********************//
 	int Status = 0;
-	//XUartPs Uart_PS;	// instance of UART
+	int LoopCount = 0;
+	XUartPs Uart_PS;	// instance of UART
 
 	XUartPs_Config *Config = XUartPs_LookupConfig(UART_DEVICEID);
 	if (Config == NULL) { return 1;}
@@ -120,7 +121,9 @@ int main()
 
 	/* Set to normal mode. */
 	XUartPs_SetOperMode(&Uart_PS, XUARTPS_OPER_MODE_NORMAL);
-
+	while (XUartPs_IsSending(&Uart_PS)) {
+		LoopCount++;
+	}
 	// *********** Mount SD Card and Initialize Variables ****************//
 	if( doMount == 0 ){			//Initialize the SD card here
 		ffs_res = f_mount(NULL,"0:/",0);
@@ -269,7 +272,7 @@ int main()
 
 			//until we have found something useful, check to see if we need
 			// to report SOH information, 1 Hz
-			CheckForSOH();
+			CheckForSOH(Uart_PS);
 		}//END POLLING LOOP //END MAIN MENU
 
 		ipollReturn = 999;
@@ -290,7 +293,7 @@ int main()
 
 			//until we have found something useful, check to see if we need
 			// to report SOH information, 1 Hz
-			CheckForSOH();
+			CheckForSOH(Uart_PS);
 		}//END POLLING LOOP //END MAIN MENU
 
 		ipollReturn = 999;
@@ -358,7 +361,7 @@ int main()
 				}
 
 				//continue to loop and report SOH while waiting for user input
-				CheckForSOH();
+				CheckForSOH(Uart_PS);
 
 			}//END POLL UART
 
@@ -423,7 +426,7 @@ int main()
 			//go to the DAQ function
 			//go into the get_data function (renamed from GetWFDAQ())
 #ifdef BREAKUP_MAIN
-			get_data(&Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, RecvBuffer);
+			get_data(Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, RecvBuffer);
 #else
 			get_data(&Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, i_neutron_total, RecvBuffer, local_time_start, local_time);
 #endif
@@ -944,7 +947,7 @@ void ClearBuffers() {
 #ifndef BREAKUP_MAIN
 int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time)
 #else
-int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer)
+int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer)
 #endif
 {
 	int valid_data = 0; 	//BRAM buffer size
@@ -973,7 +976,7 @@ int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char
 	XTime local_time_current;
 	local_time_current = 0;
 
-	XUartPs_SetOptions(Uart_PS,XUARTPS_OPTION_RESET_RX);
+	XUartPs_SetOptions(&Uart_PS,XUARTPS_OPTION_RESET_RX);
 
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000); 		// DMA Transfer Step 1
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);			// DMA Transfer Step 2
@@ -1080,7 +1083,7 @@ int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char
 
 		//continue to loop and report SOH while waiting for user input
 #ifdef BREAKUP_MAIN
-		CheckForSOH();
+		CheckForSOH(Uart_PS);
 #else
 		XTime_GetTime(&local_time_current);
 		if(((local_time_current - local_time_start)/COUNTS_PER_SECOND) >= (local_time +  1))

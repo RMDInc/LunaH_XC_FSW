@@ -18,3 +18,5 @@
 - Version 3.31 Updated a naming difference in the Loading Instructions.
 
 - Version 3.4 Updated the bitstream for the BOOT files. When programmed with the BOOT files, the board will transmit SOH packets at the higher baud rate of 921600.
+
+- Version 3.5 This update concerns the source code only; the BOOT files are left as in previous releases. This update changes the scope of the UART access. This should be a more stable version for testing and integration of features by all.

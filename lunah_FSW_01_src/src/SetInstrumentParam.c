@@ -17,7 +17,7 @@
 #include "xiicps.h"
 
 extern CONFIG_STRUCT_TYPE ConfigBuff;
-extern XUartPs Uart_PS;
+//extern XUartPs Uart_PS;
 extern char cWriteToLogFile[];
 extern int iSprintfReturn;
 extern unsigned char error_buff[];
@@ -37,7 +37,7 @@ extern int IIC_SLAVE_ADDR4;
  */
 int SetTriggerThreshold(int iTrigThreshold)
 {
-  int bytes_sent;
+  int bytes_sent = 0;
   char report_buff[100];
 
 	if((iTrigThreshold > 0) && (iTrigThreshold < 16000))				//check that it's within accepted values
@@ -54,12 +54,12 @@ int SetTriggerThreshold(int iTrigThreshold)
 		iTrigThreshold = 0;	//reset var before reading
 		iTrigThreshold = Xil_In32(XPAR_AXI_GPIO_10_BASEADDR);
 		iSprintfReturn = snprintf(report_buff, 100, "%d\n", iTrigThreshold);
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+		//bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
 
 	}
 	else
 	{
-		bytes_sent = XUartPs_Send(&Uart_PS, error_buff, err_buff_size);
+		//bytes_sent = XUartPs_Send(&Uart_PS, error_buff, err_buff_size);
 	}
 
     return(bytes_sent);
@@ -76,7 +76,7 @@ int SetTriggerThreshold(int iTrigThreshold)
  */
 int SetNeutronCutGates(float ECut1, float ECut2, float PCut1, float PCut2)
 {
-  int bytes_sent;
+  int bytes_sent = 0;
   char report_buff[100];
 
       // write to config file buffer
@@ -88,7 +88,7 @@ int SetNeutronCutGates(float ECut1, float ECut2, float PCut1, float PCut2)
       SaveConfig();
   	  //send return value for function
 	  iSprintfReturn = snprintf(report_buff, 100, "%f_%f_%f_%f\n", ECut1, ECut2, PCut1, PCut2);
-	  bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+	  //bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
 
 	  return(bytes_sent);
 }
@@ -104,7 +104,7 @@ int SetNeutronCutGates(float ECut1, float ECut2, float PCut1, float PCut2)
  */
 int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, float WidePCut2)
 {
-	int bytes_sent;
+	int bytes_sent = 0;
 	char report_buff[100];
 
 	// write to config file buffer
@@ -116,7 +116,7 @@ int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, fl
 	    SaveConfig();
 		//send return value for function
 		iSprintfReturn = snprintf(report_buff, 100, "%f_%f_%f_%f\n", WideECut1, WideECut2, WidePCut1, WidePCut2);
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+		//bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
 
 		return(bytes_sent);
 }
@@ -136,7 +136,7 @@ int SetHighVoltage(int PmtId, int Value)
   unsigned char i2c_Recv_Buffer[2];
   int cntrl = 10;  // write command
   int RetVal;
-  int bytes_sent;
+  int bytes_sent = 0;
   char report_buff[100];
 
     // Fix swap of pot 2 and 3 connections if PmtId == 2 make it 3 and if PmtId ==3 make it 2
@@ -150,7 +150,7 @@ int SetHighVoltage(int PmtId, int Value)
     RetVal = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR4);  // check reason for pointer param 4
     if(RetVal != XST_SUCCESS)
     {
-    	bytes_sent = XUartPs_Send(&Uart_PS, error_buff, err_buff_size);
+    	//bytes_sent = XUartPs_Send(&Uart_PS, error_buff, err_buff_size);
     }
     else
     {
@@ -159,7 +159,7 @@ int SetHighVoltage(int PmtId, int Value)
     	ConfigBuff.HighVoltageValue[PmtId-1] = Value;
     	SaveConfig();
         iSprintfReturn = snprintf(report_buff, 100, "%d_%d\n", PmtId, Value);
-        bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+        //bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
     }
     return(bytes_sent);
 }
@@ -176,7 +176,7 @@ int SetHighVoltage(int PmtId, int Value)
  */
 int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
 {
-  int bytes_sent;
+  int bytes_sent = 0;
   char report_buff[100];
 
     if((Baseline < Short) && ( Short < Long) && (Long < Full))	//if each is greater than the last
@@ -200,10 +200,12 @@ int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
   		SaveConfig();
   		//send return value for function
   		iSprintfReturn = snprintf(report_buff, 100, "%d_%d_%d_%d\n",Baseline, Short, Long, Full);
-  		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+  		//bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
   	}
-  	else
-  		bytes_sent = XUartPs_Send(&Uart_PS, error_buff, err_buff_size);
+  	else{
+  		//bytes_sent = XUartPs_Send(&Uart_PS, error_buff, err_buff_size);
+  		xil_printf("FFFFFF\r\n");
+  	}
 
     return(bytes_sent);
 
@@ -223,7 +225,7 @@ int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
  */
 int SetEnergyCalParam(float Slope, float Intercept)
 {
-  int bytes_sent;
+  int bytes_sent = 0;
   char report_buff[100];
 
     ConfigBuff.ECalSlope = Slope;
@@ -231,7 +233,7 @@ int SetEnergyCalParam(float Slope, float Intercept)
     SaveConfig();
     //send return value for function
   	iSprintfReturn = snprintf(report_buff, 100, "%f_%f\n", Slope, Intercept);
-  	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+  	//bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
 
 	return(bytes_sent);
 }

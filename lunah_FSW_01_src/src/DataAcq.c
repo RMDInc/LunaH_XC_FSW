@@ -15,7 +15,7 @@
 enum LoopStateTypes LoopState = MainLoopState;
 unsigned int RealTime;
 
-extern XUartPs Uart_PS;
+//extern XUartPs Uart_PS;
 
 int DataAcqInit(int Command, int i_orbit_number)
 {
@@ -47,7 +47,7 @@ int DataAcqInit(int Command, int i_orbit_number)
 		snprintf(c_EVT_Filename1, 50, "1:/%04d_%04d_evt.bin",i_orbit_number, i_daq_run_number);
 		snprintf(c_CNT_Filename1, 50, "1:/%04d_%04d_cnt.bin",i_orbit_number, i_daq_run_number);
 		RetVal = snprintf(report_buff, 100, "%s_%s\n", c_EVT_Filename0, c_CNT_Filename0);	//create the string to tell CDH
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, RetVal);
+		//bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, RetVal);
 	// Open data files
 
 
@@ -70,7 +70,7 @@ int StartDataAcqLoop(int i_orbit_number)
 
 
 
-	Command = ReadCommandType(RecvBuffer, &Uart_PS);
+	//Command = ReadCommandType(RecvBuffer, &Uart_PS);
 	switch(Command)
 	{
 		case START_CMD:

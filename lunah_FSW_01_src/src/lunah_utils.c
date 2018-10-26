@@ -32,7 +32,7 @@ static float modu_board_temp = 25;
 static int iNeuronTotal = 50;
 static int check_temp_sensor = 0;
 
-extern XUartPs Uart_PS;
+//extern XUartPs Uart_PS;
 extern int IIC_SLAVE_ADDR1; //HV on the analog board - write to HV pots, RDAC
 extern int IIC_SLAVE_ADDR2;	//Temp sensor on digital board
 extern int IIC_SLAVE_ADDR3;	//Temp sensor on the analog board
@@ -86,7 +86,7 @@ int IncNeuronTotal(int increment)
  *  CheckForSOH
  *      Check if time to send SOH and if it is send it.
  */
-int CheckForSOH(void)
+int CheckForSOH(XUartPs Uart_PS)
 {
   int iNeuronTotal;
 

@@ -16,7 +16,7 @@
 void InitStartTime(void);
 XTime GetLocalTime(void);
 int GetNeuronTotal(void);
-int CheckForSOH(void);
+int CheckForSOH(XUartPs Uart_PS);
 int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS);
 int SaveConfig(void);
 void PutCCSDSHeader(unsigned char * SOH_buff, int length);
