@@ -29,7 +29,7 @@ static XTime LocalTimeCurrent = 0;
 static float anlg_board_temp = 23;
 static float digi_board_temp = 24;
 static float modu_board_temp = 25;
-static int iNeuronTotal = 50;
+static int iNeutronTotal = 50;
 static int check_temp_sensor = 0;
 
 //extern XUartPs Uart_PS;
@@ -65,21 +65,21 @@ XTime GetTempTime(void)
 /*
  *  stub file to return neuron total.
  */
-int GetNeuronTotal(void)
+int GetNeutronTotal(void)
 {
-	return(iNeuronTotal);
+	return(iNeutronTotal);
 }
 
 int PutNeuronTotal(int total)
 {
-	iNeuronTotal = total;
-	return iNeuronTotal;
+	iNeutronTotal = total;
+	return iNeutronTotal;
 }
 
 int IncNeuronTotal(int increment)
 {
-    iNeuronTotal += increment;
-	return iNeuronTotal;
+    iNeutronTotal += increment;
+	return iNeutronTotal;
 }
 
 /*
@@ -88,14 +88,14 @@ int IncNeuronTotal(int increment)
  */
 int CheckForSOH(XUartPs Uart_PS)
 {
-  int iNeuronTotal;
+  int iNeutronTotal;
 
 	XTime_GetTime(&LocalTimeCurrent);
 	if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (LocalTime +  1))
 	{
-		iNeuronTotal = GetNeuronTotal();
+		iNeutronTotal = GetNeutronTotal();
 		LocalTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND;
-		report_SOH(LocalTime, iNeuronTotal, Uart_PS);
+		report_SOH(LocalTime, iNeutronTotal, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
 	}
 	return LocalTime;
 }
@@ -105,19 +105,19 @@ int CheckForSOH(XUartPs Uart_PS)
 //////////////////////////// Report SOH Function ////////////////////////////////
 //This function takes in the number of neutrons currently counted and the local time
 // and pushes the SOH data product to the bus over the UART
-int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
+int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type)
 {
 	//Variables
 	//change this to unsigned char and run on board
 	unsigned char report_buff[100] = "";
-	unsigned char i2c_Send_Buffer[2] = {};
-	unsigned char i2c_Recv_Buffer[2] = {};
-	int a = 0;
-	int b = 0;
+	//unsigned char i2c_Send_Buffer[2] = {};
+	//unsigned char i2c_Recv_Buffer[2] = {};
+	//int a = 0;
+	//int b = 0;
 	//int analog_board_temp = 0;
 	//int digital_board_temp = 0;
 	int i_sprintf_ret = 0;
-	int *IIC_SLAVE_ADDR;		//pointer to slave
+	//int *IIC_SLAVE_ADDR;		//pointer to slave
 
 /*	//analog board temp - case 14
 	IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
@@ -191,14 +191,29 @@ int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
 	digital_board_temp = b; */
 
 
-	//print the SOH information after the CCSDS header
-	i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%2.2f\t%2.2f\t%2.2f\t%d\t%llu\n", anlg_board_temp, digi_board_temp, modu_board_temp, i_neutron_total, local_time);
-	//Put in the CCSDS Header
-	PutCCSDSHeader(report_buff, i_sprintf_ret);
-	//calculate the checksums
-	CalculateChecksums(report_buff, i_sprintf_ret);
-	XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
-
+	switch(packet_type)
+	{
+	case READ_TMP_CMD:
+		//print the SOH information after the CCSDS header
+		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%2.2f\t%2.2f\t%2.2f\n", anlg_board_temp, digi_board_temp, modu_board_temp);
+		//Put in the CCSDS Header
+		PutCCSDSHeader(report_buff, i_sprintf_ret);
+		//calculate the checksums
+		CalculateChecksums(report_buff, i_sprintf_ret);
+		XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+		break;
+	case GETSTAT_CMD:
+		//print the SOH information after the CCSDS header
+		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%2.2f\t%2.2f\t%2.2f\t%d\t%llu\n", anlg_board_temp, digi_board_temp, modu_board_temp, i_neutron_total, local_time);
+		//Put in the CCSDS Header
+		PutCCSDSHeader(report_buff, i_sprintf_ret);
+		//calculate the checksums
+		CalculateChecksums(report_buff, i_sprintf_ret);
+		XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+		break;
+	default:
+		break;
+	}
 	return check_temp_sensor;
 }
 
@@ -257,13 +272,24 @@ void CalculateChecksums(unsigned char * packet_array, int length)
 int CreatDefaultConfig(void)
 {
 	ConfigBuff = (CONFIG_STRUCT_TYPE){.TriggerThreshold=2,
-	  	.EnergyCut[0]=3.0f,.EnergyCut[1]=4.0f,
-		.PsdCut[0]=5.0f,.PsdCut[1]=6.0f,
-		.WideEnergyCut[0]=7.0f,.WideEnergyCut[1]=8.0f,
-		.WidePsdCut[0]=9.0f,.WidePsdCut[1]=10.0f,
-	    .HighVoltageValue[0]=11,.HighVoltageValue[1]=11,.HighVoltageValue[2]=11,.HighVoltageValue[3]=11,
-		.IntegrationBaseline=0,.IntegrationShort=35,.IntegrationLong=131,.IntegrationFull=1531,
-		.ECalSlope=12.0f,.EcalIntercept=13.0f
+	  	.EnergyCut[0]=3.0f,
+		.EnergyCut[1]=4.0f,
+		.PsdCut[0]=5.0f,
+		.PsdCut[1]=6.0f,
+		.WideEnergyCut[0]=7.0f,
+		.WideEnergyCut[1]=8.0f,
+		.WidePsdCut[0]=9.0f,
+		.WidePsdCut[1]=10.0f,
+	    .HighVoltageValue[0]=11,
+		.HighVoltageValue[1]=11,
+		.HighVoltageValue[2]=11,
+		.HighVoltageValue[3]=11,
+		.IntegrationBaseline=0,
+		.IntegrationShort=35,
+		.IntegrationLong=131,
+		.IntegrationFull=1531,
+		.ECalSlope=12.0f,
+		.EcalIntercept=13.0f
 	};
 	return 0;
 }
@@ -283,70 +309,70 @@ int AltCreatDefaultConfig(void)
 	return 0;
 }
 
-// #define INIT_CONFIG_TESTED
+
 int InitConfig(void)
 {
-  uint NumBytesWr;
-  uint NumBytesRd;
-  FRESULT F_RetVal;
-//  int RetVal;
-#define INIT_CONFIG_TESTED
-#ifndef INIT_CONFIG_TESTED
-     return 0;
-#else
+	uint NumBytesWr;
+	uint NumBytesRd;
+	FRESULT F_RetVal;
+	int RetVal = 0;
+
 	// check that config file exists
 	if( f_stat( cConfigFile, &CnfFno) )
-	{	// f_stat returns non-zero(false) if no file exists, create default buffer and open/create the file
+	{
+		//Open and write to a new config file
 		CreatDefaultConfig();
 		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
-		F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
 		filptr_cConfigFile += NumBytesWr;
-		F_RetVal = f_close(&ConfigFile);
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_close(&ConfigFile);
 	}
-	else // If the file exists, read it
+	else // The config file exists, read it
 	{
 		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
-		F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
-		F_RetVal = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);	//Read the config file into ConfigBuff
-
-		F_RetVal = f_close(&ConfigFile);							//close the file
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);	//Read the config file into ConfigBuff
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_close(&ConfigFile);							//close the file
 	}
-#endif
-	return 0;
+
+	RetVal = (int)F_RetVal;
+	return RetVal;
 }
 
-#define SAVE_CONFIG_TESTED
+
 int SaveConfig()
 {
 	uint NumBytesWr;
 	FRESULT F_RetVal;
 	int RetVal = 0;
 
-#ifndef SAVE_CONFIG_TESTED
-	    return 0;
-#else
-
-		// check that config file exists
-		if( f_stat( cConfigFile, &CnfFno) )
-		{	// f_stat returns non-zero(false) if no file exists, so open/create the file
-			F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+	// check that config file exists
+	if( f_stat( cConfigFile, &CnfFno) )
+	{	// f_stat returns non-zero(false) if no file exists, so open/create the file
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+		if(F_RetVal == FR_OK)
 			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
-			filptr_cConfigFile += NumBytesWr;
+		filptr_cConfigFile += NumBytesWr;
+		if(F_RetVal == FR_OK)
 			F_RetVal = f_close(&ConfigFile);
-		}
-		else // If the file exists, write it
-		{
-			F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+	}
+	else // If the file exists, write it
+	{
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+		if(F_RetVal == FR_OK)
 			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+		if(F_RetVal == FR_OK)
 			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);	//Write the ConfigBuff to config file
-
+		if(F_RetVal == FR_OK)
 			F_RetVal = f_close(&ConfigFile);							//close the file
 		}
 
-
-
-
+	RetVal = (int)F_RetVal;
     return RetVal;
-#endif
 }
 

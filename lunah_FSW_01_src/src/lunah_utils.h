@@ -15,17 +15,18 @@
 // prototypes
 void InitStartTime(void);
 XTime GetLocalTime(void);
-int GetNeuronTotal(void);
+int GetNeutronTotal(void);
 int CheckForSOH(XUartPs Uart_PS);
-int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS);
+int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type);
+int InitConfig(void);
 int SaveConfig(void);
 void PutCCSDSHeader(unsigned char * SOH_buff, int length);
 void CalculateChecksums(unsigned char * packet_array, int length);
 
 
 // lunah_config structure
+// instrument parameters
 typedef struct {
-	// instrument parameters
 	int TriggerThreshold;
 	float EnergyCut[2];
 	float PsdCut[2];

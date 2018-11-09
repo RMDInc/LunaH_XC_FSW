@@ -29,6 +29,36 @@
 #define CHECKSUM_SIZE		4
 #define CCSDS_HEADER_SIZE	11
 
+// Command definitions (can optionally be done with enum - used defines for now to assure compatibility)
+#define DAQ_CMD			0
+#define WF_CMD			1
+#define READ_TMP_CMD	2
+#define GETSTAT_CMD		3
+#define DISABLE_ACT_CMD	4
+#define ENABLE_ACT_CMD	5
+#define TX_CMD			6
+#define DEL_CMD			7
+#define LS_CMD			8
+#define TXLOG_CMD		9
+#define	CONF_CMD		10
+#define TRG_CMD			11
+#define ECAL_CMD		12
+#define NGATES_CMD		13
+#define NWGATES_CMD		14
+#define HV_CMD			15
+#define INT_CMD			16
+#define BREAK_CMD		17
+#define START_CMD		18
+#define END_CMD			19
+#define READ_DIGI_TEMP	21
+#define READ_ANLG_TEMP	22
+#define READ_MODU_TEMP	23
+#define INPUT_OVERFLOW	100
+
+//Command SUCCESS/FAILURE values
+#define CMD_FAILURE		0	// 0 == FALSE
+#define CMD_SUCCESS		1	// non-zero == TRUE
+
 enum LoopStateTypes
 {
     MainLoopState,

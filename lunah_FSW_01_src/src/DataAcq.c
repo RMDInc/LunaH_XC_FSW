@@ -63,8 +63,8 @@ int DataAcqInit(int Command, int i_orbit_number)
 
 int StartDataAcqLoop(int i_orbit_number)
 {
-  int Command;
-  int RetVal;
+  int Command = -1;
+  int RetVal = 0;
 
   char RecvBuffer[100];
 
