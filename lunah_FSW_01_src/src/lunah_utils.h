@@ -22,7 +22,9 @@ int InitConfig(void);
 int SaveConfig(void);
 void PutCCSDSHeader(unsigned char * SOH_buff, int length);
 void CalculateChecksums(unsigned char * packet_array, int length);
-
+char *reportSuccess(int menusel);
+char *reportFailure(int menusel);
+int parseCommand(int menusel, char *cmdArr);
 
 // lunah_config structure
 // instrument parameters

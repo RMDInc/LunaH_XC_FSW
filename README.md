@@ -23,3 +23,7 @@
 
 - Version 3.6 This is close to finished Level 2 FSW. This version introduces basic functionality and user interaction. The board will report 4 types of output packets. A lot of reorganization has taken place in terms of breaking out code into modules (header + source file), as well as adding in getter/setter functions for status variables. The Log File is now in place and working. The Receive buffer functionality, which holds commands from the UART until they are processed, has been updated and is now implemented as a 'rolling receive'. This means that as commands fill the buffer they are processed, then deleted from the buffer, and the buffer is shifted over, so commands which came after it are then read, processed, and shifted out. 
 When finished, the Level 2 FSW will be running on an XC board. At that point, a test macro and binary reader/packet reader will be used to test the implementation and ensure that everything is worked as intended. The date for that to be finsihed is projected to be 11/16/2018.
+
+- Version 3.61 James updated the code and added the reportSuccesss/Failure commands to the utils file. These functions allow us to create a command SUCCESS/FAILURE packet when a function needs to report such. 
+
+- Version 3.62 Graham merged James' code into the repository. Also added was a folder for TeraTerm macros which is in the commands/ folder. Each update will have a spot for the macro for that FSW level.

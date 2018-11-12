@@ -239,6 +239,293 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length)
 
 	return;
 }
+
+/**
+ * Utility function to convert an int representing a command
+ * into a string itself. Modularized away from reportSuccess()
+ * and reportFailure().
+ *
+ * TODO: Maybe we can use ReadCommandType() in main.c, because
+ * We already read the recvBuffer there, then convert it to an int...
+ * Just to convert it back to a char[]. Instead, we can get the command
+ * in main.c using an overridden ReadCommandType(), and return the command
+ * as a char instead of int, bypassing this function.
+ */
+int parseCommand(int menusel, char *cmdArr)
+{
+	int cmdLen;
+	switch (menusel)
+		{
+		case 0:
+			//DAQ
+			strcpy(cmdArr, "DAQ");
+			cmdLen = 3;
+			break;
+		case 1:
+			//WF
+			strcpy(cmdArr, "WF");
+			cmdLen = 2;
+			break;
+		case 2:
+			//TMP
+			strcpy(cmdArr, "TMP");
+			cmdLen = 3;
+			break;
+		case 3:
+			//GETSTAT
+			strcpy(cmdArr, "GETSTAT");
+			cmdLen = 7;
+			break;
+		case 4:
+			//DISABLE_ACT
+			strcpy(cmdArr, "DISABLE_ACT");
+			cmdLen = 11;
+			break;
+		case 5:
+			//DISABLE_TEC
+			strcpy(cmdArr, "DISABLE_TEC");
+			cmdLen = 11;
+			break;
+		case 6:
+			//ENABLE_TEC
+			strcpy(cmdArr, "ENABLE_TEC");
+			cmdLen = 10;
+			break;
+		case 7:
+			//TX
+			strcpy(cmdArr, "TX");
+			cmdLen = 2;
+			break;
+		case 8:
+			//DEL
+			strcpy(cmdArr, "DEL");
+			cmdLen = 3;
+			break;
+		case 9:
+			//LS
+			strcpy(cmdArr, "LS");
+			cmdLen = 2;
+			break;
+		case 10:
+			//TRG
+			strcpy(cmdArr, "TRG");
+			cmdLen = 3;
+			break;
+		case 11:
+			//NGATES
+			strcpy(cmdArr, "NGATES");
+			cmdLen = 6;
+			break;
+		case 12:
+			//HV
+			strcpy(cmdArr, "HV");
+			cmdLen = 2;
+			break;
+		case 13:
+			//INT
+			strcpy(cmdArr, "INT");
+			cmdLen = 3;
+			break;
+		case 14:
+			//ECAL
+			strcpy(cmdArr, "ECAL");
+			cmdLen = 4;
+			break;
+		case 15:
+			//BREAK
+			strcpy(cmdArr, "BREAK");
+			cmdLen = 5;
+			break;
+		case 16:
+			//START
+			strcpy(cmdArr, "START");
+			cmdLen = 5;
+			break;
+		case 17:
+			//END
+			strcpy(cmdArr, "END");
+			cmdLen = 3;
+			break;
+		case 18:
+			//END_TMP
+			strcpy(cmdArr, "END_TMP");
+			cmdLen = 7;
+			break;
+		case 19:
+			//READ_TMP
+			strcpy(cmdArr, "READ_TMP");
+			cmdLen = 8;
+			break;
+		default:
+			strcpy(cmdArr, "INVALID_CMD");
+			cmdLen = 11;
+			break;
+		}
+
+	return cmdLen;
+}
+
+/**
+ * Byte format:
+ * 0-8: Primary CCSDS header, but byte 5 = 0x00
+ * 9: Packet length = N + 3
+ * 10: Reset request flag
+ * 11..N-2: ASCII characters of the command
+ * N-1: Simple checksum
+ * N: Fletcher checksum
+ * N+1: CCSDS checksum MSB
+ * N+2: CCSDS checksum LSB
+ */
+char *reportSuccess(int menusel)
+{
+
+	//Bytes 0-3 are the sync markers
+	unsigned char syncMarkers[] = "53 46 248 83 \0";
+	//Byte 4 is version number/APID MSB
+	unsigned char byte4[] = "10 \0";
+	//Byte 5 is APID LSB
+	unsigned char byte5[] = "0 \0";
+	//Byte 6 is sequence count MSB...Need to figure out
+	//How this is tracked
+	unsigned char byte6[] = "SC MSB \0";
+	//Byte 7 is sequence count LSB...Same thing
+	unsigned char byte7[] = "SC LSB \0";
+	//Byte 8 is the packet length MSB
+	unsigned char byte8[] = "length MSB \0";
+	//Byte 9 is the packet length LSB
+	unsigned char byte9[] = "length LSB \0";
+	//Byte 10 is the reset request flag...Should be 0 for commandSuccess
+	unsigned char byte10[] = "0 \0";
+	//Byte 11 is the ASCII chars of the command
+
+	//Create a buffer to hold the ASCII
+	unsigned char cmdByte[] = {0};
+	//Fill the buffer with ASCII
+	//parseCommand() returns the length of the command, so store that
+	unsigned char cmdLen = parseCommand(menusel, cmdByte);
+
+	//Now we need to figure out the packet length
+
+	int packetLength = 0;
+	packetLength += strlen(syncMarkers);
+	packetLength += strlen(byte4);
+	packetLength += strlen(byte5);
+	packetLength += strlen(byte6);
+	packetLength += strlen(byte7);
+	packetLength += strlen(byte8);
+	packetLength += strlen(byte9);
+	packetLength += strlen(byte10);
+	packetLength += strlen(cmdLen);
+	//Convert the packet length to a char (not sure if this is how we should do this)
+
+
+
+	unsigned char packetLen = packetLength + '0';
+	//Create a buffer to hold the length
+	unsigned char lengthByte[] = {packetLength};
+	//This increases packet length, so take that into account
+	packetLength += strlen(lengthByte);
+	unsigned char realLengthByte[] = {packetLength};
+	//Finally, create and construct the buffer to return
+	unsigned char *cmdSuccess = malloc(100);
+	strcat(cmdSuccess, syncMarkers);
+	strcat(cmdSuccess, byte4);
+	strcat(cmdSuccess, byte5);
+	strcat(cmdSuccess, byte6);
+	strcat(cmdSuccess, byte7);
+	strcat(cmdSuccess, byte8);
+	strcat(cmdSuccess, byte9);
+	strcat(cmdSuccess, byte10);
+	strcat(cmdSuccess, cmdByte);
+	strcat(cmdSuccess, realLengthByte);
+	strcat(cmdSuccess, "\n");
+
+	return cmdSuccess;
+}
+
+/**
+ * Byte format:
+ * 0-8: Primary CCSDS header, but byte 5 = 0x11
+ * 9: Packet length = N + 3
+ * 10: Reset request flag
+ * 11..N-2: ASCII characters of the command
+ * N-1: Simple checksum
+ * N: Fletcher checksum
+ * N+1: CCSDS checksum MSB
+ * N+2: CCSCS checksum LSB
+ */
+char *reportFailure(int menusel)
+{
+	//Bytes 0-3 are the sync markers
+	unsigned char syncMarkers[] = "53 46 248 83 \0";
+	//Byte 4 is version number/APID MSB
+	unsigned char byte4[] = "10 \0";
+	//Byte 5 is APID LSB
+	unsigned char byte5[] = "11 \0";
+	//Byte 6 is sequence count MSB...Need to figure out
+	//How this is tracked
+	unsigned char byte6[] = "SC MSB \0";
+	//Byte 7 is sequence count LSB...Same thing
+	unsigned char byte7[] = "SC LSB \0";
+	//Byte 8 is packet length MSB
+	unsigned char byte8[] = "length MSB \0";
+	//Byte 9 is packet length LSB
+	unsigned char byte9[] = "length LSB \0";
+	//Byte 10 is reset request flag, should be 0 for commandFailure
+	unsigned char byte10[] = "0 \0";
+	//Byte 11 is the ASCII chars of the command
+
+	//Create a buffer to hold the ASCII
+	unsigned char cmdByte[] = {0};
+	//Fill the buffer with the ASCII from parseCommand()
+	//The function returns the length of the command, so store that too
+	unsigned char cmdLen = parseCommand(menusel, cmdByte);
+
+	//Now we need to figure out the packet length
+
+	int packetLength = 0;
+	packetLength += strlen(syncMarkers);
+	packetLength += strlen(byte4);
+	packetLength += strlen(byte5);
+	packetLength += strlen(byte6);
+	packetLength += strlen(byte7);
+	packetLength += strlen(byte8);
+	packetLength += strlen(byte9);
+	packetLength += strlen(byte10);
+	packetLength += strlen(cmdByte);
+
+	//Convert packetLength into a char (Not sure if this is the way to do this)
+	unsigned char packetLen = packetLength + '0';
+
+	//Create a buffer to hold the length
+	unsigned char lengthByte = {packetLen, '\0'};
+
+	//This increases packetLen, so that that into account
+	packetLength += strlen(lengthByte);
+	//Convert back into a char?
+	packetLen = packetLength + '0';
+	//Then fill the byte with the correct value
+	unsigned char realLengthByte = {packetLen, '\0'};
+//	free(lengthByte);
+	//Finally, create and construct the buffer to be returned
+	unsigned char *cmdSuccess = malloc(100);
+	strcat(cmdSuccess, syncMarkers);
+	strcat(cmdSuccess, byte4);
+	strcat(cmdSuccess, byte5);
+	strcat(cmdSuccess, byte6);
+	strcat(cmdSuccess, byte7);
+	strcat(cmdSuccess, byte8);
+	strcat(cmdSuccess, byte9);
+	strcat(cmdSuccess, byte10);
+	strcat(cmdSuccess, cmdByte);
+	strcat(cmdSuccess, realLengthByte);
+	strcat(cmdSuccess, "\n");
+
+	return cmdSuccess;
+
+
+}
+
 void CalculateChecksums(unsigned char * packet_array, int length)
 {
 	//this function will calculate the simple, Fletcher, and CCSDS checksums for any packet going out
