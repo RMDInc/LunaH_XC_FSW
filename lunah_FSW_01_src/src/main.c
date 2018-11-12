@@ -47,7 +47,6 @@
 
 #include "main.h"
 
-
 //this is Flight Software Version 2.1
 //Updated 8-17-2018, 12:08
 
@@ -125,63 +124,63 @@ int main()
 	while (XUartPs_IsSending(&Uart_PS)) {
 		LoopCount++;
 	}
-	// *********** Mount SD Card and Initialize Variables ****************//
-	if( doMount == 0 ){			//Initialize the SD card here
-		ffs_res = f_mount(NULL,"0:/",0);
-		ffs_res = f_mount(&fatfs[0], "0:/",0);
-		ffs_res = f_mount(NULL,"1:/",0);
-		ffs_res = f_mount(&fatfs[1],"1:/",0);
-		doMount = 1;
-	}
-	if( f_stat( cLogFile, &fno) ){	// f_stat returns non-zero(false) if no file exists, so open/create the file
-		ffs_res = f_open(&logFile, cLogFile, FA_WRITE|FA_OPEN_ALWAYS);
-		ffs_res = f_write(&logFile, cZeroBuffer, 10, &numBytesWritten);
-		filptr_clogFile += numBytesWritten;		// Protect the first xx number of bytes to use as flags, in this case xx must be 10
-		ffs_res = f_close(&logFile);
-	}
-	else // If the file exists, read it
-	{
-		ffs_res = f_open(&logFile, cLogFile, FA_READ|FA_WRITE);	//open with read/write access
-		ffs_res = f_lseek(&logFile, 0);							//go to beginning of file
-		ffs_res = f_read(&logFile, &filptr_buffer, 10, &numBytesRead);	//Read the first 10 bytes to determine flags and the size of the write pointer
-		sscanf(filptr_buffer, "%d", &filptr_clogFile);			//take the write pointer from char -> integer so we may use it
-		ffs_res = f_lseek(&logFile, filptr_clogFile);			//move the write pointer so we don't overwrite info
-		iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "POWER RESET %f ", dTime);	//write that the system was power cycled
-		ffs_res = f_write(&logFile, cWriteToLogFile, iSprintfReturn, &numBytesWritten);	//write to the file
-		filptr_clogFile += numBytesWritten;						//update the write pointer
-		ffs_res = f_close(&logFile);							//close the file
-	}
+	// *********** Mount SD Card ****************//
+	/* FAT File System Variables */
+	FATFS fatfs[2];
+	FILINFO fno;
+	int sd_status = 0;
 
+	sd_status = MountSDCards( fatfs );
+	if(sd_status == CMD_SUCCESS)	//correct mounting
+	{
+		sd_status = InitLogFile0();	//create log file on SD0
+		if(sd_status == CMD_FAILURE)
+		{
+			//handle a bad log file?
+			xil_printf("SD0 failed to init\r\n");
+		}
+		sd_status = InitLogFile1();	//create log file on SD1
+		if(sd_status == CMD_FAILURE)
+		{
+			//handle a bad log file?
+			xil_printf("SD1 failed to init\r\n");
+		}
+	}
+	else
+	{
+		xil_printf("SD0/1 failed to mount\r\n");
+		//need to handle the SD card not reading
+		//do we try each one separately then set a flag?
+		sd_status = MountSD0(fatfs);
+		if(sd_status == CMD_SUCCESS)
+		{
+			//SD0 is not the problem
+		}
+		else
+		{
+			//SD0 is the problem
+			//set a flag to indicate to only use SD1?
+			xil_printf("SD0 failed to mount\r\n");
+		}
+		sd_status = MountSD1(fatfs);
+		if(sd_status == CMD_SUCCESS)
+		{
+			//SD1 is not the problem
+		}
+		else
+		{
+			//SD1 is the problem
+			//set a flag to indicate to only use SD0?
+			xil_printf("SD1 failed to mount\r\n");
+		}
+	}
+	// *********** Initialize Mini-NS System Parameters ****************//
 	InitConfig();
 
-	//we are going to skip this code and not write a directory log file
-	// because we can use an SD card function to write out the contents
-	// of the card later
-//	if( f_stat(cDirectoryLogFile0, &fnoDIR) )	//check if the file exists
-//	{
-//		ffs_res = f_open(&directoryLogFile, cDirectoryLogFile0, FA_WRITE|FA_OPEN_ALWAYS);	//if no, create the file
-//		ffs_res = f_write(&directoryLogFile, cZeroBuffer, 10, &numBytesWritten);			//write the zero buffer so we can keep track of the write pointer
-//		filptr_cDIRFile += 10;																//move the write pointer
-//		ffs_res = f_write(&directoryLogFile, cLogFile, 11, &numBytesWritten);				//write the name of the log file because it was created above
-//		filptr_cDIRFile += numBytesWritten;													//update the write pointer
-//		snprintf(cWriteToLogFile, 10, "%d", filptr_cDIRFile);								//write formatted output to a sized buffer; create a string of a certain length
-//		ffs_res = f_lseek(&directoryLogFile, (10 - LNumDigits(filptr_cDIRFile)));			// Move to the start of the file
-//		ffs_res = f_write(&directoryLogFile, cWriteToLogFile, LNumDigits(filptr_cDIRFile), &numBytesWritten);	//Record the new file pointer
-//		ffs_res = f_close(&directoryLogFile);												//close the file
-//	}
-//	else	//if the file exists, read it
-//	{
-//		ffs_res = f_open(&directoryLogFile, cDirectoryLogFile0, FA_READ);					//open the file
-//		ffs_res = f_lseek(&directoryLogFile, 0);											//move to the beginning of the file
-//		ffs_res = f_read(&directoryLogFile, &filptr_cDIRFile_buffer, 10, &numBytesWritten);	//read the write pointer
-//		sscanf(filptr_cDIRFile_buffer, "%d", &filptr_cDIRFile);								//write the pointer to the relevant variable
-//		ffs_res = f_close(&directoryLogFile);												//close the file
-//	}
-	// *********** Mount SD Card and Initialize Variables ****************//
+	// *********** Initialize Local Variables ****************//
 
 	//start timing
 	XTime local_time_start = 0;
-//	XTime local_time_current = 0;
 	XTime local_time = 0;
 	XTime_GetTime(&local_time_start);	//get the time
 	InitStartTime();
@@ -207,16 +206,21 @@ int main()
 	char c_file_to_access[FILENAME_SIZE] = "";
 	char transfer_file_contents[DATA_PACKET_SIZE] = "";
 	char RecvBuffer[100] = "";
+
+	char * last_command;				//pointer to handle writing commands to the log file
+	unsigned int last_command_size = 0;	//holder for size
+	int status = 0;						//local status variable for reporting SUCCESS/FAILURE
+
 	/* move to make global
 	unsigned char error_buff[] = "FFFFFF\n";
 	unsigned char break_buff[] = "FAFAFA\n";
 	unsigned char success_buff[] = "AAAAAA\n"; */
 	int ipollReturn = 0;
 	int	menusel = 99999;	// Menu Select
+	int i_neutron_total = 0;	//current neutron total
 	int i_sscanf_ret = 0;
 	int i_orbit_number = 0;
 	int i_daq_run_number = 0;
-	int status = 0;
 	int iterator = 0;
 	int sent = 0;
 	int bytes_sent = 0;
@@ -224,7 +228,6 @@ int main()
 	int file_size = 0;
 	int checksum1 = 0;
 	int checksum2 = 0;
-	int i_neutron_total = 0;
 	int i_trigger_threshold = 0;	// Trigger Threshold
 	int *IIC_SLAVE_ADDR;		//pointer to slave
 	unsigned int sync_marker = 0x352EF853;
@@ -248,58 +251,214 @@ int main()
 	// if not, then sends a command failure packet
 	//after, SOH is checked to see if it is time to report SOH
 	//When it is time, reports a full CCSDS SOH packet
-	while(1){	//BEGIN TEMP ASU TESTING LOOP
-		memset(RecvBuffer, '0', 100);	// Clear RecvBuffer Variable
-		XUartPs_SetOptions(&Uart_PS, XUARTPS_OPTION_RESET_RX);
-		iPollBufferIndex = 0;
 
-		while(1)	//POLLING LOOP // MAIN MENU
-		{
+	//if this message is garbled, change the buad rate in TT
+	xil_printf("low baud\r\n");	//change out this bitstream
+	while(1){	//OUTER LEVEL 2 TESTING LOOP
+		while(1){
+			//resetting this value every time is (potentially) critical
+			//resetting this ensures we don't re-use a command a second time (erroneously)
 			menusel = 99999;
-			menusel = ReadCommandType(RecvBuffer, &Uart_PS);
-			menusel = 1;
-//			xil_printf("Menusel:");
-//			xil_printf("%d\n", menusel);
+			menusel = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
 
-			if ( menusel > -1 && menusel <= 18 ){
-				//we found a valid LUNAH command
-				//report command success
-
-				char *p = reportSuccess(menusel);
-				if(p) {
-//					xil_printf("Command success:");
-					xil_printf("%s\n", p);
-					memset(p, 0, sizeof(p));
+			if ( menusel > -1 && menusel <= 19 )
+			{
+				//we found a valid LUNAH command or input was bad (-1)
+				//log the command issued, unless it is an error
+				if(menusel != -1)
+				{
+					//write to the log file
+					//get the command from ReadCommandType
+					last_command = GetLastCommand();
+					//get the size of the command
+					last_command_size = GetLastCommandSize();
+					//send the command to the log file write function
+					LogFileWrite( last_command, last_command_size );
+					//should probably just have the following syntax
+					//LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 				}
-
-				char *q = reportFailure(menusel);
-				if(q) {
-//					xil_printf("Command failure:");
-					xil_printf("%s\n", q);
-					memset(q, 0, sizeof(q));
-				}
-
-				break;
+				break;	//leave the loop and execute the function
 			}
-			else if( menusel == -1){
-				//we found an invalid LUNAH command
-				//report command failure
-
-				break;
-			}
-
-			//until we have found something useful, check to see if we need
-			// to report SOH information, 1 Hz
+			//check to see if it is time to report SOH information, 1 Hz
 			CheckForSOH(Uart_PS);
-		}//END POLLING LOOP //END MAIN MENU
+		}//END TEMP ASU TESTING LOOP
 
-		ipollReturn = 999;
-	}//END TEMP ASU TESTING LOOP
+		//MAIN MENU OF FUNCTIONS
+		switch (menusel) { // Switch-Case Menu Select
+		case -1:
+			//we found an invalid command
+			xil_printf("bad command detected\r\n");	//break and return to polling loop
+			break;
+		case DAQ_CMD:
+			//do data acquisition stuff here
+			//this is level 3 stuff
+			xil_printf("received DAQ command \r\n");
+			break;
+		case WF_CMD:
+			//do WF acquisition here
+			//this is level 3 stuff
+			xil_printf("received WF command\r\n");
+			break;
+		case READ_TMP_CMD:
+			//this is so close to just an SOH packet
+			//investigating using the report SOH code to send temp packets
+			xil_printf("readtemp packet\r\n");
+			//tell the report_SOH function that we want a temp packet
+			report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			xil_printf("readtemp packet\r\n");
+			break;
+		case GETSTAT_CMD: //Push an SOH packet to the bus
+			xil_printf("getstat packet\r\n");
+			//instead of checking for SOH, just push one SOH packet out because it was requested
+			report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
+			xil_printf("getstat packet\r\n");
+			break;
+		case DISABLE_ACT_CMD:
+			//disable the active components here
+			xil_printf("received DISABLE command\r\n");
+			//write to the log file
+
+			//disable the components
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
+			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
+			//No SW check on success/failure
+			//Read the current the board pulls to determine if this succeeded
+			//Report SUCCESS (no way to check for failure)
+
+			break;
+		case ENABLE_ACT_CMD:
+			//enable the active components here
+			xil_printf("received ENABLE command\r\n");
+			//write to the log file
+
+			//enable the components
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 1);		//enable 5V to analog board
+			//No SW check on success/failure
+			//Read the current the board pulls to determine if this succeeded
+			//Report SUCCESS (no way to check for failure)
+
+			break;
+		case TX_CMD:
+			//transfer any file on the SD card
+			xil_printf("received TX command\r\n");
+			break;
+		case DEL_CMD:
+			//delete a file from the SD card
+			xil_printf("received DEL command\r\n");
+			break;
+		case LS_CMD:
+			//transfer the names and sizes of the files on the SD card
+			xil_printf("received LS_FILES command\r\n");
+			break;
+		case TXLOG_CMD:
+			//transfer the system log file
+			xil_printf("received TXLOG command\r\n");
+			break;
+		case CONF_CMD:
+			//transfer the configuration file
+			xil_printf("received CONF command\r\n");
+			break;
+		case TRG_CMD:
+			//set the trigger threshold
+			status = SetTriggerThreshold( GetIntParam(1) );
+			//Report SUCCESS or FAILURE
+			if(status)
+				status = CMD_SUCCESS;
+			else
+				status = CMD_FAILURE;
+			break;
+		case ECAL_CMD:
+			//set the energy calibration parameters
+			status = SetEnergyCalParam( GetFloatParam(1), GetFloatParam(2) );
+			//Report SUCCESS or FAILURE
+			if(status)
+				status = CMD_SUCCESS;
+			else
+				status = CMD_FAILURE;
+			break;
+		case NGATES_CMD:
+			//set the neutron cuts
+			status = SetNeutronCutGates( GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
+			//Report SUCCESS or FAILURE
+			if(status)
+				status = CMD_SUCCESS;
+			else
+				status = CMD_FAILURE;
+			break;
+		case NWGATES_CMD:
+			//set the neutron wide cuts
+			status = SetWideNeutronCutGates( GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
+			//Report SUCCESS or FAILURE
+			if(status)
+				status = CMD_SUCCESS;
+			else
+				status = CMD_FAILURE;
+			break;
+		case HV_CMD:
+			//set the PMT bias
+			xil_printf("received HV command\r\n");
+			sleep(1);
+
+			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(1));
+			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(2));
+
+			break;
+		case INT_CMD:
+			//set the integration times
+			xil_printf("received INT command\r\n");
+
+			sleep(1);
+
+			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(1));
+			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(2));
+			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(3));
+			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(4));
+
+			break;
+		case BREAK_CMD:
+			//leave a command
+			xil_printf("received BREAK command\r\n");
+			break;
+		case START_CMD:
+			//start a WF of DAQ science run
+			xil_printf("received START command\r\n");
+			break;
+		case END_CMD:
+			//end the DAQ or WF science run
+			xil_printf("received END command\r\n");
+			break;
+		case READ_DIGI_TEMP:
+			//read the temp sensor on the digital board
+			xil_printf("received READ_DIGI_TEMP command\r\n");
+			break;
+		case READ_ANLG_TEMP:
+			//read the temp sensor on the analog board
+			xil_printf("received READ_ANLG_TEMP command\r\n");
+			break;
+		case READ_MODU_TEMP:
+			//read the temp sensor on the module
+			xil_printf("received READ_MODU_TEMP command\r\n");
+			break;
+		case INPUT_OVERFLOW:
+			//too much input
+			xil_printf("Overflowed the buffer (too much input at one time)\r\n");
+			xil_printf("The buffer will try and read through what was sent\r\n");
+			break;
+		default:
+			//got a value for menusel we did not expect
+			//list of accepted values are found in "lunah_defines.h"
+			//what is the list of values we can receive total?
+			xil_printf("something weird happened: default at main menu\r\n");
+			break;
+		}//END OF SWITCH/CASE (MAIN MENU OF FUNCTIONS)
+
+	}//END OF OUTER LEVEL 2 TESTING LOOP
 
 	while(1){
 		memset(RecvBuffer, '0', 100);	// Clear RecvBuffer Variable
 		XUartPs_SetOptions(&Uart_PS, XUARTPS_OPTION_RESET_RX);
-		iPollBufferIndex = 0;
+		//iPollBufferIndex = 0;
 
 		while(1)	//POLLING LOOP // MAIN MENU
 		{
@@ -321,7 +480,7 @@ int main()
 			//report command failure
 
 			break;
-		case DAQ__CMD: //DAQ mode
+		case DAQ_CMD: //DAQ
 #ifdef BREAKUP_MAIN_DAQ
 			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
 			DataAcqInit(menusel, i_orbit_number);
@@ -347,7 +506,7 @@ int main()
 
 			//poll for START, BREAK
 			memset(RecvBuffer, '0', 100);
-			iPollBufferIndex = 0;
+			//iPollBufferIndex = 0;
 			while(ipollReturn != BREAK_CMD && ipollReturn != START_CMD)
 			{
 				ipollReturn = ReadCommandType(RecvBuffer, &Uart_PS);
@@ -437,7 +596,7 @@ int main()
 			ffs_res = f_close(&data_file);
 
 			memset(RecvBuffer, '0', 100);
-			iPollBufferIndex = 0;
+			//iPollBufferIndex = 0;
 			ClearBuffers();
 			ipollReturn = 999;	//reset the variable
 
@@ -502,14 +661,11 @@ int main()
 		case WF_CMD: //Capture WF data
 
 			break;
-		case TMP_CMD: //TMP Set Loop
-
-			break;
 		case GETSTAT_CMD: //Getstat
 			//calculate the time
 			local_time = GetLocalTime();
 			//instead of checking for SOH, just push one SOH packet out because it was requested
-			report_SOH(local_time, GetNeuronTotal(), Uart_PS);
+			report_SOH(local_time, GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
 			break;
 		case DISABLE_ACT_CMD: //Disable Data Acquisition Components
 			//this is the power (5v and 3.3v) to the Analog board
@@ -537,7 +693,7 @@ int main()
 		case 7:	//TX Files
 			//use this case to send files from the SD card to the screen
 			sscanf(RecvBuffer + 2 + 1, " %s", c_file_to_TX);	//read in the name of the file to be transmitted
-			iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "file TX %s ", c_file_to_TX);
+			//iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "file TX %s ", c_file_to_TX);
 			//Write to log file
 
 			//have the file name to TX, prepare it for sending
@@ -605,7 +761,7 @@ int main()
 		case 8:	//DEL Files
 			//use this case to delete files from the SD card
 			sscanf(RecvBuffer + 3 + 1, " %s", c_file_to_access);	//read in the name of the file to be deleted
-			iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "file DEL %s ", c_file_to_access);
+			//iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "file DEL %s ", c_file_to_access);
 			//WriteToLogFile
 
 			if(!f_stat(c_file_to_access, &fno))	//check if the file exists on disk
@@ -628,8 +784,6 @@ int main()
 				//file did not exist
 				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
 			}
-			break;
-		case 9: //LS_Files
 			break;
 		case TRG_CMD: //Trigger threshold set
 #ifdef BREAKUP_MAIN
@@ -738,7 +892,7 @@ int main()
 			sleep(1); //built in latency
 			break;
 #endif
-		case 13: //Set Integration Times
+		case INT_CMD: //Set Integration Times
 #ifdef BREAKUP_MAIN
 			sscanf(RecvBuffer + 3 + 1, " %d_%d_%d_%d", &i_integration_times[0], &i_integration_times[1], &i_integration_times[2], &i_integration_times[3]);
 			bytes_sent = SetIntergrationTime(i_integration_times[0], i_integration_times[1], i_integration_times[2], i_integration_times[3]);
@@ -765,7 +919,7 @@ int main()
 				bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
 			break;
 #endif
-		case 14:	//Read Temp on the digital board
+		case READ_DIGI_TEMP:	//Read Temp on the digital board
 			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR2;
 			i2c_Send_Buffer[0] = 0x0;
 			i2c_Send_Buffer[1] = 0x0;
@@ -780,7 +934,7 @@ int main()
 			xil_printf("%d\xf8\x43\n\r", b); //take integer, which is in degrees C \xf8 = degree symbol, \x43 = C
 			sleep(1); //built in latency
 			break;
-		case 15:
+		case READ_ANLG_TEMP:
 			//read the temperature from the analog board temp sensor
 			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
 			i2c_Send_Buffer[0] = 0x0;
@@ -796,7 +950,7 @@ int main()
 			xil_printf("%d\xf8\x43\n\r", b);
 			sleep(1); //built in latency
 			break;
-		case 16:
+		case READ_MODU_TEMP:
 			//read the temperature from the Extra Temp Sensor Board
 			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR5;
 			i2c_Send_Buffer[0] = 0x0;
@@ -844,6 +998,8 @@ int InitializeAXIDma(void) {
 //////////////////////////// InitializeInterruptSystem////////////////////////////////
 int InitializeInterruptSystem(u16 deviceID) {
 	int Status;
+	static XScuGic_Config *GicConfig; 	// GicConfig
+	XScuGic InterruptController;		// Interrupt controller
 
 	GicConfig = XScuGic_LookupConfig (deviceID);
 
@@ -1172,7 +1328,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 
 	free(data_array);
 //  return i_neutron_total;
-	return(GetNeuronTotal());  // is there a reasons to return neuron total will if changed it will be with PutNeuronTotal in lunah_utils.c
+	return(GetNeutronTotal());  // is there a reasons to return neuron total will if changed it will be with PutNeuronTotal in lunah_utils.c
 }
 
 //////////////////////////// get_data ////////////////////////////////

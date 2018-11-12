@@ -27,3 +27,7 @@ When finished, the Level 2 FSW will be running on an XC board. At that point, a 
 - Version 3.61 James updated the code and added the reportSuccesss/Failure commands to the utils file. These functions allow us to create a command SUCCESS/FAILURE packet when a function needs to report such. 
 
 - Version 3.62 Graham merged James' code into the repository. Also added was a folder for TeraTerm macros which is in the commands/ folder. Each update will have a spot for the macro for that FSW level.
+
+- Version 3.621 Transition commit.
+
+- Version 3.63 Successfully merged the new code into the repository.
