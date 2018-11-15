@@ -17,12 +17,6 @@
 #include "xiicps.h"
 
 extern CONFIG_STRUCT_TYPE ConfigBuff;
-//extern XUartPs Uart_PS;
-//extern char cWriteToLogFile[];
-//extern int iSprintfReturn;
-extern unsigned char error_buff[];
-extern int err_buff_size;
-extern int IIC_SLAVE_ADDR4;
 
 /*
  *    Set Event Trigger Threshold
@@ -190,11 +184,12 @@ int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, fl
  *			Latency: TBD
  *			Return: command SUCCESS (0) or command FAILURE (1)
  */
-int SetHighVoltage(int PmtId, int Value)
+int SetHighVoltage(unsigned char PmtId, int Value)
 {
+	int IIC_SLAVE_ADDR1 = 0x20; //HV on the analog board - write to HV pots, RDAC
 	unsigned char i2c_Send_Buffer[2];
 	unsigned char i2c_Recv_Buffer[2];
-	int cntrl = 10;  // write command
+	unsigned char cntrl = 16;  // write command
 	int RetVal = 0;
 	int status = 0;
 	int iterator = 0;
@@ -206,7 +201,7 @@ int SetHighVoltage(int PmtId, int Value)
 	}
 
 	//check the PMT ID is ok
-	if((PmtId >= 0) && (PmtId <= 5) && (PmtId != 4))
+	if((PmtId > 0) && (PmtId <= 5))
 	{
 		//check tap value is an acceptable number
 		if((Value >= 0) && (Value <= 255))
@@ -218,7 +213,7 @@ int SetHighVoltage(int PmtId, int Value)
 				i2c_Send_Buffer[0] = cntrl | (PmtId - 1);
 				i2c_Send_Buffer[1] = Value;
 				//send the command to the HV
-				RetVal = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR4);
+				RetVal = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
 				if(RetVal == XST_SUCCESS)
 				{
 					// write to config file
@@ -232,7 +227,7 @@ int SetHighVoltage(int PmtId, int Value)
 			else if(PmtId == 5)
 			{
 				//do the above code for each PMT
-				for(iterator = 0; iterator < 4; iterator++)
+				for(iterator = 1; iterator < 5; iterator++)
 				{
 					//cycle over PmtId 0, 1, 2, 3 to set the voltage on each PMT
 					PmtId = iterator;
@@ -240,7 +235,7 @@ int SetHighVoltage(int PmtId, int Value)
 					i2c_Send_Buffer[0] = cntrl | (PmtId - 1);
 					i2c_Send_Buffer[1] = Value;
 					//send the command to the HV
-					RetVal = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR4);
+					RetVal = IicPsMasterSend(IIC_DEVICE_ID_0 ,i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
 					if(RetVal == XST_SUCCESS)
 					{
 						// write to config file

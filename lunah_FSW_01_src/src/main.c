@@ -87,9 +87,20 @@ int main()
 
 	XGpioPs_SetDirectionPin(&Gpio, SW_BREAK_GPIO, 1);
 	//******************Setup and Initialize IIC*********************//
-	//IIC0 = sensor head
-	//IIC1 = thermometer
-	//XIicPs Iic;
+	int iic_status = 0;
+
+	iic_status = IicPsInit(IIC_DEVICE_ID_0);
+	if(iic_status != XST_SUCCESS)
+	{
+		//handle the issue
+		xil_printf("fix the Iic device 0\r\n");
+	}
+	iic_status = IicPsInit(IIC_DEVICE_ID_1);
+	if(iic_status != XST_SUCCESS)
+	{
+		//handle the issue
+		xil_printf("fix the Iic device 1\r\n");
+	}
 
 	//*******************Receive and Process Packets **********************//
 	Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, 0);	//baseline integration time	//subtract 38 from each int
@@ -189,14 +200,8 @@ int main()
 	XTime timer1 = 0;//test timers, can delete
 	XTime timer2 = 0;
 */
-	//Temp/I2C variables
-	int a, b;					//used for bitwise operations
-	int analog_board_temp = 0;
-	int digital_board_temp = 0;
 
 	// Initialize buffers
-	char filename_buff[50] = "";
-	char full_filename_buff[54] = "";
 	char report_buff[100] = "";
 	char c_CNT_Filename0[FILENAME_SIZE] = "";
 	char c_EVT_Filename0[FILENAME_SIZE] = "";
@@ -218,18 +223,15 @@ int main()
 	int ipollReturn = 0;
 	int	menusel = 99999;	// Menu Select
 	int i_neutron_total = 0;	//current neutron total
-	int i_sscanf_ret = 0;
 	int i_orbit_number = 0;
 	int i_daq_run_number = 0;
 	int iterator = 0;
 	int sent = 0;
 	int bytes_sent = 0;
-	int bytes_recvd = 0;
 	int file_size = 0;
 	int checksum1 = 0;
 	int checksum2 = 0;
 	int i_trigger_threshold = 0;	// Trigger Threshold
-	int *IIC_SLAVE_ADDR;		//pointer to slave
 	unsigned int sync_marker = 0x352EF853;
 	unsigned long long int i_real_time = 0;
 	int i_integration_times[4] = {};
@@ -261,7 +263,7 @@ int main()
 			menusel = 99999;
 			menusel = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
 
-			if ( menusel > -1 && menusel <= 19 )
+			if ( menusel > -1 && menusel <= 23 )
 			{
 				//we found a valid LUNAH command or input was bad (-1)
 				//log the command issued, unless it is an error
@@ -287,158 +289,151 @@ int main()
 		switch (menusel) { // Switch-Case Menu Select
 		case -1:
 			//we found an invalid command
-			xil_printf("bad command detected\r\n");	//break and return to polling loop
+			//xil_printf("bad command detected\r\n");	//break and return to polling loop
+			//Report CMD_FAILURE
+			reportFailure(Uart_PS);
 			break;
 		case DAQ_CMD:
 			//do data acquisition stuff here
 			//this is level 3 stuff
-			xil_printf("received DAQ command \r\n");
+			//xil_printf("received DAQ command \r\n");
 			break;
 		case WF_CMD:
 			//do WF acquisition here
 			//this is level 3 stuff
-			xil_printf("received WF command\r\n");
+			//xil_printf("received WF command\r\n");
 			break;
 		case READ_TMP_CMD:
-			//this is so close to just an SOH packet
-			//investigating using the report SOH code to send temp packets
-			xil_printf("readtemp packet\r\n");
 			//tell the report_SOH function that we want a temp packet
-			report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
-			xil_printf("readtemp packet\r\n");
+			status = report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			if(status == CMD_FAILURE)
+				reportFailure(Uart_PS);
 			break;
 		case GETSTAT_CMD: //Push an SOH packet to the bus
-			xil_printf("getstat packet\r\n");
 			//instead of checking for SOH, just push one SOH packet out because it was requested
-			report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
-			xil_printf("getstat packet\r\n");
+			status = report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
+			if(status == CMD_FAILURE)
+				reportFailure(Uart_PS);
 			break;
 		case DISABLE_ACT_CMD:
-			//disable the active components here
-			xil_printf("received DISABLE command\r\n");
-			//write to the log file
-
 			//disable the components
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
 			//No SW check on success/failure
-			//Read the current the board pulls to determine if this succeeded
 			//Report SUCCESS (no way to check for failure)
-
+			reportSuccess(Uart_PS);
 			break;
 		case ENABLE_ACT_CMD:
-			//enable the active components here
-			xil_printf("received ENABLE command\r\n");
-			//write to the log file
-
-			//enable the components
+			//enable the active components
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 1);		//enable 5V to analog board
 			//No SW check on success/failure
-			//Read the current the board pulls to determine if this succeeded
 			//Report SUCCESS (no way to check for failure)
-
+			reportSuccess(Uart_PS);
 			break;
 		case TX_CMD:
 			//transfer any file on the SD card
-			xil_printf("received TX command\r\n");
+			//xil_printf("received TX command\r\n");
 			break;
 		case DEL_CMD:
 			//delete a file from the SD card
-			xil_printf("received DEL command\r\n");
+			//xil_printf("received DEL command\r\n");
 			break;
 		case LS_CMD:
 			//transfer the names and sizes of the files on the SD card
-			xil_printf("received LS_FILES command\r\n");
+			//xil_printf("received LS_FILES command\r\n");
 			break;
 		case TXLOG_CMD:
 			//transfer the system log file
-			xil_printf("received TXLOG command\r\n");
+			//xil_printf("received TXLOG command\r\n");
 			break;
 		case CONF_CMD:
 			//transfer the configuration file
-			xil_printf("received CONF command\r\n");
+			//xil_printf("received CONF command\r\n");
 			break;
 		case TRG_CMD:
 			//set the trigger threshold
 			status = SetTriggerThreshold( GetIntParam(1) );
-			//Report SUCCESS or FAILURE
+			//Determine SUCCESS or FAILURE
 			if(status)
-				status = CMD_SUCCESS;
+				reportSuccess(Uart_PS);
 			else
-				status = CMD_FAILURE;
+				reportFailure(Uart_PS);
 			break;
 		case ECAL_CMD:
 			//set the energy calibration parameters
 			status = SetEnergyCalParam( GetFloatParam(1), GetFloatParam(2) );
-			//Report SUCCESS or FAILURE
+			//Determine SUCCESS or FAILURE
 			if(status)
-				status = CMD_SUCCESS;
+				reportSuccess(Uart_PS);
 			else
-				status = CMD_FAILURE;
+				reportFailure(Uart_PS);
 			break;
 		case NGATES_CMD:
 			//set the neutron cuts
 			status = SetNeutronCutGates( GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
-			//Report SUCCESS or FAILURE
+			//Determine SUCCESS or FAILURE
 			if(status)
-				status = CMD_SUCCESS;
+				reportSuccess(Uart_PS);
 			else
-				status = CMD_FAILURE;
+				reportFailure(Uart_PS);
 			break;
 		case NWGATES_CMD:
 			//set the neutron wide cuts
 			status = SetWideNeutronCutGates( GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
-			//Report SUCCESS or FAILURE
+			//Determine SUCCESS or FAILURE
 			if(status)
-				status = CMD_SUCCESS;
+				reportSuccess(Uart_PS);
 			else
-				status = CMD_FAILURE;
+				reportFailure(Uart_PS);
 			break;
 		case HV_CMD:
-			//set the PMT bias
-			xil_printf("received HV command\r\n");
-			sleep(1);
-
-			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(1));
-			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(2));
-
+			//set the PMT bias voltage for one or more PMTs
+			//intParam1 = PMT ID
+			//intParam2 = Bias Voltage (taps)
+			status = SetHighVoltage(GetIntParam(1), GetIntParam(2));
+			//Determine SUCCESS or FAILURE
+			if(status)
+				reportSuccess(Uart_PS);
+			else
+				reportFailure(Uart_PS);
 			break;
 		case INT_CMD:
 			//set the integration times
-			xil_printf("received INT command\r\n");
-
-			sleep(1);
-
-			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(1));
-			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(2));
-			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(3));
-			xil_printf("GET INT PARAM found the value %d in the buffer\r\n", GetIntParam(4));
-
+			//intParam1 = Baseline integration time
+			//intParam2 = Short integration time
+			//intParam3 = Long integration time
+			//intParam4 = Full integration time
+			status = SetIntergrationTime(GetIntParam(1), GetIntParam(2), GetIntParam(3), GetIntParam(4));
+			//Determine SUCCESS or FAILURE
+			if(status)
+				reportSuccess(Uart_PS);
+			else
+				reportFailure(Uart_PS);
 			break;
 		case BREAK_CMD:
 			//leave a command
-			xil_printf("received BREAK command\r\n");
+			//xil_printf("received BREAK command\r\n");
 			break;
 		case START_CMD:
 			//start a WF of DAQ science run
-			xil_printf("received START command\r\n");
+			//xil_printf("received START command\r\n");
 			break;
 		case END_CMD:
 			//end the DAQ or WF science run
-			xil_printf("received END command\r\n");
+			//xil_printf("received END command\r\n");
 			break;
 		case READ_DIGI_TEMP:
 			//read the temp sensor on the digital board
-			xil_printf("received READ_DIGI_TEMP command\r\n");
+			//xil_printf("received READ_DIGI_TEMP command\r\n");
 			break;
 		case READ_ANLG_TEMP:
 			//read the temp sensor on the analog board
-			xil_printf("received READ_ANLG_TEMP command\r\n");
+			//xil_printf("received READ_ANLG_TEMP command\r\n");
 			break;
 		case READ_MODU_TEMP:
 			//read the temp sensor on the module
-			xil_printf("received READ_MODU_TEMP command\r\n");
+			//xil_printf("received READ_MODU_TEMP command\r\n");
 			break;
 		case INPUT_OVERFLOW:
 			//too much input
@@ -449,7 +444,8 @@ int main()
 			//got a value for menusel we did not expect
 			//list of accepted values are found in "lunah_defines.h"
 			//what is the list of values we can receive total?
-			xil_printf("something weird happened: default at main menu\r\n");
+			//xil_printf("something weird happened: default at main menu\r\n");
+			//Report CMD_FAILURE
 			break;
 		}//END OF SWITCH/CASE (MAIN MENU OF FUNCTIONS)
 
@@ -489,7 +485,7 @@ int main()
 
 			//can check this later to see if we are coming from the a new DAQ call
 			// or if we are trying to jump back in during a run
-			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
+//			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
 			//increment DAQ run number each time we make it to this function
 			i_daq_run_number++;
 			//set processed data mode
@@ -746,7 +742,9 @@ int main()
 				bytes_sent = 0;
 				while(sent < (file_size + 11))
 				{
-					bytes_sent = XUartPs_Send(&Uart_PS, &(transfer_file_contents[0]) + sent, (file_size + 11) - sent);
+					//will need to look at this code to double check that it will be
+					// ok to make the transfer_file_contents buffer unsigned
+					//bytes_sent = XUartPs_Send(&Uart_PS, &(transfer_file_contents[0]) + sent, (file_size + 11) - sent);
 					sent += bytes_sent;
 				}
 
@@ -919,53 +917,53 @@ int main()
 				bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
 			break;
 #endif
-		case READ_DIGI_TEMP:	//Read Temp on the digital board
-			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR2;
-			i2c_Send_Buffer[0] = 0x0;
-			i2c_Send_Buffer[1] = 0x0;
-			Status = IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-			Status = IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-			a = i2c_Recv_Buffer[0]<< 5;
-			b = a | i2c_Recv_Buffer[1] >> 3;
-			if(i2c_Recv_Buffer[0] >= 128)
-				b = (b - 8192) / 16;
-			else
-				b = b / 16;
-			xil_printf("%d\xf8\x43\n\r", b); //take integer, which is in degrees C \xf8 = degree symbol, \x43 = C
-			sleep(1); //built in latency
-			break;
-		case READ_ANLG_TEMP:
-			//read the temperature from the analog board temp sensor
-			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
-			i2c_Send_Buffer[0] = 0x0;
-			i2c_Send_Buffer[1] = 0x0;
-			Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-			a = i2c_Recv_Buffer[0]<< 5;
-			b = a | i2c_Recv_Buffer[1] >> 3;
-			if(i2c_Recv_Buffer[0] >= 128)
-				b = (b - 8192) / 16;
-			else
-				b = b / 16;
-			xil_printf("%d\xf8\x43\n\r", b);
-			sleep(1); //built in latency
-			break;
-		case READ_MODU_TEMP:
-			//read the temperature from the Extra Temp Sensor Board
-			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR5;
-			i2c_Send_Buffer[0] = 0x0;
-			i2c_Send_Buffer[1] = 0x0;
-			Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-			a = i2c_Recv_Buffer[0]<< 5;
-			b = a | i2c_Recv_Buffer[1] >> 3;
-			if(i2c_Recv_Buffer[0] >= 128)
-				b = (b - 8192) / 16;
-			else
-				b = b / 16;
-			xil_printf("%d\xf8\x43\n\r", b);
-			sleep(1); //built in latency
-			break;
+//		case READ_DIGI_TEMP:	//Read Temp on the digital board
+//			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR2;
+//			i2c_Send_Buffer[0] = 0x0;
+//			i2c_Send_Buffer[1] = 0x0;
+//			Status = IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
+//			Status = IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
+//			a = i2c_Recv_Buffer[0]<< 5;
+//			b = a | i2c_Recv_Buffer[1] >> 3;
+//			if(i2c_Recv_Buffer[0] >= 128)
+//				b = (b - 8192) / 16;
+//			else
+//				b = b / 16;
+//			xil_printf("%d\xf8\x43\n\r", b); //take integer, which is in degrees C \xf8 = degree symbol, \x43 = C
+//			sleep(1); //built in latency
+//			break;
+//		case READ_ANLG_TEMP:
+//			//read the temperature from the analog board temp sensor
+//			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
+//			i2c_Send_Buffer[0] = 0x0;
+//			i2c_Send_Buffer[1] = 0x0;
+//			Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
+//			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
+//			a = i2c_Recv_Buffer[0]<< 5;
+//			b = a | i2c_Recv_Buffer[1] >> 3;
+//			if(i2c_Recv_Buffer[0] >= 128)
+//				b = (b - 8192) / 16;
+//			else
+//				b = b / 16;
+//			xil_printf("%d\xf8\x43\n\r", b);
+//			sleep(1); //built in latency
+//			break;
+//		case READ_MODU_TEMP:
+//			//read the temperature from the Extra Temp Sensor Board
+//			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR5;
+//			i2c_Send_Buffer[0] = 0x0;
+//			i2c_Send_Buffer[1] = 0x0;
+//			Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
+//			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
+//			a = i2c_Recv_Buffer[0]<< 5;
+//			b = a | i2c_Recv_Buffer[1] >> 3;
+//			if(i2c_Recv_Buffer[0] >= 128)
+//				b = (b - 8192) / 16;
+//			else
+//				b = b / 16;
+//			xil_printf("%d\xf8\x43\n\r", b);
+//			sleep(1); //built in latency
+//			break;
 		default :
 			break;
 		} // End Switch-Case Menu Select
@@ -1147,8 +1145,8 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 	FIL data_file_dest;
 
 	//timing
-	XTime local_time_current;
-	local_time_current = 0;
+//	XTime local_time_current;
+//	local_time_current = 0;
 
 	XUartPs_SetOptions(&Uart_PS,XUARTPS_OPTION_RESET_RX);
 
@@ -1224,7 +1222,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
+//				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
 				ClearBuffers();
 				buff_num = 0;
 

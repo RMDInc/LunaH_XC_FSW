@@ -86,11 +86,11 @@ int data = 0;
 
 //int *IIC_SLAVE_ADDR;		//pointer to slave
 //int IIC_SLAVE_ADDR1 = 0x2F; //Hey Graham, I changed these - mkaffine // 2/21/2018
-int IIC_SLAVE_ADDR1 = 0x20; //HV on the analog board - write to HV pots, RDAC
-int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
-int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
-int IIC_SLAVE_ADDR4 = 0x2F;	//VTSET on the analog board - give voltage to TEC regulator
-int IIC_SLAVE_ADDR5 = 0x4A; //Extra Temp Sensor Board, on module near thermistor on TEC
+//int IIC_SLAVE_ADDR1 = 0x20; //HV on the analog board - write to HV pots, RDAC
+//int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
+//int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
+//int IIC_SLAVE_ADDR4 = 0x2F;	//VTSET on the analog board - give voltage to TEC regulator
+//int IIC_SLAVE_ADDR5 = 0x4A; //Extra Temp Sensor Board, on module near thermistor on TEC
 
 // Global - Interrupt System
 u32 global_frame_counter = 0;	// Counts for the interrupt system

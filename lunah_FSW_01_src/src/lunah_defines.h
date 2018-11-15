@@ -59,6 +59,20 @@
 #define CMD_FAILURE		0	// 0 == FALSE
 #define CMD_SUCCESS		1	// non-zero == TRUE
 
+//APID Packet Types
+#define APID_CMD_SUCC	0
+#define APID_CMD_FAIL	1
+#define APID_SOH		2
+#define APID_LS_FILES	3
+#define APID_TEMP		4
+#define APID_MNS_CPS	5
+#define APID_MNS_WAV	6
+#define APID_MNS_EVTS	7
+#define APID_MNS_2DH	8
+#define APID_LOG_FILE	9
+#define APID_CONFIG		10
+
+
 enum LoopStateTypes
 {
     MainLoopState,

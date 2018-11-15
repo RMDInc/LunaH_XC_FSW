@@ -7,6 +7,39 @@
 
 #include "LI2C_Interface.h"
 
+int IicPsInit(u16 DeviceId)
+{
+	XIicPs_Config *Config;
+	int iStatus = 0;
+
+	/*
+	* Initialize the IIC driver so that it's ready to use
+	* Look up the configuration in the config table,
+	* then initialize it.
+	*/
+	Config = XIicPs_LookupConfig(DeviceId);
+	if (NULL == Config)
+		iStatus = XST_FAILURE;
+
+	iStatus = XIicPs_CfgInitialize(&Iic, Config, Config->BaseAddress);
+	if (iStatus != XST_SUCCESS)
+		iStatus = XST_FAILURE;
+
+	/*
+	 * Perform a self-test to ensure that the hardware was built correctly.
+	 */
+	iStatus = XIicPs_SelfTest(&Iic);
+	if (iStatus != XST_SUCCESS)
+		iStatus = XST_FAILURE;
+
+	/*
+	 * Set the IIC serial clock rate.
+	 */
+	XIicPs_SetSClk(&Iic, IIC_SCLK_RATE);
+
+	return iStatus;
+}
+
 /*****************************************************************************/
 /**
 *
@@ -25,31 +58,30 @@
 *******************************************************************************/
 int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
 {
-	XIicPs_Config *Config;
 	int iStatus = 0;
+	XIicPs_Config *Config;
 
 	/*
-	 * Initialize the IIC driver so that it's ready to use
-	 * Look up the configuration in the config table,
-	 * then initialize it.
-	 */
+	* Initialize the IIC driver so that it's ready to use
+	* Look up the configuration in the config table,
+	* then initialize it.
+	*
+	* Need to do this each time we address a new device,
+	*  so we'll just do it each time.
+	*/
 	Config = XIicPs_LookupConfig(DeviceId);
-	if (NULL == Config) {
-		return XST_FAILURE;
-	}
+	if (NULL == Config)
+		iStatus = XST_FAILURE;
 
 	iStatus = XIicPs_CfgInitialize(&Iic, Config, Config->BaseAddress);
-	if (iStatus != XST_SUCCESS) {
-		return XST_FAILURE;
-	}
-
+	if (iStatus != XST_SUCCESS)
+		iStatus = XST_FAILURE;
 	/*
 	 * Perform a self-test to ensure that the hardware was built correctly.
 	 */
-//	iStatus = XIicPs_SelfTest(&Iic);
-//	if (iStatus != XST_SUCCESS) {
-//		return XST_FAILURE;
-//	}
+	iStatus = XIicPs_SelfTest(&Iic);
+	if (iStatus != XST_SUCCESS)
+		iStatus = XST_FAILURE;
 
 	/*
 	 * Set the IIC serial clock rate.
@@ -57,22 +89,11 @@ int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, in
 	XIicPs_SetSClk(&Iic, IIC_SCLK_RATE);
 
 	/*
-	 * Initialize the send buffer bytes with a pattern to send and the
-	 * the receive buffer bytes to zero to allow the receive data to be
-	 * verified.
-	 */
-	int iIndex = 0;
-	for (iIndex = 0; iIndex < TEST_BUFFER_SIZE; iIndex++) {
-		ptr_Recv_Buffer[iIndex] = 0;
-	}
-
-	/*
 	 * Send the buffer using the IIC and ignore the number of bytes sent
 	 * as the return value since we are using it in interrupt mode.
 	 */
 
 	 XIicPs_MasterSend(&Iic, ptr_Send_Buffer, TEST_BUFFER_SIZE, *iI2C_slave_addr);
-//	 sleep(1);
 
 	/*
 	 * Wait until bus is idle to start another transfer.
@@ -80,20 +101,23 @@ int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, in
 	while (XIicPs_BusIsBusy(&Iic))
 	{
 		/* NOP */
+		//Will need to handle this timing us out
+		//For example, if this becomes disconnected, the system will
+		// wait here indefinitely because the I2C will never not
+		// be busy. Thus, hanging the system.
+
+		//need to set something to report failure if we time out
 	}
 
-	if (iStatus != XST_SUCCESS){
-		return XST_FAILURE;
-	}
 	return XST_SUCCESS;
 }
 
-int IicPsMasterRecieve(u16 DeviceId, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
+int IicPsMasterRecieve(u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
 {
 	int iStatus = 0;
 	iStatus = XIicPs_MasterRecvPolled(&Iic, ptr_Recv_Buffer, 0x2, *iI2C_slave_addr);
-	if (iStatus != XST_SUCCESS) {
-			return XST_FAILURE;
-		}
-	return XST_SUCCESS;
+	if (iStatus != XST_SUCCESS)
+		iStatus = XST_FAILURE;
+
+	return iStatus;
 }

@@ -21,14 +21,13 @@
 
 #define IIC_SCLK_RATE		90000
 #define TEST_BUFFER_SIZE	2
-/* Globals */
 
 /* Declare Variables */
 XIicPs Iic;					//Instance of the IIC device
-//int * iI2C_slave_addr;
 
 /* Function Declarations */
+int IicPsInit(u16 DeviceId);
 int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
-int IicPsMasterRecieve(u16 DeviceId, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
+int IicPsMasterRecieve(u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
 
 #endif /* LI2C_INTERFACE_H_ */

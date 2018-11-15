@@ -31,3 +31,5 @@ When finished, the Level 2 FSW will be running on an XC board. At that point, a 
 - Version 3.621 Transition commit.
 
 - Version 3.63 Successfully merged the new code into the repository.
+
+- Version 3.7 This update adds the full Level 2 packet output to the FSW. Each of the functions for Level 2 have been checked for functionality and testing and validation with a macro and binary reader are beginning. Once validated, this version of the FSW will be shipped. 

@@ -26,19 +26,13 @@ static XTime TempTime = 0;
 static XTime LocalTimeStart;
 static XTime LocalTimeCurrent = 0;
 
-static float anlg_board_temp = 23;
-static float digi_board_temp = 24;
+//may still need these if we want to 'get' the temp at some point
+//also, need to verify that we are getting the correct temp
+static int analog_board_temp = 1;
+static int digital_board_temp = 1;
 static float modu_board_temp = 25;
 static int iNeutronTotal = 50;
 static int check_temp_sensor = 0;
-
-//extern XUartPs Uart_PS;
-extern int IIC_SLAVE_ADDR1; //HV on the analog board - write to HV pots, RDAC
-extern int IIC_SLAVE_ADDR2;	//Temp sensor on digital board
-extern int IIC_SLAVE_ADDR3;	//Temp sensor on the analog board
-extern int IIC_SLAVE_ADDR4;	//VTSET on the analog board - give voltage to TEC regulator
-extern int IIC_SLAVE_ADDR5; //Extra Temp Sensor Board, on module near thermistor on TEC
-
 
 /*
  * Initalize LocalTimeStart at startup
@@ -108,58 +102,69 @@ int CheckForSOH(XUartPs Uart_PS)
 int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type)
 {
 	//Variables
-	//change this to unsigned char and run on board
 	unsigned char report_buff[100] = "";
-	//unsigned char i2c_Send_Buffer[2] = {};
-	//unsigned char i2c_Recv_Buffer[2] = {};
-	//int a = 0;
-	//int b = 0;
-	//int analog_board_temp = 0;
-	//int digital_board_temp = 0;
+	unsigned char i2c_Send_Buffer[2] = {};
+	unsigned char i2c_Recv_Buffer[2] = {};
+	int a = 0;
+	int b = 0;
+	int status = 0;
+	int bytes_sent = 0;
 	int i_sprintf_ret = 0;
-	//int *IIC_SLAVE_ADDR;		//pointer to slave
 
-/*	//analog board temp - case 14
-	IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
 	i2c_Send_Buffer[0] = 0x0;
 	i2c_Send_Buffer[1] = 0x0;
-	IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	a = i2c_Recv_Buffer[0]<< 5;
-	b = a | i2c_Recv_Buffer[1] >> 3;
-	if(i2c_Recv_Buffer[0] >= 128)
-	{
-		b = (b - 8192) / 16;
-	}
-	else
-	{
-		b = b / 16;
-	}
-	analog_board_temp = b; */
+	int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
+	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
+//	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, on module near thermistor on TEC
 
 	//if temp has not been checked in 2s, add 0.5 degrees to the temp
 	//if check_temp_sensor is 0, check analog board temp sensor, else check the next sensor
 	// then increment check_temp_sensor and reset time to next check
 	switch(check_temp_sensor){
-	case 0:
+	case 0:	//analog board
 		XTime_GetTime(&LocalTimeCurrent);
 		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
 			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
-			anlg_board_temp += 0.5;
+			IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+			IicPsMasterRecieve(i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+			a = i2c_Recv_Buffer[0]<< 5;
+			b = a | i2c_Recv_Buffer[1] >> 3;
+			if(i2c_Recv_Buffer[0] >= 128)
+			{
+				b = (b - 8192) / 16;
+			}
+			else
+			{
+				b = b / 16;
+			}
+			analog_board_temp = b;
 		}
 		break;
-	case 1:
+	case 1:	//digital board
 		XTime_GetTime(&LocalTimeCurrent);
 		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
 			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
-			digi_board_temp += 0.5;
+
+			IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR2);
+			IicPsMasterRecieve(i2c_Recv_Buffer, &IIC_SLAVE_ADDR2);
+			a = i2c_Recv_Buffer[0]<< 5;
+			b = a | i2c_Recv_Buffer[1] >> 3;
+			if(i2c_Recv_Buffer[0] >= 128)
+			{
+				b = (b - 8192) / 16;
+			}
+			else
+			{
+				b = b / 16;
+			}
+			digital_board_temp = b;
 		}
 		break;
-	case 2:
+	case 2:	//module sensor
 		XTime_GetTime(&LocalTimeCurrent);
 		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
@@ -169,55 +174,47 @@ int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packe
 		}
 		break;
 	default:
-		xil_printf("a problem\r\n");
+		status = CMD_FAILURE;
 		break;
 	}
-
-
-/*	//digital board temp - case 13
-	IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR2;
-	IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	a = i2c_Recv_Buffer[0]<< 5;
-	b = a | i2c_Recv_Buffer[1] >> 3;
-	if(i2c_Recv_Buffer[0] >= 128)
-	{
-		b = (b - 8192) / 16;
-	}
-	else
-	{
-		b = b / 16;
-	}
-	digital_board_temp = b; */
-
 
 	switch(packet_type)
 	{
 	case READ_TMP_CMD:
 		//print the SOH information after the CCSDS header
-		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%2.2f\t%2.2f\t%2.2f\n", anlg_board_temp, digi_board_temp, modu_board_temp);
+		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%2.2f\n", analog_board_temp, digital_board_temp, modu_board_temp);
 		//Put in the CCSDS Header
-		PutCCSDSHeader(report_buff, i_sprintf_ret);
+		PutCCSDSHeader(report_buff, i_sprintf_ret, APID_TEMP);
 		//calculate the checksums
 		CalculateChecksums(report_buff, i_sprintf_ret);
-		XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+			status = CMD_SUCCESS;
+		else
+			status = CMD_FAILURE;
 		break;
 	case GETSTAT_CMD:
 		//print the SOH information after the CCSDS header
-		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%2.2f\t%2.2f\t%2.2f\t%d\t%llu\n", anlg_board_temp, digi_board_temp, modu_board_temp, i_neutron_total, local_time);
+		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%2.2f\t%d\t%llu\n", analog_board_temp, digital_board_temp, modu_board_temp, i_neutron_total, local_time);
 		//Put in the CCSDS Header
-		PutCCSDSHeader(report_buff, i_sprintf_ret);
+		PutCCSDSHeader(report_buff, i_sprintf_ret, APID_SOH);
 		//calculate the checksums
 		CalculateChecksums(report_buff, i_sprintf_ret);
-		XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+			status = CMD_SUCCESS;
+		else
+			status = CMD_FAILURE;
 		break;
 	default:
+		status = CMD_FAILURE;
 		break;
 	}
-	return check_temp_sensor;
+
+	return status;
 }
 
-void PutCCSDSHeader(unsigned char * SOH_buff, int length)
+void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type)
 {
 	//get the values for the CCSDS header
 	SOH_buff[0] = 0x35;
@@ -225,13 +222,54 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length)
 	SOH_buff[2] = 0xF8;
 	SOH_buff[3] = 0x53;
 	SOH_buff[4] = 0x0A; //identify detector 0 or 1
-	SOH_buff[5] = 0x22;	//APID for SOH
+	//use the input to determine what APID to fill here
+	switch(packet_type)
+	{
+	case APID_CMD_SUCC:
+		SOH_buff[5] = 0x00;	//APID for SOH
+		break;
+	case APID_CMD_FAIL:
+		SOH_buff[5] = 0x11;	//APID for temp packet
+		break;
+	case APID_SOH:
+		SOH_buff[5] = 0x22;	//APID for SOH
+		break;
+	case APID_LS_FILES:
+		SOH_buff[5] = 0x33;	//APID for SOH
+		break;
+	case APID_TEMP:
+		SOH_buff[5] = 0x44;	//APID for SOH
+		break;
+	case APID_MNS_CPS:
+		SOH_buff[5] = 0x55;	//APID for SOH
+		break;
+	case APID_MNS_WAV:
+		SOH_buff[5] = 0x66;	//APID for SOH
+		break;
+	case APID_MNS_EVTS:
+		SOH_buff[5] = 0x77;	//APID for SOH
+		break;
+	case APID_MNS_2DH:
+		SOH_buff[5] = 0x88;	//APID for SOH
+		break;
+	case APID_LOG_FILE:
+		SOH_buff[5] = 0x99;	//APID for SOH
+		break;
+	case APID_CONFIG:
+		SOH_buff[5] = 0xAA;	//APID for SOH
+		break;
+	default:
+		SOH_buff[5] = 0x22; //default to SOH just in case?
+		break;
+	}
+
 	SOH_buff[6] = 0xC0;
 	SOH_buff[7] = 0x01;
 	//add in the checksums to the length
 	//To calculate the length of the packet, we need to add all the bytes in the MiniNS-data
 	// plus the checksums (4 bytes) plus the reset request byte (1 byte)
 	// then we subtract one byte
+	//ICD specifies the CCSDS packet length as: the number of bytes after the CCSDS header - 1
 	length += 4;
 	SOH_buff[8] = (length & 0xFF00) >> 8;
 	SOH_buff[9] = length & 0xFF;
@@ -250,6 +288,9 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length)
  * Just to convert it back to a char[]. Instead, we can get the command
  * in main.c using an overridden ReadCommandType(), and return the command
  * as a char instead of int, bypassing this function.
+ *
+ * I have added a command to go and get the text and size of the
+ * previously entered command. They are in the ReadCommandType.c file.
  */
 int parseCommand(int menusel, char *cmdArr)
 {
@@ -366,166 +407,94 @@ int parseCommand(int menusel, char *cmdArr)
 }
 
 /**
- * Byte format:
- * 0-8: Primary CCSDS header, but byte 5 = 0x00
- * 9: Packet length = N + 3
- * 10: Reset request flag
- * 11..N-2: ASCII characters of the command
- * N-1: Simple checksum
- * N: Fletcher checksum
- * N+1: CCSDS checksum MSB
- * N+2: CCSDS checksum LSB
+ * Report the SUCCESS packet for a function which was received and passed
+ *
+ * @param Uart_PS	Pointer to the instance of the UART which will
+ * 					transmit the packet to the spacecraft.
+ *
+ * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
+ * 			the correct number of bytes with the packet.
+ *
  */
-char *reportSuccess(int menusel)
+int reportSuccess(XUartPs Uart_PS)
 {
-
-	//Bytes 0-3 are the sync markers
-	unsigned char syncMarkers[] = "53 46 248 83 \0";
-	//Byte 4 is version number/APID MSB
-	unsigned char byte4[] = "10 \0";
-	//Byte 5 is APID LSB
-	unsigned char byte5[] = "0 \0";
-	//Byte 6 is sequence count MSB...Need to figure out
-	//How this is tracked
-	unsigned char byte6[] = "SC MSB \0";
-	//Byte 7 is sequence count LSB...Same thing
-	unsigned char byte7[] = "SC LSB \0";
-	//Byte 8 is the packet length MSB
-	unsigned char byte8[] = "length MSB \0";
-	//Byte 9 is the packet length LSB
-	unsigned char byte9[] = "length LSB \0";
-	//Byte 10 is the reset request flag...Should be 0 for commandSuccess
-	unsigned char byte10[] = "0 \0";
-	//Byte 11 is the ASCII chars of the command
-
-	//Create a buffer to hold the ASCII
-	unsigned char cmdByte[] = {0};
-	//Fill the buffer with ASCII
-	//parseCommand() returns the length of the command, so store that
-	unsigned char cmdLen = parseCommand(menusel, cmdByte);
-
-	//Now we need to figure out the packet length
-
-	int packetLength = 0;
-	packetLength += strlen(syncMarkers);
-	packetLength += strlen(byte4);
-	packetLength += strlen(byte5);
-	packetLength += strlen(byte6);
-	packetLength += strlen(byte7);
-	packetLength += strlen(byte8);
-	packetLength += strlen(byte9);
-	packetLength += strlen(byte10);
-	packetLength += strlen(cmdLen);
-	//Convert the packet length to a char (not sure if this is how we should do this)
-
-
-
-	unsigned char packetLen = packetLength + '0';
-	//Create a buffer to hold the length
-	unsigned char lengthByte[] = {packetLength};
-	//This increases packet length, so take that into account
-	packetLength += strlen(lengthByte);
-	unsigned char realLengthByte[] = {packetLength};
-	//Finally, create and construct the buffer to return
+	int status = 0;
+	int bytes_sent = 0;
+	int i_sprintf_ret = 0;
 	unsigned char *cmdSuccess = malloc(100);
-	strcat(cmdSuccess, syncMarkers);
-	strcat(cmdSuccess, byte4);
-	strcat(cmdSuccess, byte5);
-	strcat(cmdSuccess, byte6);
-	strcat(cmdSuccess, byte7);
-	strcat(cmdSuccess, byte8);
-	strcat(cmdSuccess, byte9);
-	strcat(cmdSuccess, byte10);
-	strcat(cmdSuccess, cmdByte);
-	strcat(cmdSuccess, realLengthByte);
-	strcat(cmdSuccess, "\n");
+	PutCCSDSHeader(cmdSuccess, GetLastCommandSize(), APID_CMD_SUCC);
 
-	return cmdSuccess;
+	//fill the data bytes
+	//print the command information after the CCSDS header
+	i_sprintf_ret = snprintf((char *)cmdSuccess + 11, 100, "%s\n", GetLastCommand());
+	//check to make sure that the sizes match and we are reporting what we think we are
+	if(i_sprintf_ret == GetLastCommandSize())
+		status = CMD_SUCCESS;
+	else
+		status = CMD_FAILURE;
+	//calculate the checksums
+	CalculateChecksums(cmdSuccess, i_sprintf_ret);
+	//send out the packet
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+	if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+		status = CMD_SUCCESS;
+	else
+		status = CMD_FAILURE;
+
+	free(cmdSuccess);
+	return status;
 }
 
 /**
- * Byte format:
- * 0-8: Primary CCSDS header, but byte 5 = 0x11
- * 9: Packet length = N + 3
- * 10: Reset request flag
- * 11..N-2: ASCII characters of the command
- * N-1: Simple checksum
- * N: Fletcher checksum
- * N+1: CCSDS checksum MSB
- * N+2: CCSCS checksum LSB
+ * Report the FAILURE packet for a function which was received, but failed
+ *
+ * @param Uart_PS	Pointer to the instance of the UART which will
+ * 					transmit the packet to the spacecraft.
+ *
+ * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
+ * 			the correct number of bytes with the packet.
+ *
  */
-char *reportFailure(int menusel)
+int reportFailure(XUartPs Uart_PS)
 {
-	//Bytes 0-3 are the sync markers
-	unsigned char syncMarkers[] = "53 46 248 83 \0";
-	//Byte 4 is version number/APID MSB
-	unsigned char byte4[] = "10 \0";
-	//Byte 5 is APID LSB
-	unsigned char byte5[] = "11 \0";
-	//Byte 6 is sequence count MSB...Need to figure out
-	//How this is tracked
-	unsigned char byte6[] = "SC MSB \0";
-	//Byte 7 is sequence count LSB...Same thing
-	unsigned char byte7[] = "SC LSB \0";
-	//Byte 8 is packet length MSB
-	unsigned char byte8[] = "length MSB \0";
-	//Byte 9 is packet length LSB
-	unsigned char byte9[] = "length LSB \0";
-	//Byte 10 is reset request flag, should be 0 for commandFailure
-	unsigned char byte10[] = "0 \0";
-	//Byte 11 is the ASCII chars of the command
+	int status = 0;
+	int bytes_sent = 0;
+	int i_sprintf_ret = 0;
+	unsigned char *cmdFailure = malloc(100);
+	PutCCSDSHeader(cmdFailure, GetLastCommandSize(), APID_CMD_FAIL);
 
-	//Create a buffer to hold the ASCII
-	unsigned char cmdByte[] = {0};
-	//Fill the buffer with the ASCII from parseCommand()
-	//The function returns the length of the command, so store that too
-	unsigned char cmdLen = parseCommand(menusel, cmdByte);
+	//fill the data bytes
+	//print the command information after the CCSDS header
+	i_sprintf_ret = snprintf((char *)cmdFailure + 11, 100, "%s\n", GetLastCommand());
+	//check to make sure that the sizes match and we are reporting what we think we are
+	if(i_sprintf_ret == GetLastCommandSize())
+		status = CMD_SUCCESS;
+	else
+		status = CMD_FAILURE;
+	//calculate the checksums
+	CalculateChecksums(cmdFailure, i_sprintf_ret);
+	//send out the packet
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdFailure, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+	if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+		status = CMD_SUCCESS;
+	else
+		status = CMD_FAILURE;
 
-	//Now we need to figure out the packet length
-
-	int packetLength = 0;
-	packetLength += strlen(syncMarkers);
-	packetLength += strlen(byte4);
-	packetLength += strlen(byte5);
-	packetLength += strlen(byte6);
-	packetLength += strlen(byte7);
-	packetLength += strlen(byte8);
-	packetLength += strlen(byte9);
-	packetLength += strlen(byte10);
-	packetLength += strlen(cmdByte);
-
-	//Convert packetLength into a char (Not sure if this is the way to do this)
-	unsigned char packetLen = packetLength + '0';
-
-	//Create a buffer to hold the length
-	unsigned char lengthByte = {packetLen, '\0'};
-
-	//This increases packetLen, so that that into account
-	packetLength += strlen(lengthByte);
-	//Convert back into a char?
-	packetLen = packetLength + '0';
-	//Then fill the byte with the correct value
-	unsigned char realLengthByte = {packetLen, '\0'};
-//	free(lengthByte);
-	//Finally, create and construct the buffer to be returned
-	unsigned char *cmdSuccess = malloc(100);
-	strcat(cmdSuccess, syncMarkers);
-	strcat(cmdSuccess, byte4);
-	strcat(cmdSuccess, byte5);
-	strcat(cmdSuccess, byte6);
-	strcat(cmdSuccess, byte7);
-	strcat(cmdSuccess, byte8);
-	strcat(cmdSuccess, byte9);
-	strcat(cmdSuccess, byte10);
-	strcat(cmdSuccess, cmdByte);
-	strcat(cmdSuccess, realLengthByte);
-	strcat(cmdSuccess, "\n");
-
-	return cmdSuccess;
-
-
+	free(cmdFailure);
+	return status;
 }
 
+/* Function to calculate all four checksums for CCSDS packets */
+//This function calculates the Simple, Fletcher, and BCT checksums
+// by looping over the bytes within the packet after the sync marker.
+//
+// @param	packet_array	This is a pointer to the CCSDS packet which
+//							needs to have its checksums calculated.
+// @param	length			The length of the packet data bytes.
+//				Note: the length should not account for the CCSDS Header;
+//						Just give the length of the data bytes.
+//
+// @return	(int) returns the value assigned when the command was scanned
 void CalculateChecksums(unsigned char * packet_array, int length)
 {
 	//this function will calculate the simple, Fletcher, and CCSDS checksums for any packet going out
