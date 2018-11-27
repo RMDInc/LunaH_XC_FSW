@@ -3,8 +3,16 @@ show -1
 ; hide TT
 showtt 0
 
-messagebox 'Start this macro, then run the debug test' '\nPress OK when the board is running.'
-messagebox 'Running through Level 2 functions.' '\nPress OK now and wait for the final message.'
+;str = "Check: \n 1. CS1 is at GND \n 2. POR is Floating \n 3. CS2 is Floating \n 4. Gamma Source is in place (optional) \n 5. Neutron Source is in place (optional) \n IF NOT, TURN OFF INSTRUMENT AND RESTART \n WITH THESE SETTINGS \n Press 'OK' to START Test"
+;strspecial str
+;messagebox str 'Detector 0'
+
+str = "Start this macro, then run the debug test.\n\nPress OK when the board is running."
+strspecial str
+str2 = "Running through Level 2 functions.\n\nPress Ok and wait for next message."
+strspecial str2
+messagebox str 'Detector 0'
+messagebox str2 'Detector 0'
 
 flushrecv
 pause 3
@@ -30,7 +38,8 @@ pause 2
 sendln 'ENABLE_ACT_0'
 sendln 'ENABLE_ACT_1'
 
-pause 5
+pause 2
+messagebox 'Measure the current draw on the system.' '\nPress OK when finished.'
 
 sendln 'DISABLE_ACT_0'
 sendln 'DISABLE_ACT_1'
@@ -57,8 +66,24 @@ sendln 'NWGATES_1_40110_130110_0.231_0.451'
 
 pause 2
 
-sendln 'HV_0_3_100'
-sendln 'HV_1_3_101'
+sendln 'ENABLE_ACT_0'
+sendln 'ENABLE_ACT_1'
+
+pause 2
+
+sendln 'HV_0_3_50'
+sendln 'HV_1_3_50'
+
+;messagebox 'Measure the resistance on Pot 4. \n 3Press OK when finished, \n then wait for the final message' 'Detector 0'
+pause 2
+
+sendln 'HV_0_3_210'
+sendln 'HV_1_3_210'
+
+pause 2
+
+sendln 'DISABLE_ACT_0'
+sendln 'DISABLE_ACT_1'
 
 pause 2
 

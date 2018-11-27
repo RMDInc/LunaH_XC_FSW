@@ -255,7 +255,7 @@ int main()
 	//When it is time, reports a full CCSDS SOH packet
 
 	//if this message is garbled, change the buad rate in TT
-	xil_printf("low baud\r\n");	//change out this bitstream
+//	xil_printf("low baud\r\n");	//change out this bitstream
 	while(1){	//OUTER LEVEL 2 TESTING LOOP
 		while(1){
 			//resetting this value every time is (potentially) critical
