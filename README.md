@@ -37,3 +37,5 @@ When finished, the Level 2 FSW will be running on an XC board. At that point, a 
 - Version 3.71 Updated the macro for grabbing the packets that the FSW creates and pushes to the UART. Also have an early version of the application for processing and recognizing the packets in a binary file. 
 
 - Version 3.8 The level 2 FSW code is not updated with this version, but the macros for running and testing the system are included, as well as a test binary output file with CCSDS packets in it. A future update will include instructions for running all of L2.
+
+- Version 3.81 Level 2 FSW BOOT files are updated and can be found in the BOOT_Files folder under the name XC_FSW_L2.zip. Unzip the files to find the fsbl, bootimage file, and .mcs file. Instructions for programming an engineering board with these files to run the L2 FSW will come with a later update.
