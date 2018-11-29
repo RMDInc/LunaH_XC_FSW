@@ -1,0 +1,15 @@
+show -1
+
+messagebox 'Start this macro, then run the debug test' '\nRunning the microZed'
+
+flushrecv
+pause 3
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\SOH_Test_05.bin' 1 0
+showtt 8
+setdebug 3
+messagebox 'Press "OK" when the microZed is stopped' 'Detector 1'
+setdebug 0
+logclose
+
+end

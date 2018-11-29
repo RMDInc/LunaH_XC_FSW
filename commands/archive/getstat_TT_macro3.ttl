@@ -1,0 +1,17 @@
+sendln 'GETSTAT_0'
+sendln 'GETSTAT_1'
+sendln 'READTEMP_0'
+sendln 'A_1'
+sendln ''
+; "ABC"
+send $41 $42 $43
+send #13
+send 'abc'#13#10
+send #10
+send 'GETSTAT_0'#13
+send 'GETSTAT_0'#13#10
+send 'GETSTAT_0'#10
+
+send #10
+send #10
+send #10

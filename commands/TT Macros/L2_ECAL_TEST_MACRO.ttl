@@ -1,0 +1,58 @@
+; don't show the macro window
+show -1
+; hide TT
+showtt 0
+
+str = "Start this macro, then run the debug test.\n\nPress OK when the board is running."
+strspecial str
+str2 = "Checking Level 2 ECAL function.\n\nPress Ok and wait for next message."
+strspecial str2
+messagebox str 'Detector 0'
+messagebox str2 'Detector 0'
+
+flushrecv
+pause 3
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L2_tt_ecal_macro_0_1.bin' 1 0
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+
+; perform actions with the board here
+; enter commands 
+sendln 'GETSTAT_0'
+sendln 'GETSTAT_1'
+
+pause 2
+
+sendln 'READTEMP_0'
+sendln 'READTEMP_1'
+
+pause 2
+
+sendln 'ECAL_0_1.2_3.4'
+sendln 'ECAL_1_1.21_3.41'
+
+pause 2
+
+sendln 'ECAL_0_2.2_3.4'
+sendln 'ECAL_1_2.21_3.41'
+
+pause 2
+
+sendln 'ECAL_0_3.2_3.4'
+sendln 'ECAL_1_3.21_3.41'
+
+pause 2
+
+sendln 'ECAL_0_4.2_3.4'
+sendln 'ECAL_1_4.21_3.41'
+
+pause 2
+logclose
+
+messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+setdebug 0
+
+end

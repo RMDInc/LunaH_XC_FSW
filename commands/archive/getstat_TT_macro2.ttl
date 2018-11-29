@@ -1,0 +1,8 @@
+sendln 'GETSTAT_0'
+sendln 'GETSTAT_1'
+sendln 'READTEMP_0'
+sendln 'READTEMP_1'
+sendln 'DISABLE_ACT_0'
+sendln 'ENABLE_ACT_0'
+pause 5
+sendln 'DISABLE_ACT_0'

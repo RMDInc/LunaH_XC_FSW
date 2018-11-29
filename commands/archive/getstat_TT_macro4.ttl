@@ -1,0 +1,13 @@
+sendln 'TRG_0_8900'
+sendln 'TRG_1_8765'
+pause 2
+sendln 'ECAL_0_1.2_3.4'
+sendln 'ECAL_1_1.2_3.4'
+pause 2
+sendln 'NGATES_0_60000_120000_0.3_0.6'
+pause 2
+sendln 'NWGATES_0_40000_130000_0.23_0.45'
+pause 2
+sendln 'HV_0_3_100'
+pause 2
+sendln 'INT_0_-51_87_399_5999'
