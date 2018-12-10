@@ -50,9 +50,6 @@
 #define BREAK_CMD		17
 #define START_CMD		18
 #define END_CMD			19
-#define READ_DIGI_TEMP	21
-#define READ_ANLG_TEMP	22
-#define READ_MODU_TEMP	23
 #define INPUT_OVERFLOW	100
 
 //Command SUCCESS/FAILURE values
@@ -72,6 +69,11 @@
 #define APID_LOG_FILE	9
 #define APID_CONFIG		10
 
+//MNS DATA PRODUCT TYPES
+#define DATA_TYPE_EVTS 	0
+#define DATA_TYPE_WAV	1
+#define DATA_TYPE_2DH	2
+#define DATA_TYPE_CPS	3
 
 enum LoopStateTypes
 {

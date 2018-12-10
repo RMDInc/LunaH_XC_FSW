@@ -62,46 +62,46 @@ int process_data(unsigned int * data_array,
 	//will need to create the buffers and pass in references to them (pointers)
 	//variables for data processing
 	int i_dataarray_index = 0;
-	int i_total_events = 0;
-	int i_event_number = 0;
+//	int i_total_events = 0;
+//	int i_event_number = 0;
 	int i_PMT_ID = 0;
-	float f_time = 0;
-	float f_aa_bl_int = 0;
-	float f_aa_short_int = 0;
-	float f_aa_long_int = 0;
-	float f_aa_full_int = 0;
-	float f_lpf1 = 0;
-	float f_lpf2 = 0;
-	float f_lpf3 = 0;
-	float f_dff1 = 0;
-	float f_dff2 = 0;
-	float f_bl1 = 0.0;
-	float f_bl2 = 0.0;
-	float f_bl3 = 0.0;
-	float f_bl4 = 0.0;
-	float f_bl_avg = 0.0;
-	float f_blcorr_short = 0.0;
-	float f_blcorr_long = 0.0;
-	float f_blcorr_full = 0.0;
-	float f_PSD = 0.0;
-	float f_Energy = 0.0;
+//	float f_time = 0;
+//	float f_aa_bl_int = 0;
+//	float f_aa_short_int = 0;
+//	float f_aa_long_int = 0;
+//	float f_aa_full_int = 0;
+//	float f_lpf1 = 0;
+//	float f_lpf2 = 0;
+//	float f_lpf3 = 0;
+//	float f_dff1 = 0;
+//	float f_dff2 = 0;
+//	float f_bl1 = 0.0;
+//	float f_bl2 = 0.0;
+//	float f_bl3 = 0.0;
+//	float f_bl4 = 0.0;
+//	float f_bl_avg = 0.0;
+//	float f_blcorr_short = 0.0;
+//	float f_blcorr_long = 0.0;
+//	float f_blcorr_full = 0.0;
+//	float f_PSD = 0.0;
+//	float f_Energy = 0.0;
 	//settings needed for processing
-	float f_aa_bl_int_samples = 38.0;
-	float f_aa_short_int_samples = 73.0;
-	float f_aa_long_int_samples = 169.0;
-	float f_aa_full_int_samples = 1551.0;
-	float f_energy_slope = 1.0;
-	float f_energy_intercept = 0.0;
+//	float f_aa_bl_int_samples = 38.0;
+//	float f_aa_short_int_samples = 73.0;
+//	float f_aa_long_int_samples = 169.0;
+//	float f_aa_full_int_samples = 1551.0;
+//	float f_energy_slope = 1.0;
+//	float f_energy_intercept = 0.0;
 	//set the ranges for the 2DH
-	int i_xminrange = 0;
-	int i_xmaxrange = 10000;
-	int i_yminrange = 0;
-	int i_ymaxrange = 2;
+//	int i_xminrange = 0;
+//	int i_xmaxrange = 10000;
+//	int i_yminrange = 0;
+//	int i_ymaxrange = 2;
 	//set the number of bins for the 2DH
 	int i_xnumbins = TWODH_X_BINS;
 	int i_ynumbins = TWODH_Y_BINS;
-	float f_xbinsize = 0;
-	float f_ybinsize = 0;
+//	float f_xbinsize = 0;
+//	float f_ybinsize = 0;
 	float f_xbinnum = 0;
 	float f_ybinnum = 0;
 	int i_xArrayIndex = 0;
@@ -111,8 +111,8 @@ int process_data(unsigned int * data_array,
 	int i_pointOutsideBounds = 0;
 
 	//determine the x and y bin size
-	f_xbinsize = (float)i_xmaxrange / i_xnumbins;
-	f_ybinsize = (float)i_ymaxrange / i_ynumbins;
+//	f_xbinsize = (float)i_xmaxrange / i_xnumbins;
+//	f_ybinsize = (float)i_ymaxrange / i_ynumbins;
 
 	while(i_dataarray_index < DATA_BUFFER_SIZE)
 	{

@@ -88,14 +88,16 @@ int main()
 	XGpioPs_SetDirectionPin(&Gpio, SW_BREAK_GPIO, 1);
 	//******************Setup and Initialize IIC*********************//
 	int iic_status = 0;
+	//Make the IIC Instance come from here and we pass it in to the functions
+	XIicPs Iic;
 
-	iic_status = IicPsInit(IIC_DEVICE_ID_0);
+	iic_status = IicPsInit(Iic, IIC_DEVICE_ID_0);
 	if(iic_status != XST_SUCCESS)
 	{
 		//handle the issue
 		xil_printf("fix the Iic device 0\r\n");
 	}
-	iic_status = IicPsInit(IIC_DEVICE_ID_1);
+	iic_status = IicPsInit(Iic, IIC_DEVICE_ID_1);
 	if(iic_status != XST_SUCCESS)
 	{
 		//handle the issue
@@ -192,70 +194,68 @@ int main()
 
 	//start timing
 	XTime local_time_start = 0;
-	XTime local_time = 0;
 	XTime_GetTime(&local_time_start);	//get the time
 	InitStartTime();
 /*
+ * This code is used for timing functions to get latency measurements
 	long long int time_holder = 0;
 	XTime timer1 = 0;//test timers, can delete
 	XTime timer2 = 0;
 */
 
 	// Initialize buffers
-	char report_buff[100] = "";
-	char c_CNT_Filename0[FILENAME_SIZE] = "";
-	char c_EVT_Filename0[FILENAME_SIZE] = "";
-	char c_CNT_Filename1[FILENAME_SIZE] = "";
-	char c_EVT_Filename1[FILENAME_SIZE] = "";
-	char c_file_to_TX[FILENAME_SIZE] = "";
-	char c_file_to_access[FILENAME_SIZE] = "";
-	char transfer_file_contents[DATA_PACKET_SIZE] = "";
+	char c_CNT_Filename0[FILENAME_SIZE] = "";	//OLD
+	char c_EVT_Filename0[FILENAME_SIZE] = "";	//OLD
+	char c_CNT_Filename1[FILENAME_SIZE] = "";	//OLD
+	char c_EVT_Filename1[FILENAME_SIZE] = "";	//OLD
+	char c_file_to_TX[FILENAME_SIZE] = "";		//OLD
+	char c_file_to_access[FILENAME_SIZE] = "";	//OLD
+	char transfer_file_contents[DATA_PACKET_SIZE] = "";	//OLD
 	char RecvBuffer[100] = "";
 
 	char * last_command;				//pointer to handle writing commands to the log file
 	unsigned int last_command_size = 0;	//holder for size
 	int status = 0;						//local status variable for reporting SUCCESS/FAILURE
+	int DAQ_run_number = 0;				//run number value for file names, tracks the number of runs per POR
+	int	menusel = 99999;				//case select variable for polling
 
-	/* move to make global
-	unsigned char error_buff[] = "FFFFFF\n";
-	unsigned char break_buff[] = "FAFAFA\n";
-	unsigned char success_buff[] = "AAAAAA\n"; */
-	int ipollReturn = 0;
-	int	menusel = 99999;	// Menu Select
-	int i_neutron_total = 0;	//current neutron total
-	int i_orbit_number = 0;
-	int i_daq_run_number = 0;
-	int iterator = 0;
-	int sent = 0;
-	int bytes_sent = 0;
-	int file_size = 0;
-	int checksum1 = 0;
-	int checksum2 = 0;
-	int i_trigger_threshold = 0;	// Trigger Threshold
-	unsigned int sync_marker = 0x352EF853;
-	unsigned long long int i_real_time = 0;
-	int i_integration_times[4] = {};
-	float ECut_1;
-	float PCut_1;
-	float ECut_2;
-	float PCut_2;
-	int HvPmtId, HvValue;
+	int ipollReturn = 0;		//OLD
+	int i_orbit_number = 0;		//OLD
+	int i_daq_run_number = 0;	//OLD
+	int iterator = 0;			//OLD
+	int sent = 0;				//OLD
+	int bytes_sent = 0;			//OLD
+	int file_size = 0;			//OLD
+	int checksum1 = 0;			//OLD
+	int checksum2 = 0;			//OLD
+	unsigned int sync_marker = 0x352EF853;	//OLD
+	unsigned long long int i_real_time = 0;	//OLD
 
-	struct header_info file_header = {};
+	struct header_info file_header = {};	//OLD
+
+	uint numBytesWritten = 0;	//OLD
+	uint numBytesRead = 0;		//OLD
+	FRESULT ffs_res;			//OLD
+	FIL logFile;				//OLD
+	FIL data_file;				//OLD
+
 
 	// ******************* APPLICATION LOOP *******************//
 
-	//temporary while loop to use for ASU testing on 10/15/2018
 	//This loop will continue forever and the program won't leave it
 	//This loop checks for input from the user, then checks to see if it's time to report SOH
 	//if input is received, then it reads the input for correctness
-	// if input is a valid LUNAH command, sends a command success packet
+	// if input is a valid MNS command, sends a command success packet
 	// if not, then sends a command failure packet
 	//after, SOH is checked to see if it is time to report SOH
 	//When it is time, reports a full CCSDS SOH packet
 
 	//if this message is garbled, change the buad rate in TT
-//	xil_printf("low baud\r\n");	//change out this bitstream
+	//change the value of:
+	//#define XUARTPS_DFT_BAUDRATE  115200U   /* Default baud rate */
+	// up to 921600U
+	//xil_printf("low baud\r\n");	//change out this bitstream
+
 	while(1){	//OUTER LEVEL 2 TESTING LOOP
 		while(1){
 			//resetting this value every time is (potentially) critical
@@ -279,10 +279,10 @@ int main()
 					//should probably just have the following syntax
 					//LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 				}
-				break;	//leave the loop and execute the function
+				break;	//leave the inner loop and execute the commanded function
 			}
 			//check to see if it is time to report SOH information, 1 Hz
-			CheckForSOH(Uart_PS);
+			CheckForSOH(Iic, Uart_PS);
 		}//END TEMP ASU TESTING LOOP
 
 		//MAIN MENU OF FUNCTIONS
@@ -294,9 +294,75 @@ int main()
 			reportFailure(Uart_PS);
 			break;
 		case DAQ_CMD:
-			//do data acquisition stuff here
-			//this is level 3 stuff
-			//xil_printf("received DAQ command \r\n");
+			//set processed data mode
+			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
+			//create the file names we will use for this run
+			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
+			while(status != CMD_FAILURE)
+			{
+				//only report a packet when the file has been successfully changed and did not exist already
+				++DAQ_run_number;	//initialized to 0, the first run will increment to 1
+				SetFileName(GetIntParam(1), DAQ_run_number);	//creates a file name of IDNum_runNum_type.bin
+				//check that the file name(s) do not already exist on the SD card...we do not want to append files
+				status = DoesFileExist();
+				//when settled, we need to send a packet to inform if the file has been changed
+			}
+			//create the files before polling for user input
+
+			//begin polling for START/BREAK/READTEMP
+			while(1)
+			{
+				status = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
+				//compare to what is accepted
+				//if no good input is found, silently ignore the input
+				switch(status){
+				case BREAK_CMD:
+					//received the break command
+					//report a success packet with the break command in it
+
+					break;
+				case START_CMD:
+					//received START_DAQ command
+					//turn on the system
+					//trigger a "false event" in the FPGA to log the MNS_FPGA time
+					Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
+					//record the REALTIME and write headers into files
+					status = WriteHeaderFile(GetRealTimeParam(), GetModuTemp());
+					//call the DAQ() function
+
+					//we have returned from DAQ, report success/failure
+					//we will return in three ways:
+					// time out (1) = success
+					// END (2)		= success
+					// BREAK (0)	= failure
+
+					break;
+				case READ_TMP_CMD:
+					//read all temp sensors
+					//report a temp packet
+					status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+					if(status == CMD_FAILURE)
+						reportFailure(Uart_PS);
+					break;
+				case -1:
+					//we found an invalid command
+					//xil_printf("bad command detected\r\n");	//break and return to polling loop
+					//Report CMD_FAILURE
+					reportFailure(Uart_PS);
+					break;
+				default:
+					//got something outside of these commands
+					//reject it with a packet?
+					//or just ignore it?
+					break;
+				}
+				//check to see if it is time to report SOH information, 1 Hz
+				CheckForSOH(Iic, Uart_PS);
+			}
+			//data acquisition has been completed, wrap up anything not handled by the DAQ function
+
 			break;
 		case WF_CMD:
 			//do WF acquisition here
@@ -305,13 +371,13 @@ int main()
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
-			status = report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
 		case GETSTAT_CMD: //Push an SOH packet to the bus
 			//instead of checking for SOH, just push one SOH packet out because it was requested
-			status = report_SOH(GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
+			status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
@@ -371,7 +437,7 @@ int main()
 			break;
 		case NGATES_CMD:
 			//set the neutron cuts
-			status = SetNeutronCutGates( GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
+			status = SetNeutronCutGates(GetIntParam(1), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS);
@@ -380,7 +446,7 @@ int main()
 			break;
 		case NWGATES_CMD:
 			//set the neutron wide cuts
-			status = SetWideNeutronCutGates( GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
+			status = SetWideNeutronCutGates(GetIntParam(1), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS);
@@ -391,7 +457,7 @@ int main()
 			//set the PMT bias voltage for one or more PMTs
 			//intParam1 = PMT ID
 			//intParam2 = Bias Voltage (taps)
-			status = SetHighVoltage(GetIntParam(1), GetIntParam(2));
+			status = SetHighVoltage(Iic, GetIntParam(1), GetIntParam(2));
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS);
@@ -423,18 +489,6 @@ int main()
 			//end the DAQ or WF science run
 			//xil_printf("received END command\r\n");
 			break;
-		case READ_DIGI_TEMP:
-			//read the temp sensor on the digital board
-			//xil_printf("received READ_DIGI_TEMP command\r\n");
-			break;
-		case READ_ANLG_TEMP:
-			//read the temp sensor on the analog board
-			//xil_printf("received READ_ANLG_TEMP command\r\n");
-			break;
-		case READ_MODU_TEMP:
-			//read the temp sensor on the module
-			//xil_printf("received READ_MODU_TEMP command\r\n");
-			break;
 		case INPUT_OVERFLOW:
 			//too much input
 			xil_printf("Overflowed the buffer (too much input at one time)\r\n");
@@ -451,6 +505,19 @@ int main()
 
 	}//END OF OUTER LEVEL 2 TESTING LOOP
 
+/*********************************BELOW THIS IS OLD CODE*************************************
+ *
+ * There are a couple of functions related to Init which need to be retained. They are:
+ *
+ * InitializeAXIDma
+ * InitializeInterruptSystem
+ * InterruptHandler
+ * SetUpInterruptSystem
+ *
+ * At some point, these functions will need to be moved to a separate file, likely to
+ * the lunah_utils file.
+ *
+ */
 	while(1){
 		memset(RecvBuffer, '0', 100);	// Clear RecvBuffer Variable
 		XUartPs_SetOptions(&Uart_PS, XUARTPS_OPTION_RESET_RX);
@@ -466,7 +533,7 @@ int main()
 
 			//until we have found something useful, check to see if we need
 			// to report SOH information, 1 Hz
-			CheckForSOH(Uart_PS);
+			CheckForSOH(Iic, Uart_PS);
 		}//END POLLING LOOP //END MAIN MENU
 
 		ipollReturn = 999;
@@ -498,7 +565,7 @@ int main()
 			snprintf(c_EVT_Filename1, 50, "1:/%04d_%04d_evt.bin",i_orbit_number, i_daq_run_number);
 			snprintf(c_CNT_Filename1, 50, "1:/%04d_%04d_cnt.bin",i_orbit_number, i_daq_run_number);
 			//2dh file here
-			iSprintfReturn = snprintf(report_buff, 100, "%s_%s\n", c_EVT_Filename0, c_CNT_Filename0);	//create the string to tell CDH
+//			iSprintfReturn = snprintf(report_buff, 100, "%s_%s\n", c_EVT_Filename0, c_CNT_Filename0);	//create the string to tell CDH
 
 			//poll for START, BREAK
 			memset(RecvBuffer, '0', 100);
@@ -529,19 +596,19 @@ int main()
 				default:
 					//anything else
 					memset(RecvBuffer, '0', 100);
-					bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
+//					bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
 					break;
 				}
 
 				//continue to loop and report SOH while waiting for user input
-				CheckForSOH(Uart_PS);
+				CheckForSOH(Iic, Uart_PS);
 
 			}//END POLL UART
 
 			//if BREAK, leave the loop //nothing to turn off
 			if(ipollReturn == BREAK_CMD)
 			{
-				bytes_sent = XUartPs_Send(&Uart_PS, break_buff, sizeof(break_buff));
+//				bytes_sent = XUartPs_Send(&Uart_PS, break_buff, sizeof(break_buff));
 				break;
 			}
 
@@ -611,7 +678,7 @@ int main()
 			//if BREAK, leave right away
 			if(ipollReturn == 15)
 			{
-				bytes_sent = XUartPs_Send(&Uart_PS, break_buff, sizeof(break_buff));
+//				bytes_sent = XUartPs_Send(&Uart_PS, break_buff, sizeof(break_buff));
 				break;
 			}
 
@@ -650,42 +717,10 @@ int main()
 
 			//write to log file
 			//write the end of run neutron totals
-			iSprintfReturn = snprintf(report_buff, LOG_FILE_BUFF_SIZE, "%u\n", i_neutron_total);	//return value for END_
-			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
+//			iSprintfReturn = snprintf(report_buff, LOG_FILE_BUFF_SIZE, "%u\n", i_neutron_total);	//return value for END_
+//			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
 			break;
 #endif
-		case WF_CMD: //Capture WF data
-
-			break;
-		case GETSTAT_CMD: //Getstat
-			//calculate the time
-			local_time = GetLocalTime();
-			//instead of checking for SOH, just push one SOH packet out because it was requested
-			report_SOH(local_time, GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
-			break;
-		case DISABLE_ACT_CMD: //Disable Data Acquisition Components
-			//this is the power (5v and 3.3v) to the Analog board
-			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable system (disable capture module)
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
-			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
-
-			//write to log file
-			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)success_buff, sizeof(success_buff));
-			break;
-		case 5: //Disable TEC Bleed
-			Xil_Out32(XPAR_AXI_GPIO_5_BASEADDR, 0);
-			XGpioPs_WritePin(&Gpio, TEC_PIN, 0);
-
-			//write to log file
-			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)success_buff, sizeof(success_buff));
-			break;
-		case 6:	//Enable TEC Bleed
-			Xil_Out32(XPAR_AXI_GPIO_5_BASEADDR, 1);
-			XGpioPs_WritePin(&Gpio, TEC_PIN, 1);
-
-			//write to log file
-			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)success_buff, sizeof(success_buff));
-			break;
 		case 7:	//TX Files
 			//use this case to send files from the SD card to the screen
 			sscanf(RecvBuffer + 2 + 1, " %s", c_file_to_TX);	//read in the name of the file to be transmitted
@@ -696,7 +731,7 @@ int main()
 			ffs_res = f_open(&logFile, c_file_to_TX, FA_READ);	//open the file to transfer
 			if(ffs_res != FR_OK)
 			{
-				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
+//				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
 				break;
 			}
 
@@ -768,202 +803,21 @@ int main()
 				if(ffs_res == FR_OK)
 				{
 					//successful delete
-					iSprintfReturn = snprintf(report_buff, 100, "%d_AAAA\n", ffs_res);
-					bytes_sent = XUartPs_Send(&Uart_PS,(u8 *)report_buff, iSprintfReturn);
+//					iSprintfReturn = snprintf(report_buff, 100, "%d_AAAA\n", ffs_res);
+//					bytes_sent = XUartPs_Send(&Uart_PS,(u8 *)report_buff, iSprintfReturn);
 				}
 				else
 				{
 					//failed to delete
-					bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
+//					bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
 				}
 			}
 			else
 			{
 				//file did not exist
-				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
+//				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
 			}
 			break;
-		case TRG_CMD: //Trigger threshold set
-#ifdef BREAKUP_MAIN
-			sscanf(RecvBuffer + 3 + 1," %d", &i_trigger_threshold);	//read in value from the recvBuffer
-			bytes_sent = SetTriggerThreshold(i_trigger_threshold);
-			break;
-#else
-			sscanf(RecvBuffer + 3 + 1," %d", &i_trigger_threshold);	//read in value from the recvBuffer
-			if((i_trigger_threshold > 0) && (i_trigger_threshold < 16000))				//check that it's within accepted values
-			{
-				Xil_Out32(XPAR_AXI_GPIO_10_BASEADDR, (u32)(i_trigger_threshold));
-				iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "Set trigger threshold to %d ", i_trigger_threshold);
-				//write to log file
-
-				//read back value from the FPGA and echo to user
-				i_trigger_threshold = 0;	//reset var before reading
-				i_trigger_threshold = Xil_In32(XPAR_AXI_GPIO_10_BASEADDR);
-				iSprintfReturn = snprintf(report_buff, 100, "%d\n", i_trigger_threshold);
-				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
-			}
-			else
-				bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
-			break;
-#endif
-		case NGATES_CMD: //NGATES, set neutron cut gates
-			sscanf(RecvBuffer + strlen("NGATES_"), " %f_%f_%f_%f", &(ECut_1), &(ECut_2), &(PCut_1), &(PCut_2));
-			SetNeutronCutGates(ECut_1, ECut_2, PCut_1, PCut_2);
-			break;
-		case HV_CMD:
-#ifdef BREAKUP_MAIN
-			sscanf(RecvBuffer + strlen("HV_"), " %d_%d", &HvPmtId, &HvValue);
-			SetHighVoltage(HvPmtId, HvValue);
-			break;
-#else
-			//TEC startup -> TEC control enable -> TEC off //Set High Voltage
-			//change VTSET before getting in to temp loop
-			Xil_Out32 (XPAR_AXI_GPIO_4_BASEADDR, 1);	//TEC Control Enable//signal to regulator
-			XGpioPs_WritePin(&Gpio, TEC_PIN, 1);		//TEC Startup//signal to controller
-			xil_printf("TEC ON, Control Enable ON\r\n");
-
-			//poll for user value of a temperature to move to
-			xil_printf("Enter a number of taps to move the wiper to:\r\n");
-//			ReadCommandPoll();
-			data = 0;	//reset
-			menusel = 99999;
-			sscanf(RecvBuffer,"%d",&data);
-			if( data < 0 || data > 255) { xil_printf("Invalid number of taps.\n\r"); sleep(1); break; }
-
-			//poll for a time to wait for the temperature to settle
-			xil_printf("Enter a timeout value to wait for, in seconds\r\n");
-//			ReadCommandPoll();
-			timeout = 0;
-			sscanf(RecvBuffer,"%d",&timeout);
-			if( timeout < 1 ) { xil_printf("Invalid timeout value\n\r"); sleep(1); break; }
-
-			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR4;
-			cntrl = 0x2;	//write to RDAC
-			i2c_Send_Buffer[0] = cntrl;
-			i2c_Send_Buffer[1] = data;
-			Status = IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-
-			//VTSET has been changed, now loop while checking the temperature sensors
-			// and user input to see if we should stop
-			xil_printf("Press 'q' to stop\n\r");
-			//set variables we'll need when looping
-			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR5;
-			i2c_Send_Buffer[0] = 0x0;
-			i2c_Send_Buffer[1] = 0x0;
-			//take the time so we know how long to run for
-			XTime_GetTime(&local_time_current);	//take the time in cycles
-			local_time = (local_time_current - local_time_start)/COUNTS_PER_SECOND; //compute the time in seconds
-			while(1)
-			{
-				//check timeout to see if we should be done
-				XTime_GetTime(&local_time_current);
-				if(((local_time_current - local_time_start)/COUNTS_PER_SECOND) >= (local_time +  timeout))
-					break;
-
-				//check user input
-				bytes_received = XUartPs_Recv(&Uart_PS, (u8 *)RecvBuffer, 100);
-				if ( RecvBuffer[0] == 'q' )
-					break;
-				else
-					memset(RecvBuffer, '0', 100);
-
-				//check temp sensor(s)
-				//read the temperature from the analog board temp sensor, data sheet Extra Temp Sensor Board (0x4A)
-				Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-				Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-				a = i2c_Recv_Buffer[0]<< 5;
-				b = a | i2c_Recv_Buffer[1] >> 3;
-				if(i2c_Recv_Buffer[0] >= 128)
-					b = (b - 8192) / 16;
-				else
-					b = b / 16;
-				//check to see if the temp reported is the temp requested by the user
-				//if it is, break out
-				//check temp is not outside of acceptable range
-				if(b > 50 || b < 0)
-					break;
-			}
-
-			XGpioPs_WritePin(&Gpio, TEC_PIN, 0);		//TEC Startup disable
-			Xil_Out32 (XPAR_AXI_GPIO_4_BASEADDR, 0);	//TEC Control disable
-			xil_printf("TEC OFF, Control Enable OFF\n\r");
-			sleep(1); //built in latency
-			break;
-#endif
-		case INT_CMD: //Set Integration Times
-#ifdef BREAKUP_MAIN
-			sscanf(RecvBuffer + 3 + 1, " %d_%d_%d_%d", &i_integration_times[0], &i_integration_times[1], &i_integration_times[2], &i_integration_times[3]);
-			bytes_sent = SetIntergrationTime(i_integration_times[0], i_integration_times[1], i_integration_times[2], i_integration_times[3]);
-			break;
-#else
-			sscanf(RecvBuffer + 3 + 1, " %d_%d_%d_%d", &i_integration_times[0], &i_integration_times[1], &i_integration_times[2], &i_integration_times[3]);
-
-			if((i_integration_times[0] < i_integration_times[1]) && ( i_integration_times[1] < i_integration_times[2]) && (i_integration_times[2] < i_integration_times[3]))	//if each is greater than the last
-			{
-				Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, ((u32)(i_integration_times[0]+52)/4));
-				Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, ((u32)(i_integration_times[1]+52)/4));
-				Xil_Out32 (XPAR_AXI_GPIO_2_BASEADDR, ((u32)(i_integration_times[2]+52)/4));
-				Xil_Out32 (XPAR_AXI_GPIO_3_BASEADDR, ((u32)(i_integration_times[3]+52)/4));
-
-				//write this to the log file
-				iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "Set integration times to %d %d %d %d ", i_integration_times[0], i_integration_times[1], i_integration_times[2], i_integration_times[3]);
-				//write to log file function
-
-				//send return value for function
-				iSprintfReturn = snprintf(report_buff, 100, "%d_%d_%d_%d\n",i_integration_times[0], i_integration_times[1], i_integration_times[2], i_integration_times[3]);
-				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
-			}
-			else
-				bytes_sent = XUartPs_Send(&Uart_PS, error_buff, sizeof(error_buff));
-			break;
-#endif
-//		case READ_DIGI_TEMP:	//Read Temp on the digital board
-//			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR2;
-//			i2c_Send_Buffer[0] = 0x0;
-//			i2c_Send_Buffer[1] = 0x0;
-//			Status = IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-//			Status = IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//				b = (b - 8192) / 16;
-//			else
-//				b = b / 16;
-//			xil_printf("%d\xf8\x43\n\r", b); //take integer, which is in degrees C \xf8 = degree symbol, \x43 = C
-//			sleep(1); //built in latency
-//			break;
-//		case READ_ANLG_TEMP:
-//			//read the temperature from the analog board temp sensor
-//			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
-//			i2c_Send_Buffer[0] = 0x0;
-//			i2c_Send_Buffer[1] = 0x0;
-//			Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-//			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//				b = (b - 8192) / 16;
-//			else
-//				b = b / 16;
-//			xil_printf("%d\xf8\x43\n\r", b);
-//			sleep(1); //built in latency
-//			break;
-//		case READ_MODU_TEMP:
-//			//read the temperature from the Extra Temp Sensor Board
-//			IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR5;
-//			i2c_Send_Buffer[0] = 0x0;
-//			i2c_Send_Buffer[1] = 0x0;
-//			Status = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-//			Status = IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//				b = (b - 8192) / 16;
-//			else
-//				b = b / 16;
-//			xil_printf("%d\xf8\x43\n\r", b);
-//			sleep(1); //built in latency
-//			break;
 		default :
 			break;
 		} // End Switch-Case Menu Select
@@ -1037,6 +891,7 @@ int InitializeInterruptSystem(u16 deviceID) {
 //////////////////////////// Interrupt Handler////////////////////////////////
 void InterruptHandler (void ) {
 
+	u32 global_frame_counter = 0;	// Counts for the interrupt system
 	u32 tmpValue;
 	tmpValue = Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x34);
 	tmpValue = tmpValue | 0x1000;
@@ -1056,57 +911,6 @@ int SetUpInterruptSystem(XScuGic *XScuGicInstancePtr) {
 }
 //////////////////////////// SetUp Interrupt System////////////////////////////////
 
-#ifndef BREAKUP_MAIN
-//////////////////////////// Report SOH Function ////////////////////////////////
-//This function takes in the number of neutrons currently counted and the local time
-// and pushes the SOH data product to the bus over the UART
-int report_SOH(XTime local_time, int i_neutron_total, XUartPs Uart_PS)
-{
-	//Variables
-	char report_buff[100] = "";
-	unsigned char i2c_Send_Buffer[2] = {};
-	unsigned char i2c_Recv_Buffer[2] = {};
-	int a = 0;
-	int b = 0;
-	int analog_board_temp = 0;
-	int digital_board_temp = 0;
-	int i_sprintf_ret = 0;
-	int *IIC_SLAVE_ADDR;		//pointer to slave
-
-	//analog board temp - case 14
-	IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR3;
-	i2c_Send_Buffer[0] = 0x0;
-	i2c_Send_Buffer[1] = 0x0;
-	IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	IicPsMasterRecieve(IIC_DEVICE_ID_0, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	a = i2c_Recv_Buffer[0]<< 5;
-	b = a | i2c_Recv_Buffer[1] >> 3;
-	if(i2c_Recv_Buffer[0] >= 128)
-		b = (b - 8192) / 16;
-	else
-		b = b / 16;
-	analog_board_temp = b;
-
-	//digital board temp - case 13
-	IIC_SLAVE_ADDR=&IIC_SLAVE_ADDR2;
-	IicPsMasterSend(IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	IicPsMasterRecieve(IIC_DEVICE_ID_1, i2c_Recv_Buffer, IIC_SLAVE_ADDR);
-	a = i2c_Recv_Buffer[0]<< 5;
-	b = a | i2c_Recv_Buffer[1] >> 3;
-	if(i2c_Recv_Buffer[0] >= 128)
-		b = (b - 8192) / 16;
-	else
-		b = b / 16;
-	digital_board_temp = b;
-
-	i_sprintf_ret = snprintf(report_buff, 100, "%d_%d_%u_%llu\n", analog_board_temp, digital_board_temp, i_neutron_total, local_time);
-	XUartPs_Send(&Uart_PS, (u8 *)report_buff, i_sprintf_ret);
-
-	return 0;
-}
-//////////////////////////// Report SOH Function ////////////////////////////////
-#endif
-
 //////////////////////////// Clear Processed Data Buffers ////////////////////////////////
 void ClearBuffers() {
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,1);
@@ -1122,6 +926,8 @@ int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char
 int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer)
 #endif
 {
+	uint numBytesWritten = 0;
+	uint numBytesRead = 0;
 	int valid_data = 0; 	//BRAM buffer size
 	int buff_num = 0;	//keep track of which buffer we are writing
 	int array_index = 0;
@@ -1141,8 +947,11 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 	unsigned short twoDH_pmt2[i_xnumbins][i_ynumbins];
 	unsigned short twoDH_pmt3[i_xnumbins][i_ynumbins];
 	unsigned short twoDH_pmt4[i_xnumbins][i_ynumbins];
+
+	//SD CARD FILES
 	FIL data_file;
 	FIL data_file_dest;
+	FRESULT ffs_res;
 
 	//timing
 //	XTime local_time_current;
@@ -1255,7 +1064,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 
 		//continue to loop and report SOH while waiting for user input
 #ifdef BREAKUP_MAIN
-		CheckForSOH(Uart_PS);
+//		CheckForSOH(Iic, Uart_PS);
 #else
 		XTime_GetTime(&local_time_current);
 		if(((local_time_current - local_time_start)/COUNTS_PER_SECOND) >= (local_time +  1))

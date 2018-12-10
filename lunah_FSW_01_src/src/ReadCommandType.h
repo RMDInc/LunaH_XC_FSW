@@ -20,5 +20,6 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS);
 int PollUart(char * RecvBuffer, XUartPs *Uart_PS);
 int GetIntParam( int param_num );
 float GetFloatParam( int param_num );
+unsigned long long int GetRealTimeParam( void );
 
 #endif /* SRC_READCOMMANDTYPE_H_ */

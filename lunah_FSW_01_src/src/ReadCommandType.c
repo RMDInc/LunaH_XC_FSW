@@ -27,6 +27,7 @@ static float ffirstVal = 0.0;
 static float fsecondVal = 0.0;
 static float fthirdVal = 0.0;
 static float ffourthVal = 0.0;
+static unsigned long long int realTime = 0;
 
 /* Delete a scanned out command from the buffer then shift the buffer over */
 // This function deletes bytes from the beginning of a char buffer then
@@ -35,6 +36,9 @@ static float ffourthVal = 0.0;
 // @param	The number of bytes to shift by
 // @param	The number of bytes in the string left in the buffer
 //			This is the total minus the bytes we want to delete
+//
+// Return	None
+//
 void bufferShift(char * buff, int bytes_to_del, int buff_strlen)
 {
 	//check on the values
@@ -85,6 +89,25 @@ unsigned int GetLastCommandSize( void )
 	return last_command_size;
 }
 
+/*
+ * This function polls the UART for input and processes it looking for MNS commands.
+ * If it finds a command, it checks to ensure proper syntax and relevance. If the command
+ * has proper syntax and is relevant to the detector, then it is accepted and reported to
+ * the main menu, so we can carry out the instruction. At the end of the function, the
+ * input which was processed is erased from the buffer, then the contents of the buffer
+ * are shifted over so that the next command can be read.
+ *
+ * @param	(CHAR *) A pointer to the receive buffer where all user input is stored
+ * @param	(XUARTPS *) A pointer to the instance of the UART which is being used to
+ * 						communicate with the S/C
+ *
+ * Return	(INT) An integer value which indicates to the calling function what command
+ * 					was found in the receive buffer. This is also used to indicate errors (-1)
+ * 					in the syntax of the commands. If the return value is 999, there was no
+ * 					input to read in the receive buffer. If the return value is a command value
+ * 					(see lunah_defines.h) plus 900, then the command is not relevant to the
+ * 					detector which read that command.
+ */
 int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	//Variables
 	//char is_line_ending = '\0';
@@ -92,7 +115,6 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	int bytes_scanned = 0;
 	int detectorVal = 0;
 	int commandNum = 999;	//this value tells the main menu what command we read from the rs422 buffer
-	unsigned long long int realTime = 0;
 
 	char commandBuffer[20] = "";
 	char commandBuffer2[50] = "";
@@ -114,7 +136,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 			}
 			else if(!strcmp(commandBuffer, "DAQ"))
 			{
-				//check that there is one int after the underscore // may need a larger value here to take a 64-bit time
+				//check that there is one int after the underscore
 				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &detectorVal, &firstVal);
 
 				if(ret != 2)	//invalid input
@@ -248,18 +270,18 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				else
 					commandNum = 12;
 			}
-			else if(!strcmp(commandBuffer, "NGATES"))
+			else if(!strcmp(commandBuffer, "NGATES"))	//Need to grab another param, ModuleID
 			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%f_%f_%f_%f", &detectorVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
 
 				if(ret != 5)	//invalid input
 					commandNum = -1;
 				else
 					commandNum = 13;
 			}
-			else if(!strcmp(commandBuffer, "NWGATES"))
+			else if(!strcmp(commandBuffer, "NWGATES"))	//Need to grab another param, ModuleID
 			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%f_%f_%f_%f", &detectorVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
+				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
 				if(ret != 5)
 					commandNum = -1;
 				else
@@ -477,4 +499,17 @@ float GetFloatParam( int param_num )
 	}
 
 	return value;
+}
+
+/* Getter to access the Real Time entered with the START_DAQ command */
+//This function accesses the real_time value which is set grabbed from the S/C
+//
+// @param	none
+//
+// @return	(long long int) returns the value assigned when the command was scanned
+//			This is a 64-bit number, so we need a large data type
+//
+unsigned long long int GetRealTimeParam( void )
+{
+	return realTime;
 }

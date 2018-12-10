@@ -7,7 +7,7 @@
 
 #include "LI2C_Interface.h"
 
-int IicPsInit(u16 DeviceId)
+int IicPsInit(XIicPs Iic, u16 DeviceId)
 {
 	XIicPs_Config *Config;
 	int iStatus = 0;
@@ -56,7 +56,7 @@ int IicPsInit(u16 DeviceId)
 * @note		None.
 *
 *******************************************************************************/
-int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
+int IicPsMasterSend(XIicPs Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
 {
 	int iStatus = 0;
 	XIicPs_Config *Config;
@@ -112,7 +112,7 @@ int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, in
 	return XST_SUCCESS;
 }
 
-int IicPsMasterRecieve(u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
+int IicPsMasterRecieve(XIicPs Iic, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
 {
 	int iStatus = 0;
 	iStatus = XIicPs_MasterRecvPolled(&Iic, ptr_Recv_Buffer, 0x2, *iI2C_slave_addr);

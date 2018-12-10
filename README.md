@@ -39,3 +39,9 @@ When finished, the Level 2 FSW will be running on an XC board. At that point, a 
 - Version 3.8 The level 2 FSW code is not updated with this version, but the macros for running and testing the system are included, as well as a test binary output file with CCSDS packets in it. A future update will include instructions for running all of L2.
 
 - Version 3.81 Level 2 FSW BOOT files are updated and can be found in the BOOT_Files folder under the name XC_FSW_L2.zip. Unzip the files to find the fsbl, bootimage file, and .mcs file. Instructions for programming an engineering board with these files to run the L2 FSW will come with a later update.
+
+- Version 4.0 This version number indicates the start of Level 3 FSW development. While at LANL, work was started on the L3 FSW in a number of areas: the command names are in the process of being updated, DAQ is being implemented, 
+the DAQ source file is being developed, the DAQ code is in reference to the "fake data" program that was written to generate LunaH data products and data packets, much of the code has been cleaned up with regards to various left over 
+variables and define values, various references within the code to instances of the HW are being passed now, especially in the SOH generation, plus a lot of the functions and variables have been re-organized for clarity and usefullness.
+Also, I have begun to format the information for each function within the source files so that someone could look at the text comments and figure out how to use the function, what its purpose is, and what its parameters and return value 
+are. This should add clarity and begins the start of a style guide for how to add to this project. This version of the FSW is begins the third release of the FSW. In terms of the L2 FSW, I need to finish writing the instructions and maybe publish a new ICD version.

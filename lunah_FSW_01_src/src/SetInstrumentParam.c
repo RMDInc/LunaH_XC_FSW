@@ -7,14 +7,7 @@
  *      Author: IRDLAB
  */
 
-#include <stdio.h>
-#include <xparameters.h>
-#include "lunah_defines.h"
-#include "lunah_utils.h"
-#include "xuartps.h"
-#include "ff.h"
-#include "LI2C_Interface.h"
-#include "xiicps.h"
+#include "SetInstrumentParam.h"
 
 extern CONFIG_STRUCT_TYPE ConfigBuff;
 
@@ -95,7 +88,8 @@ int SetEnergyCalParam(float Slope, float Intercept)
 
 /*
  * Set Neutron Cut Gates
- *		Syntax: SetNeutronCutGates(ECut1, ECut2, PCut1, PCut2)
+ *		Syntax: SetNeutronCutGates(ModuleNumber, ECut1, ECut2, PCut1, PCut2)
+ *			Module Number = (Int) assigns the cut values to a specific CLYC module
  *			ECut = (Float) floating point values between 0 - 200,000 keV
  *			PCut = (Float) floating point values between 0 - 2.0
  *		Description:  Set the cuts on neutron energy (ECut) and psd spectrum (PCut)
@@ -103,8 +97,16 @@ int SetEnergyCalParam(float Slope, float Intercept)
  *					  and MNS_SOH data files.
  * 		Latency: TBD
  *		Return: command SUCCESS (0) or command FAILURE (1)
+ *
+ *		NB: We may not use these functions anymore because of a change in how we are going to
+ *		implement these cuts. The new approach is to re-calculate the PSD/Energy cuts for each
+ *		module every time we check the temperature during DAQ. Thus, we don't need to set these
+ *		by hand.
+ *
+ *		What this will be useful for entering is the conversion table which will be referenced
+ *		during DAQ.
  */
-int SetNeutronCutGates(float ECut1, float ECut2, float PCut1, float PCut2)
+int SetNeutronCutGates(int moduleID, float ECut1, float ECut2, float PCut1, float PCut2)
 {
 	int status = 0;
 	if((ECut1 < ECut2) && (PCut1 < PCut2))
@@ -115,10 +117,44 @@ int SetNeutronCutGates(float ECut1, float ECut2, float PCut1, float PCut2)
 			{
 				//Values are within acceptable ranges
 				// write to config file buffer
-				ConfigBuff.EnergyCut[0] = ECut1;
-				ConfigBuff.EnergyCut[1] = ECut2;
-				ConfigBuff.PsdCut[0] = PCut1;
-				ConfigBuff.PsdCut[1] = PCut2;
+				switch(moduleID)
+				{
+				case 0:
+					//module 0
+					ConfigBuff.ECutLoMod1 = ECut1;
+					ConfigBuff.ECutHiMod1 = ECut2;
+					ConfigBuff.PSDCutLoMod1 = PCut1;
+					ConfigBuff.PSDCutHiMod1 = PCut2;
+					break;
+				case 1:
+					//module 1
+					ConfigBuff.ECutLoMod2 = ECut1;
+					ConfigBuff.ECutHiMod2 = ECut2;
+					ConfigBuff.PSDCutLoMod2 = PCut1;
+					ConfigBuff.PSDCutHiMod2 = PCut2;
+					break;
+				case 2:
+					//module 2
+					ConfigBuff.ECutLoMod3 = ECut1;
+					ConfigBuff.ECutHiMod3 = ECut2;
+					ConfigBuff.PSDCutLoMod3 = PCut1;
+					ConfigBuff.PSDCutHiMod3 = PCut2;
+					break;
+				case 3:
+					//module 3
+					ConfigBuff.ECutLoMod4 = ECut1;
+					ConfigBuff.ECutHiMod4 = ECut2;
+					ConfigBuff.PSDCutLoMod4 = PCut1;
+					ConfigBuff.PSDCutHiMod4 = PCut2;
+					break;
+				default:
+					//bad value for the module ID, just use the defaults
+//					ConfigBuff.ECutLoMod1 = ECut1;
+//					ConfigBuff.ECutHiMod1 = ECut2;
+//					ConfigBuff.PSDCutLoMod1 = PCut1;
+//					ConfigBuff.PSDCutHiMod1 = PCut2;
+					break;
+				}
 				// Save Config file
 				SaveConfig();
 				status = CMD_SUCCESS;
@@ -137,14 +173,15 @@ int SetNeutronCutGates(float ECut1, float ECut2, float PCut1, float PCut2)
 
 /*
  * Set Wide Neutron Cut Gates
- *		Syntax: SetWideNeuronCutGates(WideECut1, WideECut2, WidePCut1, WidePCut2
+ *		Syntax: SetWideNeuronCutGates(ModuleNumber, WideECut1, WideECut2, WidePCut1, WidePCut2)
+ *			Module Number = (Int) assigns the cut values to a specific CLYC module
  *			ECut = (Float) floating point values between 0 � 200,000 MeV
  *			PCut = (Float)  point values between 0 � 3.0
  *		Description: Set the cuts on neutron energy (ECut) and psd spectrum (PCut) when calculating neutrons totals for the MNS_EVTS, MNS_CPS, and MNS_SOH data files. These values are recorded as the new default values for the system.
  * 		Latency: TBD
  *		Return: command SUCCESS (0) or command FAILURE (1)
  */
-int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, float WidePCut2)
+int SetWideNeutronCutGates(int moduleID, float WideECut1, float WideECut2, float WidePCut1, float WidePCut2)
 {
 	int status = 0;
 	if((WideECut1 < WideECut2) && (WidePCut1 < WidePCut2))
@@ -154,10 +191,44 @@ int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, fl
 				if( (WidePCut1 >= 0.0) && (WidePCut2 <= 2.0))
 				{
 					// write to config file buffer
-					ConfigBuff.WideEnergyCut[0] = WideECut1;
-					ConfigBuff.WideEnergyCut[1] = WideECut2;
-					ConfigBuff.WidePsdCut[0] = WidePCut1;
-					ConfigBuff.WidePsdCut[1] = WidePCut2;
+					switch(moduleID)
+					{
+					case 0:
+						//module 0
+						ConfigBuff.WideECutLoMod1 = WideECut1;
+						ConfigBuff.WideECutHiMod1 = WideECut2;
+						ConfigBuff.WidePSDCutLoMod1 = WidePCut1;
+						ConfigBuff.WidePSDCutHiMod1 = WidePCut2;
+						break;
+					case 1:
+						//module 1
+						ConfigBuff.WideECutLoMod2 = WideECut1;
+						ConfigBuff.WideECutHiMod2 = WideECut2;
+						ConfigBuff.WidePSDCutLoMod2 = WidePCut1;
+						ConfigBuff.WidePSDCutHiMod2 = WidePCut2;
+						break;
+					case 2:
+						//module 2
+						ConfigBuff.WideECutLoMod3 = WideECut1;
+						ConfigBuff.WideECutHiMod3 = WideECut2;
+						ConfigBuff.WidePSDCutLoMod3 = WidePCut1;
+						ConfigBuff.WidePSDCutHiMod3 = WidePCut2;
+						break;
+					case 3:
+						//module 3
+						ConfigBuff.WideECutLoMod4 = WideECut1;
+						ConfigBuff.WideECutHiMod4 = WideECut2;
+						ConfigBuff.WidePSDCutLoMod4 = WidePCut1;
+						ConfigBuff.WidePSDCutHiMod4 = WidePCut2;
+						break;
+					default:
+						//bad value for the module ID, just use the defaults
+	//					ConfigBuff.ECutLoMod1 = ECut1;
+	//					ConfigBuff.ECutHiMod1 = ECut2;
+	//					ConfigBuff.PSDCutLoMod1 = PCut1;
+	//					ConfigBuff.PSDCutHiMod1 = PCut2;
+						break;
+					}
 					// Save Config file
 					SaveConfig();
 					status = CMD_SUCCESS;
@@ -184,7 +255,7 @@ int SetWideNeutronCutGates(float WideECut1, float WideECut2, float WidePCut1, fl
  *			Latency: TBD
  *			Return: command SUCCESS (0) or command FAILURE (1)
  */
-int SetHighVoltage(unsigned char PmtId, int Value)
+int SetHighVoltage(XIicPs Iic, unsigned char PmtId, int Value)
 {
 	int IIC_SLAVE_ADDR1 = 0x20; //HV on the analog board - write to HV pots, RDAC
 	unsigned char i2c_Send_Buffer[2];
@@ -213,7 +284,7 @@ int SetHighVoltage(unsigned char PmtId, int Value)
 				i2c_Send_Buffer[0] = cntrl | (PmtId - 1);
 				i2c_Send_Buffer[1] = Value;
 				//send the command to the HV
-				RetVal = IicPsMasterSend(IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
+				RetVal = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
 				if(RetVal == XST_SUCCESS)
 				{
 					// write to config file
@@ -235,7 +306,7 @@ int SetHighVoltage(unsigned char PmtId, int Value)
 					i2c_Send_Buffer[0] = cntrl | (PmtId - 1);
 					i2c_Send_Buffer[1] = Value;
 					//send the command to the HV
-					RetVal = IicPsMasterSend(IIC_DEVICE_ID_0 ,i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
+					RetVal = IicPsMasterSend(Iic, IIC_DEVICE_ID_0 ,i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
 					if(RetVal == XST_SUCCESS)
 					{
 						// write to config file

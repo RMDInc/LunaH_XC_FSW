@@ -23,11 +23,11 @@
 #define TEST_BUFFER_SIZE	2
 
 /* Declare Variables */
-XIicPs Iic;					//Instance of the IIC device
+//XIicPs Iic;					//Instance of the IIC device
 
 /* Function Declarations */
-int IicPsInit(u16 DeviceId);
-int IicPsMasterSend(u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
-int IicPsMasterRecieve(u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
+int IicPsInit(XIicPs Iic, u16 DeviceId);
+int IicPsMasterSend(XIicPs Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
+int IicPsMasterRecieve(XIicPs Iic, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr);
 
 #endif /* LI2C_INTERFACE_H_ */
