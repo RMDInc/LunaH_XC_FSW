@@ -7,7 +7,7 @@
 
 #include "LI2C_Interface.h"
 
-int IicPsInit(XIicPs Iic, u16 DeviceId)
+int IicPsInit(XIicPs * Iic, u16 DeviceId)
 {
 	XIicPs_Config *Config;
 	int iStatus = 0;
@@ -21,21 +21,21 @@ int IicPsInit(XIicPs Iic, u16 DeviceId)
 	if (NULL == Config)
 		iStatus = XST_FAILURE;
 
-	iStatus = XIicPs_CfgInitialize(&Iic, Config, Config->BaseAddress);
+	iStatus = XIicPs_CfgInitialize(Iic, Config, Config->BaseAddress);
 	if (iStatus != XST_SUCCESS)
 		iStatus = XST_FAILURE;
 
 	/*
 	 * Perform a self-test to ensure that the hardware was built correctly.
 	 */
-	iStatus = XIicPs_SelfTest(&Iic);
+	iStatus = XIicPs_SelfTest(Iic);
 	if (iStatus != XST_SUCCESS)
 		iStatus = XST_FAILURE;
 
 	/*
 	 * Set the IIC serial clock rate.
 	 */
-	XIicPs_SetSClk(&Iic, IIC_SCLK_RATE);
+	XIicPs_SetSClk(Iic, IIC_SCLK_RATE);
 
 	return iStatus;
 }
@@ -56,7 +56,7 @@ int IicPsInit(XIicPs Iic, u16 DeviceId)
 * @note		None.
 *
 *******************************************************************************/
-int IicPsMasterSend(XIicPs Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
+int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
 {
 	int iStatus = 0;
 	XIicPs_Config *Config;
@@ -73,32 +73,32 @@ int IicPsMasterSend(XIicPs Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Rec
 	if (NULL == Config)
 		iStatus = XST_FAILURE;
 
-	iStatus = XIicPs_CfgInitialize(&Iic, Config, Config->BaseAddress);
+	iStatus = XIicPs_CfgInitialize(Iic, Config, Config->BaseAddress);
 	if (iStatus != XST_SUCCESS)
 		iStatus = XST_FAILURE;
 	/*
 	 * Perform a self-test to ensure that the hardware was built correctly.
 	 */
-	iStatus = XIicPs_SelfTest(&Iic);
+	iStatus = XIicPs_SelfTest(Iic);
 	if (iStatus != XST_SUCCESS)
 		iStatus = XST_FAILURE;
 
 	/*
 	 * Set the IIC serial clock rate.
 	 */
-	XIicPs_SetSClk(&Iic, IIC_SCLK_RATE);
+	XIicPs_SetSClk(Iic, IIC_SCLK_RATE);
 
 	/*
 	 * Send the buffer using the IIC and ignore the number of bytes sent
 	 * as the return value since we are using it in interrupt mode.
 	 */
 
-	 XIicPs_MasterSend(&Iic, ptr_Send_Buffer, TEST_BUFFER_SIZE, *iI2C_slave_addr);
+	 XIicPs_MasterSend(Iic, ptr_Send_Buffer, TEST_BUFFER_SIZE, *iI2C_slave_addr);
 
 	/*
 	 * Wait until bus is idle to start another transfer.
 	 */
-	while (XIicPs_BusIsBusy(&Iic))
+	while (XIicPs_BusIsBusy(Iic))
 	{
 		/* NOP */
 		//Will need to handle this timing us out
@@ -112,10 +112,10 @@ int IicPsMasterSend(XIicPs Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_Rec
 	return XST_SUCCESS;
 }
 
-int IicPsMasterRecieve(XIicPs Iic, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
+int IicPsMasterRecieve(XIicPs * Iic, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
 {
 	int iStatus = 0;
-	iStatus = XIicPs_MasterRecvPolled(&Iic, ptr_Recv_Buffer, 0x2, *iI2C_slave_addr);
+	iStatus = XIicPs_MasterRecvPolled(Iic, ptr_Recv_Buffer, 0x2, *iI2C_slave_addr);
 	if (iStatus != XST_SUCCESS)
 		iStatus = XST_FAILURE;
 

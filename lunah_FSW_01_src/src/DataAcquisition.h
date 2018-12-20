@@ -9,7 +9,10 @@
 #define SRC_DATAACQUISITION_H_
 
 #include <stdio.h>
+//include the SD card library
 #include "ff.h"
+//used to get strlen
+#include <string.h>
 #include "lunah_defines.h"
 
 //FILE SCOPE STRUCTS
@@ -32,9 +35,11 @@ struct event_CPS_dp
 	char module_temp;
 };
 
+int GetFileNameSize( void );
 char * GetFileName( int file_type );
-int SetFileName( int ID_number, int run_number );
+int SetFileName( int ID_number, int run_number, int set_number );
 int DoesFileExist( void );
+int CreateDAQFiles( void );
 int WriteHeaderFile( unsigned long long int real_time, float modu_temp );
 
 #endif /* SRC_DATAACQUISITION_H_ */

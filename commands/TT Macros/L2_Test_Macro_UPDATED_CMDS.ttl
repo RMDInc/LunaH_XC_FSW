@@ -1,0 +1,98 @@
+; don't show the macro window
+show -1
+; hide TT
+showtt 0
+
+;str = "Check: \n 1. CS1 is at GND \n 2. POR is Floating \n 3. CS2 is Floating \n 4. Gamma Source is in place (optional) \n 5. Neutron Source is in place (optional) \n IF NOT, TURN OFF INSTRUMENT AND RESTART \n WITH THESE SETTINGS \n Press 'OK' to START Test"
+;strspecial str
+;messagebox str 'Detector 0'
+
+str = "Start this macro, then run the debug test.\n\nPress OK when the board is running."
+strspecial str
+str2 = "Running through Level 2 functions.\n\nPress Ok and wait for next message."
+strspecial str2
+;messagebox str 'Detector 0'
+;messagebox str2 'Detector 0'
+
+flushrecv
+pause 3
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L2_tt_macro_0_1.bin' 1 0
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+
+; perform actions with the board here
+; enter commands 
+sendln 'MNS_GETSTAT_0'
+sendln 'MNS_GETSTAT_1'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_ENABLE_ACT_0'
+sendln 'MNS_ENABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_DISABLE_ACT_0'
+sendln 'MNS_DISABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_TRG_0_9123'
+sendln 'MNS_TRG_1_8765'
+
+pause 2
+
+sendln 'MNS_ECAL_0_1.2_3.4'
+sendln 'MNS_ECAL_1_1.21_3.41'
+
+pause 2
+
+sendln 'MNS_NGATES_0_2_60000.0_120000.0_0.3_0.6'
+sendln 'MNS_NGATES_1_2_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NWGATES_0_2_40000_130000_0.23_0.45'
+sendln 'MNS_NWGATES_1_2_40110_130110_0.231_0.451'
+
+pause 2
+
+sendln 'MNS_ENABLE_ACT_0'
+sendln 'MNS_ENABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_HV_0_3_50'
+sendln 'MNS_HV_1_3_50'
+
+;messagebox 'Measure the resistance on Pot 4. \n 3Press OK when finished, \n then wait for the final message' 'Detector 0'
+pause 2
+
+sendln 'MNS_HV_0_3_210'
+sendln 'MNS_HV_1_3_210'
+
+pause 2
+
+sendln 'MNS_DISABLE_ACT_0'
+sendln 'MNS_DISABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_INT_0_-51_87_399_5999'
+sendln 'MNS_INT_1_-51_101_401_6001'
+
+pause 2
+
+;messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+setdebug 0
+logclose
+
+end

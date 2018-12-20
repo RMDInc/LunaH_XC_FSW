@@ -1,0 +1,36 @@
+; don't show the macro window
+;show -1
+; hide TT
+;showtt -1
+
+flushrecv
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L2_tt_macro_0_1.bin' 1 0
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+
+; perform actions with the board here
+; enter commands 
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_1'
+sendln 'MNS_DAQ_1_1'
+
+pause 5
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+;messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+setdebug 0
+logclose
+showtt 1
+end

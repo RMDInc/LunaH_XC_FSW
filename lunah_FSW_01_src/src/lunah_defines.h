@@ -19,6 +19,7 @@
 #define IIC_DEVICE_ID_1		XPAR_XIICPS_1_DEVICE_ID	//thermometer/pot on digital board
 #define FILENAME_SIZE		50
 #define	TEC_PIN				18
+#define SIZEOF_FILENAME		34 //???
 #define DATA_PACKET_SIZE	2040
 #define PAYLOAD_MAX_SIZE	2028
 #define DATA_BUFFER_SIZE	4096
@@ -29,7 +30,7 @@
 #define CHECKSUM_SIZE		4
 #define CCSDS_HEADER_SIZE	11
 
-// Command definitions (can optionally be done with enum - used defines for now to assure compatibility)
+// Command definitions
 #define DAQ_CMD			0
 #define WF_CMD			1
 #define READ_TMP_CMD	2

@@ -91,13 +91,13 @@ int main()
 	//Make the IIC Instance come from here and we pass it in to the functions
 	XIicPs Iic;
 
-	iic_status = IicPsInit(Iic, IIC_DEVICE_ID_0);
+	iic_status = IicPsInit(&Iic, IIC_DEVICE_ID_0);
 	if(iic_status != XST_SUCCESS)
 	{
 		//handle the issue
 		xil_printf("fix the Iic device 0\r\n");
 	}
-	iic_status = IicPsInit(Iic, IIC_DEVICE_ID_1);
+	iic_status = IicPsInit(&Iic, IIC_DEVICE_ID_1);
 	if(iic_status != XST_SUCCESS)
 	{
 		//handle the issue
@@ -215,6 +215,7 @@ int main()
 
 	char * last_command;				//pointer to handle writing commands to the log file
 	unsigned int last_command_size = 0;	//holder for size
+	int done = 0;						//local status variable for keeping track of progress within loops
 	int status = 0;						//local status variable for reporting SUCCESS/FAILURE
 	int DAQ_run_number = 0;				//run number value for file names, tracks the number of runs per POR
 	int	menusel = 99999;				//case select variable for polling
@@ -250,12 +251,6 @@ int main()
 	//after, SOH is checked to see if it is time to report SOH
 	//When it is time, reports a full CCSDS SOH packet
 
-	//if this message is garbled, change the buad rate in TT
-	//change the value of:
-	//#define XUARTPS_DFT_BAUDRATE  115200U   /* Default baud rate */
-	// up to 921600U
-	//xil_printf("low baud\r\n");	//change out this bitstream
-
 	while(1){	//OUTER LEVEL 2 TESTING LOOP
 		while(1){
 			//resetting this value every time is (potentially) critical
@@ -263,7 +258,7 @@ int main()
 			menusel = 99999;
 			menusel = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
 
-			if ( menusel > -1 && menusel <= 23 )
+			if ( menusel >= -1 && menusel <= 23 )	//let all input in, including errors, so we can report them
 			{
 				//we found a valid LUNAH command or input was bad (-1)
 				//log the command issued, unless it is an error
@@ -282,7 +277,7 @@ int main()
 				break;	//leave the inner loop and execute the commanded function
 			}
 			//check to see if it is time to report SOH information, 1 Hz
-			CheckForSOH(Iic, Uart_PS);
+			CheckForSOH(&Iic, Uart_PS);
 		}//END TEMP ASU TESTING LOOP
 
 		//MAIN MENU OF FUNCTIONS
@@ -296,70 +291,111 @@ int main()
 		case DAQ_CMD:
 			//set processed data mode
 			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
-			//create the file names we will use for this run
+			//prepare the status variables
+			done = 0;				//not done yet
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
-			while(status != CMD_FAILURE)
+			//create the file names we will use for this run:
+			//check if the filename given is unique
+			//if the filename is unique, then we will go through these functions once
+			//if not, then we will loop until a unique name is found
+			while(status == CMD_SUCCESS)
 			{
 				//only report a packet when the file has been successfully changed and did not exist already
 				++DAQ_run_number;	//initialized to 0, the first run will increment to 1
-				SetFileName(GetIntParam(1), DAQ_run_number);	//creates a file name of IDNum_runNum_type.bin
+				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append files
 				status = DoesFileExist();
-				//when settled, we need to send a packet to inform if the file has been changed
+				//returns FALSE if file does NOT exist
+				//returns TRUE if file does exist
+				//we need the file to be unique, so FALSE is a positive result,
+				// if we get TRUE, we need to keep looping
+				//when status is FALSE, we need to send a packet to inform the file name
+				if(status == CMD_FAILURE)
+					reportSuccess(Uart_PS, 1);
 			}
 			//create the files before polling for user input
-
+			status = CreateDAQFiles();
 			//begin polling for START/BREAK/READTEMP
-			while(1)
+			while(done != 1)
 			{
 				status = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
-				//compare to what is accepted
-				//if no good input is found, silently ignore the input
-				switch(status){
-				case BREAK_CMD:
-					//received the break command
-					//report a success packet with the break command in it
+				//see if we got anything meaningful //we'll accept any valid command
+				if ( status >= -1 && status <= 23 )
+				{
+					//compare to what is accepted
+					//if no good input is found, silently ignore the input
+					switch(status){
+					case BREAK_CMD:
+						//received the break command
+						//break out after this command //done
+						done = 1;
+						//report a success packet with the break command in it
+						reportSuccess(Uart_PS, 0);
+						break;
+					case START_CMD:
+						//received START_DAQ command
+						//turn on the system
+						//trigger a "false event" in the FPGA to log the MNS_FPGA time
+						/***************for testing, leave these out, we don't need them */
+	//					Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+	//					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+	//					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
+						//record the REALTIME and write headers into files
+						status = WriteHeaderFile(GetRealTimeParam(), GetModuTemp());
+						//call the DAQ() function
 
-					break;
-				case START_CMD:
-					//received START_DAQ command
-					//turn on the system
-					//trigger a "false event" in the FPGA to log the MNS_FPGA time
-					Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
-					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
-					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
-					//record the REALTIME and write headers into files
-					status = WriteHeaderFile(GetRealTimeParam(), GetModuTemp());
-					//call the DAQ() function
+						//we have returned from DAQ, report success/failure
+						//we will return in three ways:
+						// time out (1) = success
+						// END (2)		= success
+						// BREAK (0)	= failure
 
-					//we have returned from DAQ, report success/failure
-					//we will return in three ways:
-					// time out (1) = success
-					// END (2)		= success
-					// BREAK (0)	= failure
-
-					break;
-				case READ_TMP_CMD:
-					//read all temp sensors
-					//report a temp packet
-					status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
-					if(status == CMD_FAILURE)
+						//currently, this should always report failure because the function before it(write header files) always reports status = 0
+						switch(status)
+						{
+						case 0:
+							reportFailure(Uart_PS);
+							break;
+						case 1:
+							reportSuccess(Uart_PS, 0);
+							break;
+						case 2:
+							reportSuccess(Uart_PS, 0);
+							break;
+						default:
+							reportFailure(Uart_PS);
+							break;
+						}
+						//break out after this command //done
+						done = 1;
+						break;
+					case READ_TMP_CMD:
+						//read all temp sensors
+						done = 0;	//continue looping //not done
+						//report a temp packet
+						status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+						if(status == CMD_FAILURE)
+							reportFailure(Uart_PS);
+						break;
+					case -1:
+						//we found an invalid command
+						done = 0;	//continue looping //not done
+						//Report CMD_FAILURE
 						reportFailure(Uart_PS);
-					break;
-				case -1:
-					//we found an invalid command
-					//xil_printf("bad command detected\r\n");	//break and return to polling loop
-					//Report CMD_FAILURE
-					reportFailure(Uart_PS);
-					break;
-				default:
-					//got something outside of these commands
-					//reject it with a packet?
-					//or just ignore it?
-					break;
+						break;
+					default:
+						//got something outside of these commands
+						done = 0;	//continue looping //not done
+						//I want to report failure and also include something like daq loop in the string
+						// that way a person controlling the MNS would see the reason all their commands
+						// are failing. If the loop is here, the command entered was recognized and relevant
+						// but we can't do it because this loop doesn't have access.
+						reportFailure(Uart_PS);
+						break;
+					}
 				}
 				//check to see if it is time to report SOH information, 1 Hz
-				CheckForSOH(Iic, Uart_PS);
+				CheckForSOH(&Iic, Uart_PS);
 			}
 			//data acquisition has been completed, wrap up anything not handled by the DAQ function
 
@@ -371,13 +407,13 @@ int main()
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
-			status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
 		case GETSTAT_CMD: //Push an SOH packet to the bus
 			//instead of checking for SOH, just push one SOH packet out because it was requested
-			status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
+			status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
@@ -387,7 +423,7 @@ int main()
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
 			//No SW check on success/failure
 			//Report SUCCESS (no way to check for failure)
-			reportSuccess(Uart_PS);
+			reportSuccess(Uart_PS, 0);
 			break;
 		case ENABLE_ACT_CMD:
 			//enable the active components
@@ -395,7 +431,7 @@ int main()
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 1);		//enable 5V to analog board
 			//No SW check on success/failure
 			//Report SUCCESS (no way to check for failure)
-			reportSuccess(Uart_PS);
+			reportSuccess(Uart_PS, 0);
 			break;
 		case TX_CMD:
 			//transfer any file on the SD card
@@ -422,7 +458,7 @@ int main()
 			status = SetTriggerThreshold( GetIntParam(1) );
 			//Determine SUCCESS or FAILURE
 			if(status)
-				reportSuccess(Uart_PS);
+				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
 			break;
@@ -431,7 +467,7 @@ int main()
 			status = SetEnergyCalParam( GetFloatParam(1), GetFloatParam(2) );
 			//Determine SUCCESS or FAILURE
 			if(status)
-				reportSuccess(Uart_PS);
+				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
 			break;
@@ -440,7 +476,7 @@ int main()
 			status = SetNeutronCutGates(GetIntParam(1), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
 			//Determine SUCCESS or FAILURE
 			if(status)
-				reportSuccess(Uart_PS);
+				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
 			break;
@@ -449,7 +485,7 @@ int main()
 			status = SetWideNeutronCutGates(GetIntParam(1), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
 			//Determine SUCCESS or FAILURE
 			if(status)
-				reportSuccess(Uart_PS);
+				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
 			break;
@@ -457,10 +493,10 @@ int main()
 			//set the PMT bias voltage for one or more PMTs
 			//intParam1 = PMT ID
 			//intParam2 = Bias Voltage (taps)
-			status = SetHighVoltage(Iic, GetIntParam(1), GetIntParam(2));
+			status = SetHighVoltage(&Iic, GetIntParam(1), GetIntParam(2));
 			//Determine SUCCESS or FAILURE
 			if(status)
-				reportSuccess(Uart_PS);
+				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
 			break;
@@ -473,13 +509,15 @@ int main()
 			status = SetIntergrationTime(GetIntParam(1), GetIntParam(2), GetIntParam(3), GetIntParam(4));
 			//Determine SUCCESS or FAILURE
 			if(status)
-				reportSuccess(Uart_PS);
+				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
 			break;
 		case BREAK_CMD:
 			//leave a command
 			//xil_printf("received BREAK command\r\n");
+			reportSuccess(Uart_PS, 0);
+			//maybe you need to have code in a command to go there?
 			break;
 		case START_CMD:
 			//start a WF of DAQ science run
@@ -491,8 +529,9 @@ int main()
 			break;
 		case INPUT_OVERFLOW:
 			//too much input
-			xil_printf("Overflowed the buffer (too much input at one time)\r\n");
-			xil_printf("The buffer will try and read through what was sent\r\n");
+			//TODO: Handle this problem here and in ReadCommandType
+//			xil_printf("Overflowed the buffer (too much input at one time)\r\n");
+//			xil_printf("The buffer will try and read through what was sent\r\n");
 			break;
 		default:
 			//got a value for menusel we did not expect
@@ -503,6 +542,9 @@ int main()
 			break;
 		}//END OF SWITCH/CASE (MAIN MENU OF FUNCTIONS)
 
+		//check to see if it is time to report SOH information, 1 Hz
+		//this may help with functions which take too long during their own loops
+		CheckForSOH(&Iic, Uart_PS);
 	}//END OF OUTER LEVEL 2 TESTING LOOP
 
 /*********************************BELOW THIS IS OLD CODE*************************************
@@ -533,7 +575,7 @@ int main()
 
 			//until we have found something useful, check to see if we need
 			// to report SOH information, 1 Hz
-			CheckForSOH(Iic, Uart_PS);
+			CheckForSOH(&Iic, Uart_PS);
 		}//END POLLING LOOP //END MAIN MENU
 
 		ipollReturn = 999;
@@ -601,7 +643,7 @@ int main()
 				}
 
 				//continue to loop and report SOH while waiting for user input
-				CheckForSOH(Iic, Uart_PS);
+				CheckForSOH(&Iic, Uart_PS);
 
 			}//END POLL UART
 

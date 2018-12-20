@@ -107,6 +107,13 @@ unsigned int GetLastCommandSize( void )
  * 					input to read in the receive buffer. If the return value is a command value
  * 					(see lunah_defines.h) plus 900, then the command is not relevant to the
  * 					detector which read that command.
+ *
+ * 	*Side Note: This function relies on the strcmp() function which returns either -1, 0, 1
+ * 				depending on the comparison. Strcmp() returns 0 if the two strings are equal,
+ * 				it returns -1 if the first string is smaller, +1 if the first string is larger.
+ *
+ * 				In C, 0==false, nonzero==true, thus we have to negate the return value from the
+ * 				strcmp() function to get the appropriate behavior.
  */
 int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	//Variables
@@ -116,237 +123,246 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	int detectorVal = 0;
 	int commandNum = 999;	//this value tells the main menu what command we read from the rs422 buffer
 
+	char commandMNSBuf[20] = "";
 	char commandBuffer[20] = "";
 	char commandBuffer2[50] = "";
 
 	iPollBufferIndex += XUartPs_Recv(Uart_PS, (u8 *)RecvBuffer + iPollBufferIndex, 100 - iPollBufferIndex);	//pollbuffindex holds the number of bytes read from the user
 	if(iPollBufferIndex > 99)	//read too much
+	{
+		//TODO Need to handle overflow of the buffer
+		// This is causing a huge problem right now and it's completely unhandled.
+		//
+		//Maybe something like scan the buffer for a '\n' and if we find one,
+		// then we can scan to that place and process the command like normal, which should shift it out.
+		//That way we can just get through what's there and try and handle stuff.
 		return 100;
+	}
 	if(iPollBufferIndex != 0)
 	{
 		//checks whether the last character is a line ending
 		if((RecvBuffer[iPollBufferIndex - 1] == '\n') || (RecvBuffer[iPollBufferIndex - 1] == '\r'))
 		{
-			ret = sscanf(RecvBuffer, " %[^_]", commandBuffer);	// copy the command (everything before the underscore)
+			ret = sscanf(RecvBuffer, " %[^_]_%[^_]", commandMNSBuf, commandBuffer);
 			if(ret == -1)
 			{
-				//something in the buffer and the last char is a newline
-				//but we couldn't scan it properly
+				//couldn't scan properly or input didn't match the format specifier
 				commandNum = -1;
 			}
-			else if(!strcmp(commandBuffer, "DAQ"))
+			else if((ret == 2) && !strcmp(commandMNSBuf, "MNS"))	//If we scanned two things out of the command, and one was the MNS identifier begin testing commands
 			{
-				//check that there is one int after the underscore
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &detectorVal, &firstVal);
-
-				if(ret != 2)	//invalid input
-					commandNum = -1;
-				else			//proper input
-					commandNum = 0;
-
-			}
-			else if(!strcmp(commandBuffer, "WF"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &detectorVal, &firstVal);
-
-				if(ret != 2)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 1;
-			}
-			else if(!strcmp(commandBuffer, "READTEMP"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);
-
-				if(ret != 1)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 2;
-			}
-			else if(!strcmp(commandBuffer, "GETSTAT"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);
-
-				if(ret != 1)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 3;
-			}
-			else if(!strcmp(commandBuffer, "DISABLE"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %[^_]_%d", commandBuffer2,&detectorVal);
-
-				if(ret != 2)	//invalid input
+				if(!strcmp(commandBuffer, "DAQ"))
 				{
-					commandNum = -1;
-				}
-				else	//scanned two items from the buffer
-				{
-					if(!strcmp(commandBuffer2, "ACT"))
-						commandNum = 4;
-					else
+					//check that there is one int after the underscore
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d", &detectorVal, &firstVal);
+
+					if(ret != 2)	//invalid input
 						commandNum = -1;
-				}
-			}
-			else if(!strcmp(commandBuffer, "ENABLE"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %[^_]_%d", commandBuffer2, &detectorVal);
+					else			//proper input
+						commandNum = 0;
 
-				if(ret != 2)	//invalid input
-				{
-					commandNum = -1;
 				}
-				else	//scanned two items from the buffer
+				else if(!strcmp(commandBuffer, "WF"))
 				{
-					if(!strcmp(commandBuffer2, "ACT"))	//proper input
-						commandNum = 5;
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d", &detectorVal, &firstVal);
+
+					if(ret != 2)	//invalid input
+						commandNum = -1;
 					else
-						commandNum = -1;	//anything else
+						commandNum = 1;
 				}
-			}
-			else if(!strcmp(commandBuffer, "TX"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%s", &detectorVal, commandBuffer2);
-
-				if(ret != 2)
-					commandNum = -1;
-				else
-					commandNum = 6;
-			}
-			else if(!strcmp(commandBuffer, "DEL"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%s", &detectorVal, commandBuffer2);
-
-				if(ret != 2)
-					commandNum = -1;
-				else
-					commandNum = 7;
-			}
-			else if(!strcmp(commandBuffer, "LS"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %s_%d", commandBuffer2, &detectorVal);
-
-				if(ret != 2)	//invalid input
-					commandNum = -1;
-				else	//scanned two items from the buffer
+				else if(!strcmp(commandBuffer, "READTEMP"))
 				{
-					if(!strcmp(commandBuffer2, "FILES"))	//proper input
-						commandNum = 8;
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d", &detectorVal);
+
+					if(ret != 1)	//invalid input
+						commandNum = -1;
 					else
-						commandNum = -1;	//anything else
+						commandNum = 2;
 				}
-			}
-			else if(!strcmp(commandBuffer, "TXLOG"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);
-				if(ret != 1)
-					commandNum = -1;
-				else
-					commandNum = 9;
-			}
-			else if(!strcmp(commandBuffer, "CONF"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);
-				if(ret != 1)
-					commandNum = -1;
-				else
-					commandNum = 10;
-			}
-			else if(!strcmp(commandBuffer, "TRG"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d", &detectorVal, &firstVal);
+				else if(!strcmp(commandBuffer, "GETSTAT"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d", &detectorVal);
 
-				if(ret != 2)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 11;
-			}
-			else if(!strcmp(commandBuffer, "ECAL"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%f_%f", &detectorVal, &ffirstVal, &fsecondVal);
+					if(ret != 1)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 3;
+				}
+				else if(!strcmp(commandBuffer, "DISABLE"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %[^_]_%d", commandBuffer2, &detectorVal);
 
-				if(ret != 3)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 12;
-			}
-			else if(!strcmp(commandBuffer, "NGATES"))	//Need to grab another param, ModuleID
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
+					if(ret != 2)	//invalid input
+					{
+						commandNum = -1;
+					}
+					else	//scanned two items from the buffer
+					{
+						if(!strcmp(commandBuffer2, "ACT"))
+							commandNum = 4;
+						else
+							commandNum = -1;
+					}
+				}
+				else if(!strcmp(commandBuffer, "ENABLE"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %[^_]_%d", commandBuffer2, &detectorVal);
 
-				if(ret != 5)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 13;
-			}
-			else if(!strcmp(commandBuffer, "NWGATES"))	//Need to grab another param, ModuleID
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
-				if(ret != 5)
-					commandNum = -1;
-				else
-					commandNum = 14;
-			}
-			else if(!strcmp(commandBuffer, "HV"))
-			{
-				//check for the _number of the waveform
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d_%d", &detectorVal, &firstVal, &secondVal);
+					if(ret != 2)	//invalid input
+					{
+						commandNum = -1;
+					}
+					else	//scanned two items from the buffer
+					{
+						if(!strcmp(commandBuffer2, "ACT"))	//proper input
+							commandNum = 5;
+						else
+							commandNum = -1;	//anything else
+					}
+				}
+				else if(!strcmp(commandBuffer, "TX"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, commandBuffer2);
 
-				if(ret != 3)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 15;
-			}
-			else if(!strcmp(commandBuffer, "INT"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal, &fourthVal);
+					if(ret != 2)
+						commandNum = -1;
+					else
+						commandNum = 6;
+				}
+				else if(!strcmp(commandBuffer, "DEL"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, commandBuffer2);
 
-				if( ret != 5 )
-					commandNum = -1;	//bad input, nothing scanned
-				else
-					commandNum = 16;
-			}
-			else if(!strcmp(commandBuffer, "BREAK"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d", &detectorVal);
-				if(ret != 1)
-					commandNum = -1;
-				else
-					commandNum = 17;
-			}
-			else if(!strcmp(commandBuffer, "START"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%llud_%d", &detectorVal, &realTime, &firstVal);	//check for the _number of the waveform
+					if(ret != 2)
+						commandNum = -1;
+					else
+						commandNum = 7;
+				}
+				else if(!strcmp(commandBuffer, "LS"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %s_%d", commandBuffer2, &detectorVal);
 
-				if(ret != 3)	//invalid input
-					commandNum = -1;
-				else
-					commandNum = 18;
-			}
-			else if(!strcmp(commandBuffer, "END"))
-			{
-				ret = sscanf(RecvBuffer + strlen(commandBuffer) + 1, " %d_%llud", &detectorVal, &realTime);	//check for the _number of the waveform
+					if(ret != 2)	//invalid input
+						commandNum = -1;
+					else	//scanned two items from the buffer
+					{
+						if(!strcmp(commandBuffer2, "FILES"))	//proper input
+							commandNum = 8;
+						else
+							commandNum = -1;	//anything else
+					}
+				}
+				else if(!strcmp(commandBuffer, "TXLOG"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d", &detectorVal);
+					if(ret != 1)
+						commandNum = -1;
+					else
+						commandNum = 9;
+				}
+				else if(!strcmp(commandBuffer, "CONF"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d", &detectorVal);
+					if(ret != 1)
+						commandNum = -1;
+					else
+						commandNum = 10;
+				}
+				else if(!strcmp(commandBuffer, "TRG"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d", &detectorVal, &firstVal);
 
-				if(ret != 2)	//invalid input
-					commandNum = -1;
+					if(ret != 2)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 11;
+				}
+				else if(!strcmp(commandBuffer, "ECAL"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%f_%f", &detectorVal, &ffirstVal, &fsecondVal);
+
+					if(ret != 3)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 12;
+				}
+				else if(!strcmp(commandBuffer, "NGATES"))	//Need to grab another param, ModuleID
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
+
+					if(ret != 6)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 13;
+				}
+				else if(!strcmp(commandBuffer, "NWGATES"))	//Need to grab another param, ModuleID
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
+					if(ret != 6)
+						commandNum = -1;
+					else
+						commandNum = 14;
+				}
+				else if(!strcmp(commandBuffer, "HV"))
+				{
+					//check for the _number of the waveform
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d", &detectorVal, &firstVal, &secondVal);
+
+					if(ret != 3)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 15;
+				}
+				else if(!strcmp(commandBuffer, "INT"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal, &fourthVal);
+
+					if( ret != 5 )
+						commandNum = -1;	//bad input, nothing scanned
+					else
+						commandNum = 16;
+				}
+				else if(!strcmp(commandBuffer, "BREAK"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d", &detectorVal);
+					if(ret != 1)
+						commandNum = -1;
+					else
+						commandNum = 17;
+				}
+				else if(!strcmp(commandBuffer, "START"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llu_%d", &detectorVal, &realTime, &firstVal);	//check for the _number of the waveform
+
+					if(ret != 3)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 18;
+				}
+				else if(!strcmp(commandBuffer, "END"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llud", &detectorVal, &realTime);	//check for the _number of the waveform
+
+					if(ret != 2)	//invalid input
+						commandNum = -1;
+					else
+						commandNum = 19;
+				}
 				else
-					commandNum = 19;
+				{
+					//there was something in the buffer and we scanned it
+					// but it did not match any of the commands above
+					//Reject this command
+					commandNum = -1;
+				}
 			}
 			else
-			{
-				//there was something in the buffer and we scanned it
-				// but it did not match any of the commands above
-				//Reject this command
 				commandNum = -1;
 
-			}
-
 			//now check to see if the command pertains to this detector
-			if(detectorVal == 0)	//this detector
-				commandNum += 0;	//will pass on the command
-			else if(detectorVal ==1)	//the other detector
-				commandNum += 900;		//will fail the command at the switch
-
+			if(detectorVal == 1)
+				commandNum += 900;
 		}//end of is_line_ending
 	}//end of ifpoll != 0
 

@@ -45,3 +45,6 @@ the DAQ source file is being developed, the DAQ code is in reference to the "fak
 variables and define values, various references within the code to instances of the HW are being passed now, especially in the SOH generation, plus a lot of the functions and variables have been re-organized for clarity and usefullness.
 Also, I have begun to format the information for each function within the source files so that someone could look at the text comments and figure out how to use the function, what its purpose is, and what its parameters and return value 
 are. This should add clarity and begins the start of a style guide for how to add to this project. This version of the FSW is begins the third release of the FSW. In terms of the L2 FSW, I need to finish writing the instructions and maybe publish a new ICD version.
+
+- Version 4.1 This version has fixed a lot of bugs with reading in user commands and has added a lot of support for creating packets and accessing data which is scanned in by other functions. I also begin to handle DAQ with this verison.
+Pre-DAQ and DAQ init are begun as well as handling reporting command success/failure.

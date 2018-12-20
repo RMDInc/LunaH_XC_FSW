@@ -1,0 +1,125 @@
+; don't show the macro window
+show -1
+; hide TT
+showtt -1
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+;give the system a sec to do this
+pause 2
+
+flushrecv
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L2_tt_macro_0_1.bin' 1 0
+
+; perform actions with the board here
+; enter commands 
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_10'
+sendln 'MNS_DAQ_1_10'
+
+pause 4
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_20'
+sendln 'MNS_DAQ_1_20'
+
+pause 4
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_30'
+sendln 'MNS_DAQ_1_30'
+
+pause 4
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_30'
+sendln 'MNS_DAQ_1_30'
+
+pause 4
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_7650'
+sendln 'MNS_DAQ_1_7650'
+
+pause 4
+
+sendln 'MNS_START_0_123456_30'
+sendln 'MNS_START_1_123456_30'
+
+pause 2
+
+sendln 'MNS_DAQ_0_7651'
+sendln 'MNS_DAQ_1_7651'
+
+pause 4
+
+sendln 'MNS_START_0_123456_30'
+sendln 'MNS_START_1_123456_30'
+
+pause 2
+
+sendln 'MNS_DAQ_0_7652'
+sendln 'MNS_DAQ_1_7652'
+
+pause 4
+
+sendln 'MNS_RANDOM_GARBAGE_0'
+sendln 'MNS_RANDOM_GARBAGE_1'
+
+pause 2
+
+sendln 'MNS_TRG_0_8765'
+sendln 'MNS_TRG_1_8765'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_START_0_123456_30'
+sendln 'MNS_START_1_123456_30'
+
+pause 2
+
+;messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+setdebug 0
+logclose
+
+; hide TT
+showtt 1
+
+end

@@ -98,7 +98,7 @@ int GetModuTemp( void )
  *  CheckForSOH
  *      Check if time to send SOH and if it is send it.
  */
-int CheckForSOH(XIicPs Iic, XUartPs Uart_PS)
+int CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 {
   int iNeutronTotal;
 
@@ -117,7 +117,7 @@ int CheckForSOH(XIicPs Iic, XUartPs Uart_PS)
 //////////////////////////// Report SOH Function ////////////////////////////////
 //This function takes in the number of neutrons currently counted and the local time
 // and pushes the SOH data product to the bus over the UART
-int report_SOH(XIicPs Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type)
+int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type)
 {
 	//Variables
 	unsigned char report_buff[100] = "";
@@ -301,12 +301,6 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type)
  * into a string itself. Modularized away from reportSuccess()
  * and reportFailure().
  *
- * TODO: Maybe we can use ReadCommandType() in main.c, because
- * We already read the recvBuffer there, then convert it to an int...
- * Just to convert it back to a char[]. Instead, we can get the command
- * in main.c using an overridden ReadCommandType(), and return the command
- * as a char instead of int, bypassing this function.
- *
  * I have added a command to go and get the text and size of the
  * previously entered command. They are in the ReadCommandType.c file.
  */
@@ -429,32 +423,78 @@ int parseCommand(int menusel, char *cmdArr)
  *
  * @param Uart_PS	Pointer to the instance of the UART which will
  * 					transmit the packet to the spacecraft.
+ * @param daq_filename	A switch to turn on if we want to report the
+ * 						filename that a DAQ run will use.
+ * 						0: no filename
+ * 						1: report filename
+ * 						else: no filename
  *
  * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
  * 			the correct number of bytes with the packet.
  *
+ * NB: Only DAQ or WF should enable the daq_filename switch, otherwise a
+ * 		junk filename will be received which will at least not be relevant,
+ * 		but at worst could cause a problem.
+ *
  */
-int reportSuccess(XUartPs Uart_PS)
+int reportSuccess(XUartPs Uart_PS, int report_filename)
 {
 	int status = 0;
 	int bytes_sent = 0;
+	int packet_size = 0;	//Don't record the size of the CCSDS header with this variable
 	int i_sprintf_ret = 0;
-	unsigned char *cmdSuccess = malloc(100);
+	unsigned char *cmdSuccess = calloc(100, sizeof(unsigned char));
+	//I should look at using a regular char buffer rather than using calloc() and free()
 	PutCCSDSHeader(cmdSuccess, GetLastCommandSize(), APID_CMD_SUCC);
-
 	//fill the data bytes
-	//print the command information after the CCSDS header
-	i_sprintf_ret = snprintf((char *)cmdSuccess + 11, 100, "%s\n", GetLastCommand());
-	//check to make sure that the sizes match and we are reporting what we think we are
-	if(i_sprintf_ret == GetLastCommandSize())
-		status = CMD_SUCCESS;
-	else
-		status = CMD_FAILURE;
+	switch(report_filename)
+	{
+	case 1:
+		//Enabled the switch to report the filename
+		//should we check to see if the last command was DAQ/WF? No for now
+		//print the command information after the CCSDS header
+		i_sprintf_ret = snprintf((char *)cmdSuccess + 11, 100, "%s\n", GetLastCommand());
+		//check to make sure that the sizes match and we are reporting what we think we are
+		if(i_sprintf_ret == GetLastCommandSize())
+		{
+			//we successfully wrote in the last command, record the bytes we wrote
+			packet_size += i_sprintf_ret;
+			//now we want to add in the new filename that is going to be used
+			i_sprintf_ret = snprintf((char *)cmdSuccess + 11 + i_sprintf_ret, 100, "%s", GetFileName( DATA_TYPE_EVTS ));
+			if(i_sprintf_ret == GetFileNameSize())
+			{
+				packet_size += i_sprintf_ret;
+				status = CMD_SUCCESS;
+			}
+			else
+				status = CMD_FAILURE;
+		}
+		else
+			status = CMD_FAILURE;
+		break;
+	default:
+		//Case 0 is the default so that the normal success happens
+		// even if we get some weird value coming through
+		//no switch to report the filename, this is a normal SUCCESS PACKET
+		//print the command information after the CCSDS header
+		i_sprintf_ret = snprintf((char *)cmdSuccess + 11, 100, "%s\n", GetLastCommand());
+		//check to make sure that the sizes match and we are reporting what we think we are
+		if(i_sprintf_ret == GetLastCommandSize())
+		{
+			packet_size += i_sprintf_ret;
+			status = CMD_SUCCESS;
+		}
+		else
+			status = CMD_FAILURE;
+		break;
+	}
+
 	//calculate the checksums
-	CalculateChecksums(cmdSuccess, i_sprintf_ret);
+	CalculateChecksums(cmdSuccess, packet_size);
+
 	//send out the packet
-	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
-	if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (packet_size + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
+	if(bytes_sent == (packet_size + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
 		status = CMD_SUCCESS;
 	else
 		status = CMD_FAILURE;
@@ -472,13 +512,16 @@ int reportSuccess(XUartPs Uart_PS)
  * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
  * 			the correct number of bytes with the packet.
  *
+ * TODO: Model this function after the report success function, once it's checked out
+ * 		I want this to be able to tell the user where they are, ie. they are in the
+ * 		daq loop or some where else, which is why their function is not succeeding.
  */
 int reportFailure(XUartPs Uart_PS)
 {
 	int status = 0;
 	int bytes_sent = 0;
 	int i_sprintf_ret = 0;
-	unsigned char *cmdFailure = malloc(100);
+	unsigned char *cmdFailure = calloc(100, sizeof(unsigned char));
 	PutCCSDSHeader(cmdFailure, GetLastCommandSize(), APID_CMD_FAIL);
 
 	//fill the data bytes
@@ -509,8 +552,7 @@ int reportFailure(XUartPs Uart_PS)
 // @param	packet_array	This is a pointer to the CCSDS packet which
 //							needs to have its checksums calculated.
 // @param	length			The length of the packet data bytes.
-//				Note: the length should not account for the CCSDS Header;
-//						Just give the length of the data bytes.
+// Note: the length should not account for the CCSDS Header, just give the length of the data bytes.
 //
 // @return	(int) returns the value assigned when the command was scanned
 void CalculateChecksums(unsigned char * packet_array, int length)

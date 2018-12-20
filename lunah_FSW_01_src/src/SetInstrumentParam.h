@@ -18,7 +18,7 @@
 int SetTriggerThreshold(int iTrigThreshold);
 int SetNeutronCutGates(int moduleID, float ECut1, float ECut2, float PCut1, float PCut2);
 int SetWideNeutronCutGates(int moduleID, float WideECut1, float WideECut2, float WidePCut1, float WidePCut2);
-int SetHighVoltage(XIicPs Iic, unsigned char PmtId, int value);
+int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int value);
 int SetIntergrationTime(int Baseline, int Short, int Long, int Full);
 int SetEnergyCalParam(float Slope, float Intercept);
 

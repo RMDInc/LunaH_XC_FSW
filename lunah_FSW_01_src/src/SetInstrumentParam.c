@@ -255,7 +255,7 @@ int SetWideNeutronCutGates(int moduleID, float WideECut1, float WideECut2, float
  *			Latency: TBD
  *			Return: command SUCCESS (0) or command FAILURE (1)
  */
-int SetHighVoltage(XIicPs Iic, unsigned char PmtId, int Value)
+int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
 {
 	int IIC_SLAVE_ADDR1 = 0x20; //HV on the analog board - write to HV pots, RDAC
 	unsigned char i2c_Send_Buffer[2];

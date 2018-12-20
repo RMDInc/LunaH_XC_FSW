@@ -14,7 +14,7 @@
 
 //filenames for the log file
 static char cLogFile0[] = "0:/LOGFILETEST.txt";	//The name of the log file on SD card 0
-static char cLogFile1[] = "1:/LOGFILETEST.txt";	//The name of the log file on SD card 1
+static char cLogFile1[] = "1:/LOGFILETEST1.txt";	//The name of the log file on SD card 1
 
 /*
  * Initialize the log file on SD0.
@@ -290,7 +290,7 @@ int LogFileWrite( char * write_buff, unsigned int bytes_to_write )
 	else
 		status = CMD_FAILURE;
 
-	/***** Write to log file on SD0 first *****/
+	/***** Write to log file on SD1 *****/
 	//open with read/write access
 	ffs_res = f_open(&logFile, cLogFile1, FA_READ|FA_WRITE);
 	if(ffs_res == FR_OK)

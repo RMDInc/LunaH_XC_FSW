@@ -1,0 +1,134 @@
+; don't show the macro window
+show -1
+; hide TT
+showtt -1
+
+;str = "Check: \n 1. CS1 is at GND \n 2. POR is Floating \n 3. CS2 is Floating \n 4. Gamma Source is in place (optional) \n 5. Neutron Source is in place (optional) \n IF NOT, TURN OFF INSTRUMENT AND RESTART \n WITH THESE SETTINGS \n Press 'OK' to START Test"
+;strspecial str
+;messagebox str 'Detector 0'
+
+str = "Start this macro, then run the debug test.\n\nPress OK when the board is running."
+strspecial str
+str2 = "Running through Level 2 functions.\n\nPress Ok and wait for next message."
+strspecial str2
+;messagebox str 'Detector 0'
+;messagebox str2 'Detector 0'
+
+flushrecv
+pause 3
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L2_tt_macro_0_1.bin' 1 0
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+
+; perform actions with the board here
+; enter commands 
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_1'
+sendln 'MNS_DAQ_1_1'
+
+pause 2
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_1'
+sendln 'MNS_DAQ_1_1'
+
+pause 2
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_2'
+sendln 'MNS_DAQ_1_2'
+
+pause 2
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_2'
+sendln 'MNS_DAQ_1_2'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_BREAK_0'
+sendln 'MNS_BREAK_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_765'
+sendln 'MNS_DAQ_1_765'
+
+pause 2
+
+sendln 'MNS_START_0_123456_30'
+sendln 'MNS_START_1_123456_30'
+
+pause 2
+
+sendln 'MNS_DAQ_0_765'
+sendln 'MNS_DAQ_1_765'
+
+pause 2
+
+sendln 'MNS_START_0_123456_30'
+sendln 'MNS_START_1_123456_30'
+
+pause 2
+
+sendln 'MNS_DAQ_0_765'
+sendln 'MNS_DAQ_1_765'
+
+pause 2
+
+sendln 'MNS_RANDOM_GARBAGE_0'
+sendln 'MNS_RANDOM_GARBAGE_1'
+
+pause 2
+
+sendln 'MNS_TRG_0_8765'
+sendln 'MNS_TRG_1_8765'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_START_0_123456_30'
+sendln 'MNS_START_1_123456_30'
+
+;messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+setdebug 0
+logclose
+
+; hide TT
+showtt 1
+
+end
