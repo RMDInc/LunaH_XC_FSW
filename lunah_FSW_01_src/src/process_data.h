@@ -12,7 +12,7 @@
 #include "lunah_defines.h"
 
 //function prototype
-int process_data(unsigned int * data_array,
+int ProcessData(unsigned int * data_array,
 		unsigned short twoDH_pmt1[TWODH_X_BINS][TWODH_Y_BINS],
 		unsigned short twoDH_pmt2[TWODH_X_BINS][TWODH_Y_BINS],
 		unsigned short twoDH_pmt3[TWODH_X_BINS][TWODH_Y_BINS],

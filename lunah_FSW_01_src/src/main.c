@@ -31,42 +31,20 @@
 ******************************************************************************/
 
 /*
- * helloworld.c: simple test application
+ * Mini-NS Flight Software, Version 4.1
+ * Graham Stoddard
  *
- * This application configures UART 16550 to baud rate 9600.
- * PS7 UART (Zynq) is not initialized by this application, since
- * bootrom/bsp configures it to baud rate 115200
+ * 1-9-2019
  *
- * ------------------------------------------------
- * | UART TYPE   BAUD RATE                        |
- * ------------------------------------------------
- *   uartns550   9600
- *   uartlite    Configurable only in HW design
- *   ps7_uart    115200 (configured by bootrom/bsp)
  */
 
 #include "main.h"
-
-//this is Flight Software Version 2.1
-//Updated 8-17-2018, 12:08
-
-//struct info
-struct header_info{
-	long long int real_time;
-	int baseline_int;
-	int short_int;
-	int long_int;
-	int full_int;
-	short orbit_number;
-	short run_number;
-	unsigned char file_type;
-};
 
 int main()
 {
     // Initialize System
 	ps7_post_config();
-	Xil_DCacheDisable();	// Disable the data cache
+	Xil_DCacheDisable();	// Disable the L1/L2 data caches
 	InitializeAXIDma();		// Initialize the AXI DMA Transfer Interface
 	InitializeInterruptSystem(XPAR_PS7_SCUGIC_0_DEVICE_ID);
 
@@ -140,7 +118,6 @@ int main()
 	// *********** Mount SD Card ****************//
 	/* FAT File System Variables */
 	FATFS fatfs[2];
-	FILINFO fno;
 	int sd_status = 0;
 
 	sd_status = MountSDCards( fatfs );
@@ -193,24 +170,14 @@ int main()
 	// *********** Initialize Local Variables ****************//
 
 	//start timing
-	XTime local_time_start = 0;
-	XTime_GetTime(&local_time_start);	//get the time
 	InitStartTime();
-/*
- * This code is used for timing functions to get latency measurements
-	long long int time_holder = 0;
-	XTime timer1 = 0;//test timers, can delete
-	XTime timer2 = 0;
-*/
+
+//	//This code is used for timing functions to get latency measurements
+//	long long int time_holder = 0;
+//	XTime timer1 = 0;//test timers, can delete
+//	XTime timer2 = 0;
 
 	// Initialize buffers
-	char c_CNT_Filename0[FILENAME_SIZE] = "";	//OLD
-	char c_EVT_Filename0[FILENAME_SIZE] = "";	//OLD
-	char c_CNT_Filename1[FILENAME_SIZE] = "";	//OLD
-	char c_EVT_Filename1[FILENAME_SIZE] = "";	//OLD
-	char c_file_to_TX[FILENAME_SIZE] = "";		//OLD
-	char c_file_to_access[FILENAME_SIZE] = "";	//OLD
-	char transfer_file_contents[DATA_PACKET_SIZE] = "";	//OLD
 	char RecvBuffer[100] = "";
 
 	char * last_command;				//pointer to handle writing commands to the log file
@@ -219,27 +186,6 @@ int main()
 	int status = 0;						//local status variable for reporting SUCCESS/FAILURE
 	int DAQ_run_number = 0;				//run number value for file names, tracks the number of runs per POR
 	int	menusel = 99999;				//case select variable for polling
-
-	int ipollReturn = 0;		//OLD
-	int i_orbit_number = 0;		//OLD
-	int i_daq_run_number = 0;	//OLD
-	int iterator = 0;			//OLD
-	int sent = 0;				//OLD
-	int bytes_sent = 0;			//OLD
-	int file_size = 0;			//OLD
-	int checksum1 = 0;			//OLD
-	int checksum2 = 0;			//OLD
-	unsigned int sync_marker = 0x352EF853;	//OLD
-	unsigned long long int i_real_time = 0;	//OLD
-
-	struct header_info file_header = {};	//OLD
-
-	uint numBytesWritten = 0;	//OLD
-	uint numBytesRead = 0;		//OLD
-	FRESULT ffs_res;			//OLD
-	FIL logFile;				//OLD
-	FIL data_file;				//OLD
-
 
 	// ******************* APPLICATION LOOP *******************//
 
@@ -258,7 +204,7 @@ int main()
 			menusel = 99999;
 			menusel = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
 
-			if ( menusel >= -1 && menusel <= 23 )	//let all input in, including errors, so we can report them
+			if ( menusel >= -1 && menusel <= 15 )	//let all input in, including errors, so we can report them
 			{
 				//we found a valid LUNAH command or input was bad (-1)
 				//log the command issued, unless it is an error
@@ -311,10 +257,18 @@ int main()
 				// if we get TRUE, we need to keep looping
 				//when status is FALSE, we need to send a packet to inform the file name
 				if(status == CMD_FAILURE)
+				{
 					reportSuccess(Uart_PS, 1);
+					//create the files before polling for user input
+					//This also fills in the data header, as much as we know
+					// at this point, we don't know the Real Time yet
+					status = CreateDAQFiles();
+				}
+				//in case this takes longer, let's check for SOH in case this has to loop more than once
+				//check to see if it is time to report SOH information, 1 Hz
+				CheckForSOH(&Iic, Uart_PS);
 			}
-			//create the files before polling for user input
-			status = CreateDAQFiles();
+
 			//begin polling for START/BREAK/READTEMP
 			while(done != 1)
 			{
@@ -341,9 +295,9 @@ int main()
 	//					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 	//					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 						//record the REALTIME and write headers into files
-						status = WriteHeaderFile(GetRealTimeParam(), GetModuTemp());
+						status = WriteDataFileHeader(GetRealTimeParam(), GetModuTemp());
 						//call the DAQ() function
-
+						status = DataAcquisition();
 						//we have returned from DAQ, report success/failure
 						//we will return in three ways:
 						// time out (1) = success
@@ -473,16 +427,7 @@ int main()
 			break;
 		case NGATES_CMD:
 			//set the neutron cuts
-			status = SetNeutronCutGates(GetIntParam(1), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
-			//Determine SUCCESS or FAILURE
-			if(status)
-				reportSuccess(Uart_PS, 0);
-			else
-				reportFailure(Uart_PS);
-			break;
-		case NWGATES_CMD:
-			//set the neutron wide cuts
-			status = SetWideNeutronCutGates(GetIntParam(1), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
+			status = SetNeutronCutGates(GetIntParam(1), GetIntParam(2), GetFloatParam(1), GetFloatParam(2), GetFloatParam(3), GetFloatParam(4) );
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS, 0);
@@ -512,20 +457,6 @@ int main()
 				reportSuccess(Uart_PS, 0);
 			else
 				reportFailure(Uart_PS);
-			break;
-		case BREAK_CMD:
-			//leave a command
-			//xil_printf("received BREAK command\r\n");
-			reportSuccess(Uart_PS, 0);
-			//maybe you need to have code in a command to go there?
-			break;
-		case START_CMD:
-			//start a WF of DAQ science run
-			//xil_printf("received START command\r\n");
-			break;
-		case END_CMD:
-			//end the DAQ or WF science run
-			//xil_printf("received END command\r\n");
 			break;
 		case INPUT_OVERFLOW:
 			//too much input
@@ -559,316 +490,11 @@ int main()
  * At some point, these functions will need to be moved to a separate file, likely to
  * the lunah_utils file.
  *
+ * TODO: Figure out if we need the interrupt system code.
+ * TODO: Move this code to the Lunah_utils source file
+ *
  */
-	while(1){
-		memset(RecvBuffer, '0', 100);	// Clear RecvBuffer Variable
-		XUartPs_SetOptions(&Uart_PS, XUARTPS_OPTION_RESET_RX);
-		//iPollBufferIndex = 0;
 
-		while(1)	//POLLING LOOP // MAIN MENU
-		{
-			menusel = 99999;
-			menusel = ReadCommandType(RecvBuffer, &Uart_PS);
-
-			if ( menusel >= -1 && menusel <= 18 )
-				break;
-
-			//until we have found something useful, check to see if we need
-			// to report SOH information, 1 Hz
-			CheckForSOH(&Iic, Uart_PS);
-		}//END POLLING LOOP //END MAIN MENU
-
-		ipollReturn = 999;
-		switch (menusel) { // Switch-Case Menu Select
-		case -1:
-			//we found an invalid LunaH command
-			//report command failure
-
-			break;
-		case DAQ_CMD: //DAQ
-#ifdef BREAKUP_MAIN_DAQ
-			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
-			DataAcqInit(menusel, i_orbit_number);
-			break;
-#else
-
-			//can check this later to see if we are coming from the a new DAQ call
-			// or if we are trying to jump back in during a run
-//			i_sscanf_ret = sscanf(RecvBuffer + 3 + 1, " %d", &i_orbit_number);
-			//increment DAQ run number each time we make it to this function
-			i_daq_run_number++;
-			//set processed data mode
-			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
-
-			//create files and pass in filename to getWFDAQ function
-			snprintf(c_EVT_Filename0, 50, "0:/%04d_%04d_evt.bin",i_orbit_number, i_daq_run_number);	//assemble the filename
-			snprintf(c_CNT_Filename0, 50, "0:/%04d_%04d_cnt.bin",i_orbit_number, i_daq_run_number);
-			//2dh file here
-			snprintf(c_EVT_Filename1, 50, "1:/%04d_%04d_evt.bin",i_orbit_number, i_daq_run_number);
-			snprintf(c_CNT_Filename1, 50, "1:/%04d_%04d_cnt.bin",i_orbit_number, i_daq_run_number);
-			//2dh file here
-//			iSprintfReturn = snprintf(report_buff, 100, "%s_%s\n", c_EVT_Filename0, c_CNT_Filename0);	//create the string to tell CDH
-
-			//poll for START, BREAK
-			memset(RecvBuffer, '0', 100);
-			//iPollBufferIndex = 0;
-			while(ipollReturn != BREAK_CMD && ipollReturn != START_CMD)
-			{
-				ipollReturn = ReadCommandType(RecvBuffer, &Uart_PS);
-				switch(ipollReturn) {
-				case BREAK_CMD:
-					//BREAK was received
-					break;
-				case START_CMD:
-					//START was received, get the real time from the S/C
-					sscanf(RecvBuffer + 5 + 1, " %llu", &i_real_time);
-					Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
-					//the above triggers a false event which we use to sync the S/C time
-					// with the local FPGA time
-					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
-					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
-					break;
-				case 100:
-					//too much input, clear buffer
-					memset(RecvBuffer, '0', 100);
-					break;
-				case 999:
-					//continue with operation, no input to process
-					break;
-				default:
-					//anything else
-					memset(RecvBuffer, '0', 100);
-//					bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
-					break;
-				}
-
-				//continue to loop and report SOH while waiting for user input
-				CheckForSOH(&Iic, Uart_PS);
-
-			}//END POLL UART
-
-			//if BREAK, leave the loop //nothing to turn off
-			if(ipollReturn == BREAK_CMD)
-			{
-//				bytes_sent = XUartPs_Send(&Uart_PS, break_buff, sizeof(break_buff));
-				break;
-			}
-
-			//write to the log file
-
-			//write the headers and create the data files as listed above //this is the Mini-NS Data Header
-			file_header.real_time = i_real_time;
-			file_header.orbit_number = i_orbit_number;
-			file_header.run_number = i_daq_run_number;
-			file_header.baseline_int = Xil_In32(XPAR_AXI_GPIO_0_BASEADDR);
-			file_header.short_int = Xil_In32(XPAR_AXI_GPIO_1_BASEADDR);
-			file_header.long_int = Xil_In32(XPAR_AXI_GPIO_2_BASEADDR);
-			file_header.full_int = Xil_In32(XPAR_AXI_GPIO_3_BASEADDR);
-
-			//write the file to SD Card 0
-			file_header.file_type = 0;
-			ffs_res = f_open(&data_file, c_CNT_Filename0, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("%d could not open cnt file\n", ffs_res);
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &file_header, sizeof(file_header), &numBytesWritten);	//write the struct
-			ffs_res = f_close(&data_file);
-
-			file_header.file_type = 2;
-			ffs_res = f_open(&data_file, c_EVT_Filename0, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("%d could not open evt file\n", ffs_res);
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &file_header, sizeof(file_header), &numBytesWritten);
-			ffs_res = f_close(&data_file);
-
-			//write the file to SD Card 1
-			//create the file names
-			file_header.file_type = 0;
-			ffs_res = f_open(&data_file, c_CNT_Filename1, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("could not open cnt file\n");
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &file_header, sizeof(file_header), &numBytesWritten);	//write the struct
-			ffs_res = f_close(&data_file);
-
-			file_header.file_type = 2;
-			ffs_res = f_open(&data_file, c_EVT_Filename1, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("could not open evt file\n");
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &file_header, sizeof(file_header), &numBytesWritten);
-			ffs_res = f_close(&data_file);
-
-			memset(RecvBuffer, '0', 100);
-			//iPollBufferIndex = 0;
-			ClearBuffers();
-			ipollReturn = 999;	//reset the variable
-
-			//go to the DAQ function
-			//go into the get_data function (renamed from GetWFDAQ())
-#ifdef BREAKUP_MAIN
-			get_data(Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, RecvBuffer);
-#else
-			get_data(&Uart_PS, c_EVT_Filename0, c_CNT_Filename0, c_EVT_Filename1, c_CNT_Filename1, i_neutron_total, RecvBuffer, local_time_start, local_time);
-#endif
-			//Broke out of the DAQ loop, finalize the run
-			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//enable capture module
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//enable ADC
-			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to analog board
-
-			//if BREAK, leave right away
-			if(ipollReturn == 15)
-			{
-//				bytes_sent = XUartPs_Send(&Uart_PS, break_buff, sizeof(break_buff));
-				break;
-			}
-
-			//otherwise END was how we broke out and we should just finish things up
-			sscanf(RecvBuffer + 3 + 1, " %llu", &i_real_time); //get the end time from the user or S/C
-
-			//write the footer for the files
-			ffs_res = f_open(&data_file, c_CNT_Filename0, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("%d could not open cnt file\n", ffs_res);
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &i_real_time, sizeof(i_real_time), &numBytesWritten);	//write the struct
-			ffs_res = f_close(&data_file);
-
-			ffs_res = f_open(&data_file, c_EVT_Filename0, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("%d could not open evt file\n", ffs_res);
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &i_real_time, sizeof(i_real_time), &numBytesWritten);
-			ffs_res = f_close(&data_file);
-
-			//write to SD Card 1
-			ffs_res = f_open(&data_file, c_CNT_Filename1, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("could not open cnt file\n");
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &i_real_time, sizeof(i_real_time), &numBytesWritten);	//write the struct
-			ffs_res = f_close(&data_file);
-
-			ffs_res = f_open(&data_file, c_EVT_Filename1, FA_OPEN_ALWAYS | FA_WRITE);
-			if(ffs_res)
-				xil_printf("could not open evt file\n");
-			ffs_res = f_lseek(&data_file, file_size(&data_file));
-			ffs_res = f_write(&data_file, &i_real_time, sizeof(i_real_time), &numBytesWritten);
-			ffs_res = f_close(&data_file);
-
-			//write to log file
-			//write the end of run neutron totals
-//			iSprintfReturn = snprintf(report_buff, LOG_FILE_BUFF_SIZE, "%u\n", i_neutron_total);	//return value for END_
-//			bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, iSprintfReturn);
-			break;
-#endif
-		case 7:	//TX Files
-			//use this case to send files from the SD card to the screen
-			sscanf(RecvBuffer + 2 + 1, " %s", c_file_to_TX);	//read in the name of the file to be transmitted
-			//iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "file TX %s ", c_file_to_TX);
-			//Write to log file
-
-			//have the file name to TX, prepare it for sending
-			ffs_res = f_open(&logFile, c_file_to_TX, FA_READ);	//open the file to transfer
-			if(ffs_res != FR_OK)
-			{
-//				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
-				break;
-			}
-
-			//init the CCSDS packet with some parts of the header
-			memset(transfer_file_contents, 0, DATA_PACKET_SIZE);
-			transfer_file_contents[0] = sync_marker >> 24; //sync marker
-			transfer_file_contents[1] = sync_marker >> 16;
-			transfer_file_contents[2] = sync_marker >> 8;
-			transfer_file_contents[3] = sync_marker >> 0;
-			transfer_file_contents[4] = 43;	//7:5 CCSDS version
-			transfer_file_contents[5] = 42;	//APID lsb (0x200-0x3ff)
-			transfer_file_contents[6] = 41;	//7:6 grouping flags//5:0 seq. count msb
-			transfer_file_contents[7] = 0;	//seq. count lsb
-
-			ffs_res = f_lseek(&logFile, 0);	//seek to the beginning of the file
-			while(1)
-			{
-				//loop over the data in the file
-				//read in one payload_max amount of data to our packet
-				ffs_res = f_read(&logFile, (void *)&(transfer_file_contents[10]), PAYLOAD_MAX_SIZE, &numBytesRead);
-
-				//packet size goes in byte 8-9
-				//value is num bytes after CCSDS header minus one
-				// so, data size + 2 checksums - 1 (for array indexing)
-				file_size = numBytesRead + 2 - 1;
-				transfer_file_contents[8] = file_size >> 8;
-				transfer_file_contents[9] = file_size;
-
-				//calculate simple and Fletcher checksums
-				while(iterator < numBytesRead)
-				{
-					checksum1 = (checksum1 + transfer_file_contents[iterator + 10]) % 255;	//simple
-					checksum2 = (checksum1 + checksum2) % 255;
-					iterator++;
-				}
-
-				//save the checksums
-				transfer_file_contents[file_size + 9] = checksum2;
-				transfer_file_contents[file_size + 9 + 1] = checksum1;
-
-				//we have filled up the packet header, send the data
-				sent = 0;
-				bytes_sent = 0;
-				while(sent < (file_size + 11))
-				{
-					//will need to look at this code to double check that it will be
-					// ok to make the transfer_file_contents buffer unsigned
-					//bytes_sent = XUartPs_Send(&Uart_PS, &(transfer_file_contents[0]) + sent, (file_size + 11) - sent);
-					sent += bytes_sent;
-				}
-
-				if(numBytesRead < PAYLOAD_MAX_SIZE)
-					break;
-				else
-					transfer_file_contents[7]++;
-			} //end of while TX loop
-
-			ffs_res = f_close(&logFile);
-			break;
-		case 8:	//DEL Files
-			//use this case to delete files from the SD card
-			sscanf(RecvBuffer + 3 + 1, " %s", c_file_to_access);	//read in the name of the file to be deleted
-			//iSprintfReturn = snprintf(cWriteToLogFile, LOG_FILE_BUFF_SIZE, "file DEL %s ", c_file_to_access);
-			//WriteToLogFile
-
-			if(!f_stat(c_file_to_access, &fno))	//check if the file exists on disk
-			{
-				ffs_res = f_unlink(c_file_to_access);	//try to delete the file
-				if(ffs_res == FR_OK)
-				{
-					//successful delete
-//					iSprintfReturn = snprintf(report_buff, 100, "%d_AAAA\n", ffs_res);
-//					bytes_sent = XUartPs_Send(&Uart_PS,(u8 *)report_buff, iSprintfReturn);
-				}
-				else
-				{
-					//failed to delete
-//					bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
-				}
-			}
-			else
-			{
-				//file did not exist
-//				bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)error_buff, sizeof(error_buff));
-			}
-			break;
-		default :
-			break;
-		} // End Switch-Case Menu Select
-
-	}	// ******************* POLLING LOOP *******************//
-
-	ffs_res = f_mount(NULL,"0:/",0);
-	ffs_res = f_mount(NULL,"1:/",0);
-    cleanup_platform();
     return 0;
 }
 
@@ -1034,7 +660,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
+				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
 				ClearBuffers();
 				buff_num++;
 				break;
@@ -1047,7 +673,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
+				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
 				ClearBuffers();
 				buff_num++;
 				break;
@@ -1060,7 +686,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				process_data(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
+				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
 				ClearBuffers();
 				buff_num++;
 				break;

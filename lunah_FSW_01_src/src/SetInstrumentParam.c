@@ -9,7 +9,164 @@
 
 #include "SetInstrumentParam.h"
 
-extern CONFIG_STRUCT_TYPE ConfigBuff;
+//File-Scope Variables
+static char cConfigFile[] = "0:/ConfigFile.cnf";
+static CONFIG_STRUCT_TYPE ConfigBuff;
+
+/* This can be called for two different reasons:
+ *  1.) When there is no config file on the SD card, this holds the default (hard coded)
+ *  system parameters which are to be used until changed by the user.
+ *  2.) When we want to reset the values in the config file
+ *
+ * This function will set all the values in the Config Buffer (file scope static buffer)
+ *  to their original values.
+ *
+ * @param	None
+ *
+ * @return	None
+ *
+ */
+void CreateDefaultConfig( void )
+{
+	//initialize the struct with all default values
+	ConfigBuff = (CONFIG_STRUCT_TYPE){
+		.ECalSlope=1.0,
+		.EcalIntercept=0.0,
+		.TriggerThreshold=9000,
+		.IntegrationBaseline=0,
+		.IntegrationShort=35,
+		.IntegrationLong=131,
+		.IntegrationFull=1531,
+		.HighVoltageValue[0]=11,
+		.HighVoltageValue[1]=11,
+		.HighVoltageValue[2]=11,
+		.HighVoltageValue[3]=11,
+		.ScaleFactorEnergy_1_1=1.0,
+		.ScaleFactorEnergy_1_2=1.0,
+		.ScaleFactorEnergy_2_1=1.0,
+		.ScaleFactorEnergy_2_2=1.0,
+		.ScaleFactorEnergy_3_1=1.0,
+		.ScaleFactorEnergy_3_2=1.0,
+		.ScaleFactorEnergy_4_1=1.0,
+		.ScaleFactorEnergy_4_2=1.0,
+		.ScaleFactorPSD_1_1=1.0,
+		.ScaleFactorPSD_1_2=1.0,
+		.ScaleFactorPSD_2_1=1.0,
+		.ScaleFactorPSD_2_2=1.0,
+		.ScaleFactorPSD_3_1=1.0,
+		.ScaleFactorPSD_3_2=1.0,
+		.ScaleFactorPSD_4_1=1.0,
+		.ScaleFactorPSD_4_2=1.0,
+		.OffsetEnergy_1_1=0.0,
+		.OffsetEnergy_1_2=0.0,
+		.OffsetEnergy_2_1=0.0,
+		.OffsetEnergy_2_2=0.0,
+		.OffsetEnergy_3_1=0.0,
+		.OffsetEnergy_3_2=0.0,
+		.OffsetEnergy_4_1=0.0,
+		.OffsetEnergy_4_2=0.0,
+		.OffsetPSD_1_1=0.0,
+		.OffsetPSD_1_2=0.0,
+		.OffsetPSD_2_1=0.0,
+		.OffsetPSD_2_2=0.0,
+		.OffsetPSD_3_1=0.0,
+		.OffsetPSD_3_2=0.0,
+		.OffsetPSD_4_1=0.0,
+		.OffsetPSD_4_2=0.0
+	};
+
+	return;
+}
+
+/* This function handles initializing the system with the values from the config file.
+ * If no config file exists, one will be created using the default (hard coded) values
+ *  available to the system.
+ * If the config file is found on the SD card, then it is read in and values are assigned
+ *
+ * @param	None
+ *
+ * @return	FR_OK (0) or command FAILURE (!0)
+ *
+ */
+int InitConfig(void)
+{
+	uint NumBytesWr;
+	uint NumBytesRd;
+	FRESULT F_RetVal;
+	FILINFO CnfFno;
+	FIL ConfigFile;
+	int RetVal = 0;
+	int ConfigSize = sizeof(ConfigBuff);
+
+	// check if the config file exists
+	if( f_stat( cConfigFile, &CnfFno) )
+	{
+		//Fill the Config Buffer with the default values
+		CreateDefaultConfig();
+		//Open and write to a new config file
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_close(&ConfigFile);
+	}
+	else // The config file exists, read it
+	{
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);	//Read the config file into ConfigBuff
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_close(&ConfigFile);							//close the file
+	}
+
+	RetVal = (int)F_RetVal;
+	return RetVal;
+}
+
+/* This function will save the current system configuration to the configuration file, if it exists.
+ * If no config file exists, then this function will create it and fill it with the current
+ *  configuration structure.
+ *
+ *
+ * @param	None
+ *
+ * @return	FR_OK (0) or command FAILURE (!0)
+ *
+ */
+int SaveConfig()
+{
+	uint NumBytesWr;
+	FRESULT F_RetVal;
+	FILINFO CnfFno;
+	FIL ConfigFile;
+	int RetVal = 0;
+	int ConfigSize = sizeof(ConfigBuff);
+
+	// check that config file exists
+	if( f_stat( cConfigFile, &CnfFno) )
+	{	// f_stat returns non-zero(false) if no file exists, so open/create the file
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_close(&ConfigFile);
+	}
+	else // If the file exists, write it
+	{
+		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);	//Write the ConfigBuff to config file
+		if(F_RetVal == FR_OK)
+			F_RetVal = f_close(&ConfigFile);							//close the file
+		}
+
+	RetVal = (int)F_RetVal;
+    return RetVal;
+}
 
 /*
  *    Set Event Trigger Threshold
@@ -87,86 +244,132 @@ int SetEnergyCalParam(float Slope, float Intercept)
 }
 
 /*
- * Set Neutron Cut Gates
- *		Syntax: SetNeutronCutGates(ModuleNumber, ECut1, ECut2, PCut1, PCut2)
- *			Module Number = (Int) assigns the cut values to a specific CLYC module
- *			ECut = (Float) floating point values between 0 - 200,000 keV
- *			PCut = (Float) floating point values between 0 - 2.0
- *		Description:  Set the cuts on neutron energy (ECut) and psd spectrum (PCut)
- *					  when calculating neutron totals for the MNS_EVTS, MNS_CPS,
- *					  and MNS_SOH data files.
- * 		Latency: TBD
- *		Return: command SUCCESS (0) or command FAILURE (1)
+ * Set the cuts on neutron energy(E) and psd ratio(P) when calculating neutron
+ *  totals for the MNS_EVTS, MNS_CPS, and MNS_SOH data files.
+ * These will be values to modify the elliptical cuts being placed on the events read in.
+ * There are two ellipses by default, one at 1 sigma and one at 2 sigma, but the location in the E-P phase
+ *  space can be modified by these parameters. This function allows the user to shift the centroid
+ *  around (offsetE/P) in the E-P space or scale the size of the ellipses larger or smaller (scaleE/P).
  *
- *		NB: We may not use these functions anymore because of a change in how we are going to
- *		implement these cuts. The new approach is to re-calculate the PSD/Energy cuts for each
- *		module every time we check the temperature during DAQ. Thus, we don't need to set these
- *		by hand.
+ * @param moduleID	Assigns the cut values to a specific CLYC module
+ * 					Valid input range: 0 - 3
+ * @param ellipseNum	Assigns the cut values to a specific ellipse for the module chosen
+ * 						Valid input range: 1, 2
+ * @param scaleE/scaleP	Scale the size of the ellipse being used to cut neutrons in the data
+ * 						Valid input range: 0 - 25.5,
+ * @param offsetE/offsetP	Move the centroid of the bounding ellipse around on the plot
+ * 							Valid input range, E: 0 - 10 MeV (0-200,000 keV?)
+ * 							Valid input range, P: 0 - 2
+ * Latency: TBD
  *
- *		What this will be useful for entering is the conversion table which will be referenced
- *		during DAQ.
+ * Return: command SUCCESS (0) or command FAILURE (1)
+ *
  */
-int SetNeutronCutGates(int moduleID, float ECut1, float ECut2, float PCut1, float PCut2)
+int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP, float offsetE, float offsetP)
 {
 	int status = 0;
-	if((ECut1 < ECut2) && (PCut1 < PCut2))
+
+	//what do we need to check with the parameter input?
+	//check that the scale factors are not 0
+	if(scaleE != 0 && scaleP != 0)
 	{
-		if( (ECut1 >= 0.0) && (ECut2 <= 200000))
+		if(offsetE)
 		{
-			if( (PCut1 >= 0.0) && (PCut2 <= 2.0))
-			{
-				//Values are within acceptable ranges
-				// write to config file buffer
-				switch(moduleID)
-				{
-				case 0:
-					//module 0
-					ConfigBuff.ECutLoMod1 = ECut1;
-					ConfigBuff.ECutHiMod1 = ECut2;
-					ConfigBuff.PSDCutLoMod1 = PCut1;
-					ConfigBuff.PSDCutHiMod1 = PCut2;
-					break;
-				case 1:
-					//module 1
-					ConfigBuff.ECutLoMod2 = ECut1;
-					ConfigBuff.ECutHiMod2 = ECut2;
-					ConfigBuff.PSDCutLoMod2 = PCut1;
-					ConfigBuff.PSDCutHiMod2 = PCut2;
-					break;
-				case 2:
-					//module 2
-					ConfigBuff.ECutLoMod3 = ECut1;
-					ConfigBuff.ECutHiMod3 = ECut2;
-					ConfigBuff.PSDCutLoMod3 = PCut1;
-					ConfigBuff.PSDCutHiMod3 = PCut2;
-					break;
-				case 3:
-					//module 3
-					ConfigBuff.ECutLoMod4 = ECut1;
-					ConfigBuff.ECutHiMod4 = ECut2;
-					ConfigBuff.PSDCutLoMod4 = PCut1;
-					ConfigBuff.PSDCutHiMod4 = PCut2;
-					break;
-				default:
-					//bad value for the module ID, just use the defaults
-//					ConfigBuff.ECutLoMod1 = ECut1;
-//					ConfigBuff.ECutHiMod1 = ECut2;
-//					ConfigBuff.PSDCutLoMod1 = PCut1;
-//					ConfigBuff.PSDCutHiMod1 = PCut2;
-					break;
-				}
-				// Save Config file
-				SaveConfig();
-				status = CMD_SUCCESS;
-			}
-			else
-				status = CMD_FAILURE;
+			//do these checks even make sense?
 		}
-		else
-			status = CMD_FAILURE;
 	}
-	else
-		status = CMD_FAILURE;
+	//check that the offsets won't move the centroid to a different quadrant
+
+	switch(moduleID)
+	{
+	case 0:	//module 0
+		switch(ellipseNum)
+		{
+		case 1:
+			ConfigBuff.ScaleFactorEnergy_1_1 = scaleE;
+			ConfigBuff.ScaleFactorPSD_1_1 = scaleP;
+			ConfigBuff.OffsetEnergy_1_1 = offsetE;
+			ConfigBuff.OffsetPSD_1_1 = offsetP;
+			break;
+		case 2:
+			ConfigBuff.ScaleFactorEnergy_1_2 = scaleE;
+			ConfigBuff.ScaleFactorPSD_1_2 = scaleP;
+			ConfigBuff.OffsetEnergy_1_2 = offsetE;
+			ConfigBuff.OffsetPSD_1_2 = offsetP;
+			break;
+		default:
+			status = CMD_FAILURE;
+			break;
+		}
+		break;
+	case 1:	//module 1
+		switch(ellipseNum)
+		{
+		case 1:
+			ConfigBuff.ScaleFactorEnergy_2_1 = scaleE;
+			ConfigBuff.ScaleFactorPSD_2_1 = scaleP;
+			ConfigBuff.OffsetEnergy_2_1 = offsetE;
+			ConfigBuff.OffsetPSD_2_1 = offsetP;
+			break;
+		case 2:
+			ConfigBuff.ScaleFactorEnergy_2_2 = scaleE;
+			ConfigBuff.ScaleFactorPSD_2_2 = scaleP;
+			ConfigBuff.OffsetEnergy_2_2 = offsetE;
+			ConfigBuff.OffsetPSD_2_2 = offsetP;
+			break;
+		default:
+			status = CMD_FAILURE;
+			break;
+		}
+		break;
+	case 2:	//module 2
+		switch(ellipseNum)
+		{
+		case 1:
+			ConfigBuff.ScaleFactorEnergy_3_1 = scaleE;
+			ConfigBuff.ScaleFactorPSD_3_1 = scaleP;
+			ConfigBuff.OffsetEnergy_3_1 = offsetE;
+			ConfigBuff.OffsetPSD_3_1 = offsetP;
+			break;
+		case 2:
+			ConfigBuff.ScaleFactorEnergy_3_2 = scaleE;
+			ConfigBuff.ScaleFactorPSD_3_2 = scaleP;
+			ConfigBuff.OffsetEnergy_3_2 = offsetE;
+			ConfigBuff.OffsetPSD_3_2 = offsetP;
+			break;
+		default:
+			status = CMD_FAILURE;
+			break;
+		}
+		break;
+	case 3:	//module 3
+		switch(ellipseNum)
+		{
+		case 1:
+			ConfigBuff.ScaleFactorEnergy_4_1 = scaleE;
+			ConfigBuff.ScaleFactorPSD_4_1 = scaleP;
+			ConfigBuff.OffsetEnergy_4_1 = offsetE;
+			ConfigBuff.OffsetPSD_4_1 = offsetP;
+			break;
+		case 2:
+			ConfigBuff.ScaleFactorEnergy_4_2 = scaleE;
+			ConfigBuff.ScaleFactorPSD_4_2 = scaleP;
+			ConfigBuff.OffsetEnergy_4_2 = offsetE;
+			ConfigBuff.OffsetPSD_4_2 = offsetP;
+			break;
+		default:
+			status = CMD_FAILURE;
+			break;
+		}
+	default: //bad value for the module ID, just use the defaults
+		//what are the defaults?
+		break;
+	}
+	// Save Config file
+	SaveConfig();
+	status = CMD_SUCCESS;
+
+
 
 	return status;
 }
@@ -181,7 +384,7 @@ int SetNeutronCutGates(int moduleID, float ECut1, float ECut2, float PCut1, floa
  * 		Latency: TBD
  *		Return: command SUCCESS (0) or command FAILURE (1)
  */
-int SetWideNeutronCutGates(int moduleID, float WideECut1, float WideECut2, float WidePCut1, float WidePCut2)
+/*int SetWideNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP, float offsetE, float offsetP)
 {
 	int status = 0;
 	if((WideECut1 < WideECut2) && (WidePCut1 < WidePCut2))
@@ -195,31 +398,31 @@ int SetWideNeutronCutGates(int moduleID, float WideECut1, float WideECut2, float
 					{
 					case 0:
 						//module 0
-						ConfigBuff.WideECutLoMod1 = WideECut1;
-						ConfigBuff.WideECutHiMod1 = WideECut2;
-						ConfigBuff.WidePSDCutLoMod1 = WidePCut1;
-						ConfigBuff.WidePSDCutHiMod1 = WidePCut2;
+						ConfigBuff.ScaleFactorEnergy_1_2 = scaleE;
+						ConfigBuff.ScaleFactorPSD_1_2 = scaleP;
+						ConfigBuff.OffsetEnergy_1_2 = offsetE;
+						ConfigBuff.OffsetPSD_1_2 = offsetP;
 						break;
 					case 1:
 						//module 1
-						ConfigBuff.WideECutLoMod2 = WideECut1;
-						ConfigBuff.WideECutHiMod2 = WideECut2;
-						ConfigBuff.WidePSDCutLoMod2 = WidePCut1;
-						ConfigBuff.WidePSDCutHiMod2 = WidePCut2;
+						ConfigBuff.ScaleFactorEnergy_2_2 = scaleE;
+						ConfigBuff.ScaleFactorPSD_2_2 = scaleP;
+						ConfigBuff.OffsetEnergy_2_2 = offsetE;
+						ConfigBuff.OffsetPSD_2_2 = offsetP;
 						break;
 					case 2:
 						//module 2
-						ConfigBuff.WideECutLoMod3 = WideECut1;
-						ConfigBuff.WideECutHiMod3 = WideECut2;
-						ConfigBuff.WidePSDCutLoMod3 = WidePCut1;
-						ConfigBuff.WidePSDCutHiMod3 = WidePCut2;
+						ConfigBuff.ScaleFactorEnergy_3_2 = scaleE;
+						ConfigBuff.ScaleFactorPSD_3_2 = scaleP;
+						ConfigBuff.OffsetEnergy_3_2 = offsetE;
+						ConfigBuff.OffsetPSD_3_2 = offsetP;
 						break;
 					case 3:
 						//module 3
-						ConfigBuff.WideECutLoMod4 = WideECut1;
-						ConfigBuff.WideECutHiMod4 = WideECut2;
-						ConfigBuff.WidePSDCutLoMod4 = WidePCut1;
-						ConfigBuff.WidePSDCutHiMod4 = WidePCut2;
+						ConfigBuff.ScaleFactorEnergy_4_2 = scaleE;
+						ConfigBuff.ScaleFactorPSD_4_2 = scaleP;
+						ConfigBuff.OffsetEnergy_4_2 = offsetE;
+						ConfigBuff.OffsetPSD_4_2 = offsetP;
 						break;
 					default:
 						//bad value for the module ID, just use the defaults
@@ -243,7 +446,7 @@ int SetWideNeutronCutGates(int moduleID, float WideECut1, float WideECut2, float
 			status = CMD_FAILURE;
 
 	return status;
-}
+} */
 
 /*
  * Set High Voltage  (note: connections to pot 2 and pot 3 are reversed - handled in the function)

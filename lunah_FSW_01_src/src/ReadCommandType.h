@@ -17,7 +17,6 @@ void bufferShift(char * buff, int bytes_to_del, int buff_strlen);
 char * GetLastCommand( void );
 unsigned int GetLastCommandSize( void );
 int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS);
-int PollUart(char * RecvBuffer, XUartPs *Uart_PS);
 int GetIntParam( int param_num );
 float GetFloatParam( int param_num );
 unsigned long long int GetRealTimeParam( void );

@@ -289,20 +289,12 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "NGATES"))	//Need to grab another param, ModuleID
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &secondVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
 
-					if(ret != 6)	//invalid input
+					if(ret != 7)	//invalid input
 						commandNum = -1;
 					else
 						commandNum = 13;
-				}
-				else if(!strcmp(commandBuffer, "NWGATES"))	//Need to grab another param, ModuleID
-				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%f_%f_%f_%f", &detectorVal, &firstVal, &ffirstVal, &fsecondVal, &fthirdVal, &ffourthVal);
-					if(ret != 6)
-						commandNum = -1;
-					else
-						commandNum = 14;
 				}
 				else if(!strcmp(commandBuffer, "HV"))
 				{
@@ -312,7 +304,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 3)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 15;
+						commandNum = 14;
 				}
 				else if(!strcmp(commandBuffer, "INT"))
 				{
@@ -321,7 +313,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if( ret != 5 )
 						commandNum = -1;	//bad input, nothing scanned
 					else
-						commandNum = 16;
+						commandNum = 15;
 				}
 				else if(!strcmp(commandBuffer, "BREAK"))
 				{
@@ -329,7 +321,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 1)
 						commandNum = -1;
 					else
-						commandNum = 17;
+						commandNum = 16;
 				}
 				else if(!strcmp(commandBuffer, "START"))
 				{
@@ -338,7 +330,11 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 3)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 18;
+					{
+						//TODO: need to enable the system here, as this is the first place where we would know that the start command
+						// was valid.
+						commandNum = 17;
+					}
 				}
 				else if(!strcmp(commandBuffer, "END"))
 				{
@@ -347,7 +343,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 19;
+						commandNum = 18;
 				}
 				else
 				{
@@ -405,34 +401,6 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	}
 
 	return commandNum;	// If we don't find a return character, don't try and check the commandBuffer for one
-}
-
-int PollUart(char * RecvBuffer, XUartPs *Uart_PS)
-{
-	//Variable definitions
-	int returnVal = 0;
-	char commandBuffer[20] = "";
-
-	iPollBufferIndex += XUartPs_Recv(Uart_PS, (u8 *)RecvBuffer + iPollBufferIndex, 100 - iPollBufferIndex);
-	if(RecvBuffer[iPollBufferIndex-1] == '\n' || RecvBuffer[iPollBufferIndex-1] == '\r')	//if we find an 'enter'...
-	{
-		sscanf(RecvBuffer, " %[^_]", commandBuffer);	//copy the command (everything before the underscore)
-		if(!strcmp(commandBuffer, "BREAK"))					// and check it against all the commands that are acceptable
-			returnVal = 14;
-		else if(!strcmp(commandBuffer, "START"))
-			returnVal = 15;
-		else if(!strcmp(commandBuffer, "END"))
-			returnVal = 16;
-		else if(!strcmp(commandBuffer, "ENDTMP"))
-			returnVal = 17;
-		else	//input was bad and is getting thrown out
-		{
-			returnVal = 18;
-			memset(RecvBuffer, '0', 100);
-		}
-	}
-
-	return returnVal;
 }
 
 /* Getter to access the parameters entered with a command */
