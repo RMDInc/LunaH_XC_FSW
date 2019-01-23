@@ -279,6 +279,20 @@ int main()
 					//compare to what is accepted
 					//if no good input is found, silently ignore the input
 					switch(status){
+					case -1:
+						//we found an invalid command
+						done = 0;	//continue looping //not done
+						//Report CMD_FAILURE
+						reportFailure(Uart_PS);
+						break;
+					case READ_TMP_CMD:
+						//read all temp sensors
+						done = 0;	//continue looping //not done
+						//report a temp packet
+						status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+						if(status == CMD_FAILURE)
+							reportFailure(Uart_PS);
+						break;
 					case BREAK_CMD:
 						//received the break command
 						//break out after this command //done
@@ -295,9 +309,9 @@ int main()
 	//					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 	//					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 						//record the REALTIME and write headers into files
-						status = WriteDataFileHeader(GetRealTimeParam(), GetModuTemp());
+						status = WriteRealTime(GetRealTimeParam());
 						//call the DAQ() function
-						status = DataAcquisition();
+						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer);
 						//we have returned from DAQ, report success/failure
 						//we will return in three ways:
 						// time out (1) = success
@@ -322,20 +336,6 @@ int main()
 						}
 						//break out after this command //done
 						done = 1;
-						break;
-					case READ_TMP_CMD:
-						//read all temp sensors
-						done = 0;	//continue looping //not done
-						//report a temp packet
-						status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
-						if(status == CMD_FAILURE)
-							reportFailure(Uart_PS);
-						break;
-					case -1:
-						//we found an invalid command
-						done = 0;	//continue looping //not done
-						//Report CMD_FAILURE
-						reportFailure(Uart_PS);
 						break;
 					default:
 						//got something outside of these commands
@@ -579,14 +579,6 @@ int SetUpInterruptSystem(XScuGic *XScuGicInstancePtr) {
 }
 //////////////////////////// SetUp Interrupt System////////////////////////////////
 
-//////////////////////////// Clear Processed Data Buffers ////////////////////////////////
-void ClearBuffers() {
-	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,1);
-	usleep(1);
-	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,0);
-}
-//////////////////////////// Clear Processed Data Buffers ////////////////////////////////
-
 //////////////////////////// get_data ////////////////////////////////
 #ifndef BREAKUP_MAIN
 int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time)
@@ -604,17 +596,17 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 	int dram_ceiling = 0xA004000;
 	int ipollReturn = 0;	//keep track of user input
 	//2DH variables
-	int i_xnumbins = 260;
-	int i_ynumbins = 30;
+//	int i_xnumbins = 260;
+//	int i_ynumbins = 30;
 	//buffers are 4096 ints long (512 events total)
 	unsigned int * data_array;
 	unsigned int * data_array_holder;
 	data_array = (unsigned int *)malloc(sizeof(unsigned int)*DATA_BUFFER_SIZE*4);
 	memset(data_array, '0', DATA_BUFFER_SIZE * sizeof(unsigned int)); //zero out the array
-	unsigned short twoDH_pmt1[i_xnumbins][i_ynumbins];
-	unsigned short twoDH_pmt2[i_xnumbins][i_ynumbins];
-	unsigned short twoDH_pmt3[i_xnumbins][i_ynumbins];
-	unsigned short twoDH_pmt4[i_xnumbins][i_ynumbins];
+//	unsigned short twoDH_pmt1[i_xnumbins][i_ynumbins];
+//	unsigned short twoDH_pmt2[i_xnumbins][i_ynumbins];
+//	unsigned short twoDH_pmt3[i_xnumbins][i_ynumbins];
+//	unsigned short twoDH_pmt4[i_xnumbins][i_ynumbins];
 
 	//SD CARD FILES
 	FIL data_file;
@@ -630,7 +622,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000); 		// DMA Transfer Step 1
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);			// DMA Transfer Step 2
 	sleep(1);
-	ClearBuffers();
+//	ClearBuffers();
 
 	while(ipollReturn != 15 && ipollReturn != 17)	//DATA ACQUISITION LOOP
 	{
@@ -660,8 +652,8 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
-				ClearBuffers();
+//				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
+//				ClearBuffers();
 				buff_num++;
 				break;
 			case 1:
@@ -673,8 +665,8 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
-				ClearBuffers();
+//				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
+//				ClearBuffers();
 				buff_num++;
 				break;
 			case 2:
@@ -686,8 +678,8 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					dram_addr+=4;
 					array_index++;
 				}
-				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
-				ClearBuffers();
+//				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
+//				ClearBuffers();
 				buff_num++;
 				break;
 			case 3:
@@ -700,7 +692,7 @@ int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char *
 					array_index++;
 				}
 //				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
-				ClearBuffers();
+//				ClearBuffers();
 				buff_num = 0;
 
 				//write the event data to SD card

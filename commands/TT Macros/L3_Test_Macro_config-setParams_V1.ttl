@@ -1,0 +1,128 @@
+; don't show the macro window
+show -1
+; hide TT
+showtt 0
+
+str = "Start this macro, then run the debug test.\n\nPress OK when the board is running."
+strspecial str
+str2 = "Running through Level 2 functions.\n\nPress Ok and wait for next message."
+strspecial str2
+;messagebox str 'Detector 0'
+;messagebox str2 'Detector 0'
+
+flushrecv
+pause 3
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\testL3_1.bin' 1 0
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+
+; perform actions with the board here
+; enter commands 
+sendln 'MNS_GETSTAT_0'
+sendln 'MNS_GETSTAT_1'
+
+pause 2
+
+sendln 'MNS_READTEMP_0'
+sendln 'MNS_READTEMP_1'
+
+pause 2
+
+sendln 'MNS_ENABLE_ACT_0'
+sendln 'MNS_ENABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_DISABLE_ACT_0'
+sendln 'MNS_DISABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_TRG_0_9123'
+sendln 'MNS_TRG_1_8765'
+
+pause 2
+
+sendln 'MNS_ECAL_0_1.2_3.4'
+sendln 'MNS_ECAL_1_1.21_3.41'
+
+pause 2
+
+;Change the neutron cuts
+;Module 0-3, ellipse 0
+sendln 'MNS_NGATES_0_0_0_60000.0_120000.0_0.30_0.60'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NGATES_0_1_0_59000.0_119000.0_0.31_0.61'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NGATES_0_2_0_58000.0_118000.0_0.32_0.62'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NGATES_0_3_0_57000.0_117000.0_0.33_0.63'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+;Change the neutron cuts
+;Modules 0-3, ellipse 1
+sendln 'MNS_NGATES_0_0_0_60000.0_120000.0_0.30_0.60'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NGATES_0_1_0_59000.0_119000.0_0.31_0.61'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NGATES_0_2_0_58000.0_118000.0_0.32_0.62'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_NGATES_0_3_0_57000.0_117000.0_0.33_0.63'
+sendln 'MNS_NGATES_1_2_0_60110_120110_0.31_0.61'
+
+pause 2
+
+sendln 'MNS_ENABLE_ACT_0'
+sendln 'MNS_ENABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_HV_0_3_50'
+sendln 'MNS_HV_1_3_50'
+
+pause 2
+
+sendln 'MNS_HV_0_3_210'
+sendln 'MNS_HV_1_3_210'
+
+pause 2
+
+sendln 'MNS_DISABLE_ACT_0'
+sendln 'MNS_DISABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_INT_0_-51_87_399_5999'
+sendln 'MNS_INT_1_-51_101_401_6001'
+
+pause 2
+
+setdebug 0
+logclose
+
+messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+
+end

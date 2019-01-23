@@ -1,0 +1,129 @@
+SD1 failed to init
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 899096 clock cycles.
+Output took 1349.99 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 904170 clock cycles.
+Output took 1357.61 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 870888 clock cycles.
+Output took 1307.64 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 879738 clock cycles.
+Output took 1320.93 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 884978 clock cycles.
+Output took 1328.80 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 897684 clock cycles.
+Output took 1347.87 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 896424 clock cycles.
+Output took 1345.98 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 889954 clock cycles.
+Output took 1336.27 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 877338 clock cycles.
+Output took 1317.32 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 887534 clock cycles.
+Output took 1332.63 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 895442 clock cycles.
+Output took 1344.51 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 893626 clock cycles.
+Output took 1341.78 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 894274 clock cycles.
+Output took 1342.75 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 873238 clock cycles.
+Output took 1311.17 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 888486 clock cycles.
+Output took 1334.06 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 888562 clock cycles.
+Output took 1334.18 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 889788 clock cycles.
+Output took 1336.02 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 896708 clock cycles.
+Output took 1346.41 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 874096 clock cycles.
+Output took 1312.46 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 794484 clock cycles.
+Output took 1192.92 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 888646 clock cycles.
+Output took 1334.30 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 896906 clock cycles.
+Output took 1346.71 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 899198 clock cycles.
+Output took 1350.15 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 887444 clock cycles.
+Output took 1332.50 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 881940 clock cycles.
+Output took 1324.23 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 891682 clock cycles.
+Output took 1338.86 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 897714 clock cycles.
+Output took 1347.92 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 802752 clock cycles.
+Output took 1205.33 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 898524 clock cycles.
+Output took 1349.14 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 877508 clock cycles.
+Output took 1317.58 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 890810 clock cycles.
+Output took 1337.55 us.
+0:/det0_evt_I000111_R000001_S000001.bin
+Function returned: 	true
+Output took 892268 clock cycles.
+Output took 1339.74 us.

@@ -12,9 +12,22 @@ static char current_filename_EVT[100] = "";
 static char current_filename_CPS[100] = "";
 static char current_filename_2DH[100] = "";
 static char current_filename_WAV[100] = "";
-static unsigned char daq_run_id_number = 0;
-static unsigned char daq_run_run_number = 0;
-static unsigned char daq_run_set_number = 0;
+static unsigned int daq_run_id_number = 0;
+static unsigned int daq_run_run_number = 0;
+static unsigned int daq_run_set_number = 0;
+
+//We only want to use this here for now, so hide it from the user
+//This is a struct featuring the information from the config buffer
+// plus a few extra pieces that need to go into headers.
+struct DATA_FILE_HEADER_TYPE{
+	CONFIG_STRUCT_TYPE configBuff;
+	unsigned int IDNum;
+	unsigned int RunNum;
+	unsigned int SetNum;
+	unsigned char FileTypeAPID;
+	unsigned char TempCorrectionSetNum;
+	unsigned char EventIDFF;
+};
 
 /*
  * Getter function for the size of the filenames which are assembled by the system
@@ -133,14 +146,13 @@ int SetFileName( int ID_number, int run_number, int set_number )
 	daq_run_run_number = run_number;
 	daq_run_set_number = set_number;
 
-	//create the file names, writing them to our file scope variables
-	bytes_written = snprintf(current_filename_EVT, 100, "0:/evt_I%06d_R%06d_S%06d.bin", ID_number, run_number, set_number);	//create the event-by-event filename
+	bytes_written = snprintf(current_filename_EVT, 100, "0:/evt_I%06d_R%06d_S%06d.bin", ID_number, run_number, set_number);
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_CPS, 100, "0:/cps_I%06d_R%06d_S%06d.bin", ID_number, run_number, set_number);	//create the string to tell CDH
+	bytes_written = snprintf(current_filename_CPS, 100, "0:/cps_I%06d_R%06d_S%06d.bin", ID_number, run_number, set_number);
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_2DH, 100, "0:/2dh_I%06d_R%06d_S%06d.bin", ID_number, run_number, set_number);	//create the string to tell CDH
+	bytes_written = snprintf(current_filename_2DH, 100, "0:/2dh_I%06d_R%06d_S%06d.bin", ID_number, run_number, set_number);
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
 
@@ -170,52 +182,89 @@ int CreateDAQFiles( void )
 	char * file_to_open;
 	int iter = 0;
 	int status = CMD_SUCCESS;
+	uint NumBytesWr;
 	FIL daq_file;
-	FRESULT ffs_res;	//FAT file system return type
+	FRESULT ffs_res;
+	struct DATA_FILE_HEADER_TYPE file_header_to_write;
 
-	//take the static file names above and open the files with appropriate permissions for DAQ
-	//just need to open EVT, CPS, 2DH files for DAQ, if WAV, can set a bypass
+	file_header_to_write.configBuff = *GetConfigBuffer();		//dereference to copy the struct
+	file_header_to_write.IDNum = daq_run_id_number;
+	file_header_to_write.RunNum = daq_run_run_number;
+	file_header_to_write.SetNum = daq_run_set_number;
+	file_header_to_write.TempCorrectionSetNum = 1;		//will have to get this from somewhere
+	file_header_to_write.EventIDFF = 0xFF;
+
+	//just need to open EVT, CPS, 2DH files for DAQ, if WAV, make a switch
 	for(iter = 0; iter < 3; iter++)
 	{
-		//loop over the three files to create
 		switch(iter)
 		{
-		case 0:	//choose the event-by-event file
+		case 0:
 			file_to_open = current_filename_EVT;
+			file_header_to_write.FileTypeAPID = 0x77;
 			break;
-		case 1:	//choose the counts-per-second file
+		case 1:
 			file_to_open = current_filename_CPS;
+			file_header_to_write.FileTypeAPID = 0x55;
 			break;
-		case 2:	//choose the two-D histogram file
+		case 2:
 			file_to_open = current_filename_2DH;
+			file_header_to_write.FileTypeAPID = 0x88;
 			break;
 		default:
 			status = CMD_FAILURE;
 			break;
 		}
-		//open and close each file to create it
-		ffs_res = f_open(&daq_file, file_to_open, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);	//open the file, if it exists; if not a new file will be created
+
+		ffs_res = f_open(&daq_file, file_to_open, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
 		if(ffs_res == FR_OK)
 			ffs_res = f_lseek(&daq_file, 0);
-
-		//call write data file header here so we can
-
+		if(ffs_res == FR_OK)
+			ffs_res = f_write(&daq_file, &file_header_to_write, sizeof(file_header_to_write), &NumBytesWr);
 		if(ffs_res == FR_OK)
 			ffs_res = f_close(&daq_file);
+		if(ffs_res == FR_OK && NumBytesWr != 0)
+			status = CMD_SUCCESS;
+		else
+			status = CMD_FAILURE;
 	}
 
 	return status;
 }
 
-int WriteDataFileHeader( unsigned long long int real_time, float modu_temp)
+int WriteRealTime( unsigned long long int real_time )
 {
 	int status = CMD_SUCCESS;
-
-	//create the "first event" which will be used as a header in the CPS data file
-	//we don't need to actually write an "event" into the data file, we just need to know
-	// what is in the file so that when we're writing it out, it gets read appropriately
-
-	//create the "first event" used for the EVTS file
+//	uint NumBytesWr;
+//	FRESULT F_RetVal;
+//	FILINFO CnfFno;
+//	FIL ConfigFile;
+//	int RetVal = 0;
+//	int ConfigSize = sizeof(ConfigBuff);
+//
+//	//take the config buffer and put it into each data product file
+//	// check that data product file exists
+//	if( f_stat( cConfigFile, &CnfFno) )	//f_stat returns non-zero (true) if no file exists, so open/create the file
+//	{
+//		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
+//		if(F_RetVal == FR_OK)
+//			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+//		if(F_RetVal == FR_OK)
+//			F_RetVal = f_close(&ConfigFile);
+//	}
+//	else // If the file exists, write it
+//	{
+//		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
+//		if(F_RetVal == FR_OK)
+//			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
+//		if(F_RetVal == FR_OK)
+//			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);	//Write the ConfigBuff to config file
+//		if(F_RetVal == FR_OK)
+//			F_RetVal = f_close(&ConfigFile);							//close the file
+//		}
+//
+//	RetVal = (int)F_RetVal;
+//    return RetVal;
 
 	return status;
 }
@@ -223,6 +272,9 @@ int WriteDataFileHeader( unsigned long long int real_time, float modu_temp)
 //Clears the BRAM buffers
 // I need to refresh myself as to why this is important
 // All that I remember is that it's important to do before each DRAM transfer
+//Resets which buffer we are reading from
+// issuing this "clear" allows us to move to the next buffer to read from it
+//Tells the FPGA, we are done with this buffer, read from the next one
 void ClearBRAMBuffers( void )
 {
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,1);
@@ -243,11 +295,12 @@ void ClearBRAMBuffers( void )
  * 			Time Out (1) = success
  * 			END (2)		 = success
  */
-int DataAcquisition( void )
+int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 {
 	//initialize variables
 	int done = 0;				//local status variable for keeping track of progress within loops
 	int status = CMD_SUCCESS;	//local status variable
+	int poll_val = 0;		//local polling status variable
 	int valid_data = 0;			//goes high/low if there is valid data within the FPGA buffers
 	int buff_num = 0;			//keep track of which buffer we are writing
 	int array_index = 0;		//the index of our array which will hold data
@@ -258,7 +311,7 @@ int DataAcquisition( void )
 	//	temp of the modules for the correction
 	//	any structs or memory that needs to be reserved can be done here
 	unsigned int * data_array;
-	data_array = calloc(DATA_BUFFER_SIZE * 4, sizeof(unsigned int));
+	data_array = calloc(DATA_BUFFER_SIZE * 4, sizeof(unsigned int));	//we need a buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events
 	//init a DMA transfer
 	//Is this necessary before we check to see if there is anything there yet?
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);	// DMA Transfer Step 1
@@ -295,59 +348,51 @@ int DataAcquisition( void )
 			switch(buff_num)
 			{
 			case 0:
-				//fetch the data from the DRAM
 				while(dram_addr <= dram_ceiling)
 				{
 					data_array[array_index] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
-				//we have collected all the data, process it and then get back to check for more data
-				//status = ProcessData();
-				//handle buffer number within each case
+				status = ProcessData( data_array );
 				buff_num++;
 				break;
 			case 1:
-				//fetch the data from the DRAM
-
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
 				//we have collected all the data, process it and then get back to check for more data
 				//status = ProcessData();
-				//handle buffer number within each case
 				buff_num++;
 				break;
 			case 2:
-				//fetch the data from the DRAM
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE * 2] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
 				//we have collected all the data, process it and then get back to check for more data
 				//status = ProcessData();
-				//handle buffer number within each case
 				buff_num++;
 				break;
 			case 3:
-				//fetch the data from the DRAM
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE * 3] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
 				//we have collected all the data, process it and then get back to check for more data
 				//status = ProcessData();
-				//handle buffer number within each case
 				buff_num = 0;
 
 				//four buffers have been processed, write the data to file
+				//If this is the first time that we've written to this file
+				//(will happen with first buffer or each time we change files)
 
 
 				break;
@@ -357,6 +402,28 @@ int DataAcquisition( void )
 			//clear the buffers after reading through the data
 			ClearBRAMBuffers();
 			valid_data = 0;	//reset
+		}//END OF IF VALID DATA
+
+		//check to see if it is time to report SOH information, 1 Hz
+		CheckForSOH(Iic, Uart_PS);
+
+		//check for user input
+		poll_val = ReadCommandType(RecvBuffer, &Uart_PS);
+		switch(poll_val)
+		{
+		case -1:
+			//this is bad input or an error in input
+			//no real need for a case if we aren't handling it
+			//just leave this to default
+			break;
+		case 16:
+			break;
+		case 17:
+			break;
+		case 18:
+			break;
+		default:
+			break;
 		}
 	}
 

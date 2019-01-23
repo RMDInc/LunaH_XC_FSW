@@ -19,10 +19,12 @@
 #define IIC_DEVICE_ID_1		XPAR_XIICPS_1_DEVICE_ID	//thermometer/pot on digital board
 #define FILENAME_SIZE		50
 #define	TEC_PIN				18
+#define EVTS_EVENT_SIZE		8
 #define SIZEOF_FILENAME		34 //filename example: "I000001_R000001_S000001_cps.bin"
 #define DATA_PACKET_SIZE	2040
 #define PAYLOAD_MAX_SIZE	2028
 #define DATA_BUFFER_SIZE	4096
+#define EVENT_BUFFER_SIZE	16384
 
 #define TWODH_X_BINS		260
 #define	TWODH_Y_BINS		30
@@ -45,7 +47,6 @@
 #define TRG_CMD			11
 #define ECAL_CMD		12
 #define NGATES_CMD		13
-//#define NWGATES_CMD		14
 #define HV_CMD			14	//removed NWGATES, so bumped everything up
 #define INT_CMD			15
 #define BREAK_CMD		16

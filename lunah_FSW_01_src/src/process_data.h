@@ -8,14 +8,24 @@
 #ifndef SRC_PROCESS_DATA_H_
 #define SRC_PROCESS_DATA_H_
 
+#include <string.h>
 #include "ff.h"
 #include "lunah_defines.h"
+#include "CPSDataProduct.h"
+
+typedef struct {
+	unsigned char field0;
+	unsigned char field1;
+	unsigned char field2;
+	unsigned char field3;
+	unsigned char field4;
+	unsigned char field5;
+	unsigned char field6;
+	unsigned char field7;
+}GENERAL_EVENT_TYPE;
 
 //function prototype
-int ProcessData(unsigned int * data_array,
-		unsigned short twoDH_pmt1[TWODH_X_BINS][TWODH_Y_BINS],
-		unsigned short twoDH_pmt2[TWODH_X_BINS][TWODH_Y_BINS],
-		unsigned short twoDH_pmt3[TWODH_X_BINS][TWODH_Y_BINS],
-		unsigned short twoDH_pmt4[TWODH_X_BINS][TWODH_Y_BINS]);
+int Process2DHData( void );
+int ProcessData( unsigned int * data_raw );
 
 #endif /* SRC_PROCESS_DATA_H_ */

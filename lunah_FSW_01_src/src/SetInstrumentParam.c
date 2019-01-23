@@ -78,6 +78,18 @@ void CreateDefaultConfig( void )
 	return;
 }
 
+/*
+ * Allow a user to have access to the config buffer, so they can write it to a file/etc
+ *
+ * @param	None
+ *
+ * @return	Pointer to the config buffer
+ */
+CONFIG_STRUCT_TYPE * GetConfigBuffer( void )
+{
+	return &ConfigBuff;
+}
+
 /* This function handles initializing the system with the values from the config file.
  * If no config file exists, one will be created using the default (hard coded) values
  *  available to the system.
@@ -375,80 +387,6 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 }
 
 /*
- * Set Wide Neutron Cut Gates
- *		Syntax: SetWideNeuronCutGates(ModuleNumber, WideECut1, WideECut2, WidePCut1, WidePCut2)
- *			Module Number = (Int) assigns the cut values to a specific CLYC module
- *			ECut = (Float) floating point values between 0 � 200,000 MeV
- *			PCut = (Float)  point values between 0 � 3.0
- *		Description: Set the cuts on neutron energy (ECut) and psd spectrum (PCut) when calculating neutrons totals for the MNS_EVTS, MNS_CPS, and MNS_SOH data files. These values are recorded as the new default values for the system.
- * 		Latency: TBD
- *		Return: command SUCCESS (0) or command FAILURE (1)
- */
-/*int SetWideNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP, float offsetE, float offsetP)
-{
-	int status = 0;
-	if((WideECut1 < WideECut2) && (WidePCut1 < WidePCut2))
-		{
-			if( (WideECut1 >= 0.0) && (WideECut2 <= 200000))
-			{
-				if( (WidePCut1 >= 0.0) && (WidePCut2 <= 2.0))
-				{
-					// write to config file buffer
-					switch(moduleID)
-					{
-					case 0:
-						//module 0
-						ConfigBuff.ScaleFactorEnergy_1_2 = scaleE;
-						ConfigBuff.ScaleFactorPSD_1_2 = scaleP;
-						ConfigBuff.OffsetEnergy_1_2 = offsetE;
-						ConfigBuff.OffsetPSD_1_2 = offsetP;
-						break;
-					case 1:
-						//module 1
-						ConfigBuff.ScaleFactorEnergy_2_2 = scaleE;
-						ConfigBuff.ScaleFactorPSD_2_2 = scaleP;
-						ConfigBuff.OffsetEnergy_2_2 = offsetE;
-						ConfigBuff.OffsetPSD_2_2 = offsetP;
-						break;
-					case 2:
-						//module 2
-						ConfigBuff.ScaleFactorEnergy_3_2 = scaleE;
-						ConfigBuff.ScaleFactorPSD_3_2 = scaleP;
-						ConfigBuff.OffsetEnergy_3_2 = offsetE;
-						ConfigBuff.OffsetPSD_3_2 = offsetP;
-						break;
-					case 3:
-						//module 3
-						ConfigBuff.ScaleFactorEnergy_4_2 = scaleE;
-						ConfigBuff.ScaleFactorPSD_4_2 = scaleP;
-						ConfigBuff.OffsetEnergy_4_2 = offsetE;
-						ConfigBuff.OffsetPSD_4_2 = offsetP;
-						break;
-					default:
-						//bad value for the module ID, just use the defaults
-	//					ConfigBuff.ECutLoMod1 = ECut1;
-	//					ConfigBuff.ECutHiMod1 = ECut2;
-	//					ConfigBuff.PSDCutLoMod1 = PCut1;
-	//					ConfigBuff.PSDCutHiMod1 = PCut2;
-						break;
-					}
-					// Save Config file
-					SaveConfig();
-					status = CMD_SUCCESS;
-				}
-				else
-					status = CMD_FAILURE;
-			}
-			else
-				status = CMD_FAILURE;
-		}
-		else
-			status = CMD_FAILURE;
-
-	return status;
-} */
-
-/*
  * Set High Voltage  (note: connections to pot 2 and pot 3 are reversed - handled in the function)
  * ***********************this swap may need to be reversed, as the electronics (boards) may have been replaced!!!***********************
  * 		Syntax: SetHighVoltage(PMTID, Value)
@@ -587,7 +525,7 @@ int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
 		//if this comes back as CMD_FAILURE, try and set the default value
 		//later
 
-		status = CMD_SUCCESS;
+//		status = CMD_SUCCESS;	//this defeats the purpose of checking the values above
 	}
 	else
 		status = CMD_FAILURE;

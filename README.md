@@ -50,3 +50,5 @@ are. This should add clarity and begins the start of a style guide for how to ad
 Pre-DAQ and DAQ init are begun as well as handling reporting command success/failure.
 
 - Version 4.2 Deleted a lot of unnecessary code and old code to keep things tidy. Merged the NGATES and NWGATES functions, keeping just NGATES. This is because we only need one neutron cut access functions. We are moving to elliptical cuts for the neutron cuts, so the configuration file, NGATES function have been updated to reflect the change. Taking a look at the init code near the top of main to verify that it's useful and we need to keep it. Beginning to put the structure of DAQ into place; most of the loops are established. James is working on the TX function, but that work is not reflected here.
+
+- Version 4.3 Large update including SD card work, CPS code for DAQ, the beginnings of the rest of the DAQ framework, and some testing files. Have done testing with the SD card timing and organizational structure. 

@@ -27,26 +27,12 @@
 
 //access to processing functions
 #include "process_data.h"
-
-//FILE SCOPE STRUCTS
-//the size of this struct is 20 bytes
-struct event_CPS_dp
-{
-	unsigned char event_id;
-	unsigned char real_time_MSB;
-	unsigned char real_time_LSB7;
-	unsigned char real_time_LSB6;
-	unsigned char real_time_LSB5;
-	unsigned char real_time_LSB4;
-	unsigned char real_time_LSB3;
-	unsigned char real_time_LSB2;
-	unsigned char real_time_LSB1;
-	unsigned char FPGA_time_MSB;
-	unsigned char FPGA_time_LSB3;
-	unsigned char FPGA_time_LSB2;
-	unsigned char FPGA_time_LSB1;
-	char module_temp;
-};
+//access to SOH functions
+#include "lunah_utils.h"
+//access to config buffer
+#include "SetInstrumentParam.h"
+//access to Polling utilities
+#include "ReadCommandType.h"
 
 int GetFileNameSize( void );
 char * GetFileName( int file_type );
@@ -56,8 +42,8 @@ unsigned int GetDAQRunSETNum( void );
 int SetFileName( int ID_number, int run_number, int set_number );
 int DoesFileExist( void );
 int CreateDAQFiles( void );
-int WriteDataFileHeader( unsigned long long int real_time, float modu_temp );
+int WriteRealTime( unsigned long long int real_time );
 void ClearBRAMBuffers( void );
-int DataAcquisition( void );
+int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer );
 
 #endif /* SRC_DATAACQUISITION_H_ */

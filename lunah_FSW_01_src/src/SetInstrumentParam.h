@@ -78,11 +78,11 @@ typedef struct {
 
 // prototypes
 void CreateDefaultConfig( void );
+CONFIG_STRUCT_TYPE * GetConfigBuffer( void );
 int InitConfig( void );
 int SaveConfig( void );
 int SetTriggerThreshold(int iTrigThreshold);
 int SetNeutronCutGates(int moduleID, int ellipseNum, float ECut1, float ECut2, float PCut1, float PCut2);
-//int SetWideNeutronCutGates(int moduleID, int ellipseNum, float WideECut1, float WideECut2, float WidePCut1, float WidePCut2);
 int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int value);
 int SetIntergrationTime(int Baseline, int Short, int Long, int Full);
 int SetEnergyCalParam(float Slope, float Intercept);

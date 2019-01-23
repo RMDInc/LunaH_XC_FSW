@@ -51,68 +51,29 @@ struct twoDHisto {
 	unsigned short twoDHisto[25][78];
 };
 
-int ProcessData(unsigned int * data_array,
-		unsigned short twoDH_pmt1[TWODH_X_BINS][TWODH_Y_BINS],
-		unsigned short twoDH_pmt2[TWODH_X_BINS][TWODH_Y_BINS],
-		unsigned short twoDH_pmt3[TWODH_X_BINS][TWODH_Y_BINS],
-		unsigned short twoDH_pmt4[TWODH_X_BINS][TWODH_Y_BINS])
+//File Scope Variables and Buffers
+static unsigned char event_buffer[EVENT_BUFFER_SIZE];
+
+
+/*
+ * Will move this function to a separate source/header file later
+ *
+ */
+int Process2DHData( void )
 {
-	//have the data we need to process in data_array, there are 512*4 events
-	//get access to buffers we will use to sort/process the data into
-	//will need to create the buffers and pass in references to them (pointers)
 	//variables for data processing
 	int i_dataarray_index = 0;
-//	int i_total_events = 0;
-//	int i_event_number = 0;
 	int i_PMT_ID = 0;
-//	float f_time = 0;
-//	float f_aa_bl_int = 0;
-//	float f_aa_short_int = 0;
-//	float f_aa_long_int = 0;
-//	float f_aa_full_int = 0;
-//	float f_lpf1 = 0;
-//	float f_lpf2 = 0;
-//	float f_lpf3 = 0;
-//	float f_dff1 = 0;
-//	float f_dff2 = 0;
-//	float f_bl1 = 0.0;
-//	float f_bl2 = 0.0;
-//	float f_bl3 = 0.0;
-//	float f_bl4 = 0.0;
-//	float f_bl_avg = 0.0;
-//	float f_blcorr_short = 0.0;
-//	float f_blcorr_long = 0.0;
-//	float f_blcorr_full = 0.0;
-//	float f_PSD = 0.0;
-//	float f_Energy = 0.0;
-	//settings needed for processing
-//	float f_aa_bl_int_samples = 38.0;
-//	float f_aa_short_int_samples = 73.0;
-//	float f_aa_long_int_samples = 169.0;
-//	float f_aa_full_int_samples = 1551.0;
-//	float f_energy_slope = 1.0;
-//	float f_energy_intercept = 0.0;
-	//set the ranges for the 2DH
-//	int i_xminrange = 0;
-//	int i_xmaxrange = 10000;
-//	int i_yminrange = 0;
-//	int i_ymaxrange = 2;
-	//set the number of bins for the 2DH
+
 	int i_xnumbins = TWODH_X_BINS;
 	int i_ynumbins = TWODH_Y_BINS;
-//	float f_xbinsize = 0;
-//	float f_ybinsize = 0;
 	float f_xbinnum = 0;
 	float f_ybinnum = 0;
-	int i_xArrayIndex = 0;
-	int i_yArrayIndex = 0;
+//	int i_xArrayIndex = 0;
+//	int i_yArrayIndex = 0;
 	int badEvents = 0;
 	int i_pointInsideBounds = 0;
 	int i_pointOutsideBounds = 0;
-
-	//determine the x and y bin size
-//	f_xbinsize = (float)i_xmaxrange / i_xnumbins;
-//	f_ybinsize = (float)i_ymaxrange / i_ynumbins;
 
 	while(i_dataarray_index < DATA_BUFFER_SIZE)
 	{
@@ -134,22 +95,22 @@ int ProcessData(unsigned int * data_array,
 					if(f_ybinnum <= (i_ynumbins - 1))
 					{
 						//cast the bin numbers as ints so that we can use them as array indices
-						i_xArrayIndex = (int)f_xbinnum;
-						i_yArrayIndex = (int)f_ybinnum;
+//						i_xArrayIndex = (int)f_xbinnum;
+//						i_yArrayIndex = (int)f_ybinnum;
 						//increment the bin in the matrix
 						switch(i_PMT_ID)
 						{
 							case 1:
-								++twoDH_pmt1[i_xArrayIndex][i_yArrayIndex];
+//								++twoDH_pmt1[i_xArrayIndex][i_yArrayIndex];
 								break;
 							case 2:
-								++twoDH_pmt2[i_xArrayIndex][i_yArrayIndex];
+//								++twoDH_pmt2[i_xArrayIndex][i_yArrayIndex];
 								break;
 							case 3:
-								++twoDH_pmt3[i_xArrayIndex][i_yArrayIndex];
+//								++twoDH_pmt3[i_xArrayIndex][i_yArrayIndex];
 								break;
 							case 4:
-								++twoDH_pmt4[i_xArrayIndex][i_yArrayIndex];
+//								++twoDH_pmt4[i_xArrayIndex][i_yArrayIndex];
 								break;
 							default:
 								++badEvents;	//increment counter of events with no PMT ID
@@ -174,3 +135,88 @@ int ProcessData(unsigned int * data_array,
 	return 0;
 }
 
+
+/*
+ * This function will be called after we read in a buffer of valid data from the FPGA.
+ *  Here is where the data stream from the FPGA is scanned for events and each event
+ *  is processed to pull the PSD and energy information out. We identify it the event
+ *  is within the current 1 second CPS interval, as well as bin the events into a
+ *  2-D histogram which is reported at the end of a run.
+ *
+ * @param	A pointer to the data buffer
+ *
+ * @return	SUCCESS/FAILURE
+ */
+int ProcessData( unsigned int * data_raw )
+{
+	int iter = 0;
+//	int cps_iter = 0;
+	int evt_iter = 0;
+	unsigned int current_time = 0;
+	unsigned int num_bytes_written = 0;
+	FIL cpsDataFile;
+	FRESULT f_res = FR_OK;
+	GENERAL_EVENT_TYPE event_holder = {};
+	//we have access to our raw data now
+	// switch on the different "Sign post" identifiers we have
+
+	//there are 4096 integers in the buffer that was passed in
+	while(iter < 4096)
+	{
+		switch(data_raw[iter])
+		{
+		case 111111:
+			//this is the data event case
+
+			//Check on CPS report
+			if(cpsCheckTime(current_time) == TRUE)
+			{
+				f_res = f_write(&cpsDataFile, (char *)cpsGetEvent(), CPS_EVENT_SIZE, &num_bytes_written);
+				if(num_bytes_written != CPS_EVENT_SIZE)
+				{
+					//handle error with writing
+				}
+				else if(f_res != FR_OK)
+				{
+					//handle bad write
+				}
+			}
+
+			//begin processing the event
+
+			break;
+		case 892270675:
+			//this is a temperature event
+			break;
+		case 2147594759:
+			//this is a false event
+			//check to make sure this is a valid event
+			if( data_raw[iter + 1] == 2147594759 && data_raw[iter + 9] == 111111)
+			{
+				cpsSetFirstEventTime(data_raw[iter + 2]);
+
+				event_holder.field0 = 0xDD;
+				event_holder.field1 = 0xDD;
+				event_holder.field2 = 0xDD;
+				event_holder.field3 = 0xDD;
+				event_holder.field4 = 0x00 | (data_raw[iter + 2] >> 30);
+				event_holder.field5 = data_raw[iter + 2] >> 22;
+				event_holder.field6 = data_raw[iter + 2] >> 14;
+				event_holder.field7 = data_raw[iter + 2] >> 6;
+
+				memcpy(event_buffer + EVTS_EVENT_SIZE * evt_iter, &event_holder, sizeof(event_holder));	//write one event to the array
+			}
+			else
+				break;	//not a valid first event
+
+			break;
+		default:
+			//this indicates that we miscounted our place in the buffer somewhere
+			//or there is junk in the buffer in the middle of an event
+			//TODO: handle a bad event or junk in the buffer
+			break;
+		}//END OF SWITCH ON RAW DATA
+	}//END OF WHILE
+
+	return 0;
+}
