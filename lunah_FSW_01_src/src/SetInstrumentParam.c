@@ -10,7 +10,7 @@
 #include "SetInstrumentParam.h"
 
 //File-Scope Variables
-static char cConfigFile[] = "0:/ConfigFile.cnf";
+static char cConfigFile[] = "0:/MNSCONF.bin";
 static CONFIG_STRUCT_TYPE ConfigBuff;
 
 /* This can be called for two different reasons:
@@ -100,40 +100,34 @@ CONFIG_STRUCT_TYPE * GetConfigBuffer( void )
  * @return	FR_OK (0) or command FAILURE (!0)
  *
  */
-int InitConfig(void)
+int InitConfig( void )
 {
 	uint NumBytesWr;
 	uint NumBytesRd;
-	FRESULT F_RetVal;
-	FILINFO CnfFno;
+	FRESULT fres = FR_OK;
 	FIL ConfigFile;
 	int RetVal = 0;
 	int ConfigSize = sizeof(ConfigBuff);
 
 	// check if the config file exists
-	if( f_stat( cConfigFile, &CnfFno) )
+	fres = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE|FA_OPEN_EXISTING);
+	if( fres == FR_OK )
 	{
-		//Fill the Config Buffer with the default values
-		CreateDefaultConfig();
-		//Open and write to a new config file
-		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_close(&ConfigFile);
+		fres = f_lseek(&ConfigFile, 0);
+		if(fres == FR_OK)
+			fres = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);
+		f_close(&ConfigFile);
 	}
-	else // The config file exists, read it
+	else if(fres == FR_NO_FILE)// The config file does not exist, create it
 	{
-		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);	//Read the config file into ConfigBuff
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_close(&ConfigFile);							//close the file
+		CreateDefaultConfig();
+		fres = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE|FA_OPEN_ALWAYS);
+		if(fres == FR_OK)
+			fres = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+		f_close(&ConfigFile);
 	}
 
-	RetVal = (int)F_RetVal;
+	RetVal = (int)fres;
 	return RetVal;
 }
 
@@ -151,30 +145,18 @@ int SaveConfig()
 {
 	uint NumBytesWr;
 	FRESULT F_RetVal;
-	FILINFO CnfFno;
 	FIL ConfigFile;
 	int RetVal = 0;
 	int ConfigSize = sizeof(ConfigBuff);
 
-	// check that config file exists
-	if( f_stat( cConfigFile, &CnfFno) )
-	{	// f_stat returns non-zero(false) if no file exists, so open/create the file
-		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_WRITE|FA_OPEN_ALWAYS);
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_close(&ConfigFile);
-	}
-	else // If the file exists, write it
-	{
-		F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE);	//open with read/write access
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_lseek(&ConfigFile, 0);							//go to beginning of file
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);	//Write the ConfigBuff to config file
-		if(F_RetVal == FR_OK)
-			F_RetVal = f_close(&ConfigFile);							//close the file
-		}
+	//we assume the config file exists already
+	F_RetVal = f_open(&ConfigFile, cConfigFile, FA_READ|FA_WRITE|FA_OPEN_ALWAYS);
+	if(F_RetVal == FR_OK)
+		F_RetVal = f_lseek(&ConfigFile, 0);
+	if(F_RetVal == FR_OK)
+		F_RetVal = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
+	//close regardless of the return value
+	F_RetVal = f_close(&ConfigFile);
 
 	RetVal = (int)F_RetVal;
     return RetVal;
@@ -279,7 +261,7 @@ int SetEnergyCalParam(float Slope, float Intercept)
  */
 int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP, float offsetE, float offsetP)
 {
-	int status = 0;
+	int status = CMD_SUCCESS;
 
 	//what do we need to check with the parameter input?
 	//check that the scale factors are not 0
@@ -374,14 +356,12 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 			break;
 		}
 	default: //bad value for the module ID, just use the defaults
-		//what are the defaults?
+		//just leave the cuts, no change
+		status = CMD_FAILURE;
 		break;
 	}
-	// Save Config file
-	SaveConfig();
-	status = CMD_SUCCESS;
-
-
+	if(status == CMD_SUCCESS)
+		SaveConfig();
 
 	return status;
 }
@@ -487,45 +467,48 @@ int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
 {
 	int status = 0;
 
-	if((Baseline < Short) && ( Short < Long) && (Long < Full))	//if each is greater than the last
+	//should do more error checking on the range for baseline and full
+	//TODO: Get the range of acceptable values for the integration times
+	if((Baseline >= -200) && (Full <= 8000))
 	{
-		//set the values provided
-		Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, ((u32)(Baseline+52)/4));
-		Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, ((u32)(Short+52)/4));
-		Xil_Out32 (XPAR_AXI_GPIO_2_BASEADDR, ((u32)(Long+52)/4));
-		Xil_Out32 (XPAR_AXI_GPIO_3_BASEADDR, ((u32)(Full+52)/4));
+		if((Baseline < Short) && ( Short < Long) && (Long < Full))
+		{
+			Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, ((u32)(Baseline+52)/4));
+			Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, ((u32)(Short+52)/4));
+			Xil_Out32 (XPAR_AXI_GPIO_2_BASEADDR, ((u32)(Long+52)/4));
+			Xil_Out32 (XPAR_AXI_GPIO_3_BASEADDR, ((u32)(Full+52)/4));
 
-		//error check to make sure that we have set all the values correctly
-		//we can worry about error checking later on in the FSW process
-		//read back the values from the FPGA //They should be equal to the values we set
-		if(Xil_In32(XPAR_AXI_GPIO_0_BASEADDR) == Baseline)
-			if(Xil_In32(XPAR_AXI_GPIO_0_BASEADDR) == Short)
-				if(Xil_In32(XPAR_AXI_GPIO_0_BASEADDR) == Long)
-					if(Xil_In32(XPAR_AXI_GPIO_0_BASEADDR) == Full)
-					{
-						// Write to config
-						ConfigBuff.IntegrationBaseline = Baseline;
-						ConfigBuff.IntegrationShort = Short;
-						ConfigBuff.IntegrationLong = Long;
-						ConfigBuff.IntegrationFull = Full;
-						// Save config
-						SaveConfig();
+			//error check to make sure that we have set all the values correctly
+			//we can worry about error checking later on in the FSW process
+			//read back the values from the FPGA //They should be equal to the values we set
+			if(Xil_In32(XPAR_AXI_GPIO_0_BASEADDR) == (Baseline+52)/4)
+				if(Xil_In32(XPAR_AXI_GPIO_1_BASEADDR) == (Short+52)/4)
+					if(Xil_In32(XPAR_AXI_GPIO_2_BASEADDR) == (Long+52)/4)
+						if(Xil_In32(XPAR_AXI_GPIO_3_BASEADDR) == (Full+52)/4)
+						{
+							// Write to config
+							ConfigBuff.IntegrationBaseline = Baseline;
+							ConfigBuff.IntegrationShort = Short;
+							ConfigBuff.IntegrationLong = Long;
+							ConfigBuff.IntegrationFull = Full;
+							// Save config
+							SaveConfig();
 
-						status = CMD_SUCCESS;
-					}
+							status = CMD_SUCCESS;
+						}
+						else
+							status = CMD_FAILURE;
 					else
 						status = CMD_FAILURE;
 				else
 					status = CMD_FAILURE;
 			else
 				status = CMD_FAILURE;
+
+			//if this comes back as CMD_FAILURE, try and set the default value?
+		}
 		else
 			status = CMD_FAILURE;
-
-		//if this comes back as CMD_FAILURE, try and set the default value
-		//later
-
-//		status = CMD_SUCCESS;	//this defeats the purpose of checking the values above
 	}
 	else
 		status = CMD_FAILURE;

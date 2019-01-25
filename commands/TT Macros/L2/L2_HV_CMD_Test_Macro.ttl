@@ -1,0 +1,114 @@
+; don't show the macro window
+show -1
+; hide TT
+showtt 0
+
+;str = "Start this macro, then run the debug test.\n\nPress OK when the board is running."
+;strspecial str
+;str2 = "Running through Set HV Level 2 functions.\n\nPress Ok and wait for next message."
+;strspecial str2
+;messagebox str 'Detector 0'
+;messagebox str2 'Detector 0'
+
+flushrecv
+pause 3
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L2_tt_HV_command_macro_0_1.bin' 1 0
+; show the log window
+showtt 8
+; disable output completely
+setdebug 3
+
+; perform actions with the board here
+; enter commands 
+sendln 'MNS_ENABLE_ACT_0'
+sendln 'MNS_ENABLE_ACT_1'
+
+pause 2
+;********************Measure resistance and HV on pot 1 (U21)*************
+sendln 'MNS_HV_0_1_50'
+sendln 'MNS_HV_1_1_50'
+
+pause 2
+
+;messagebox 'Measure the resistance on U21 between VCONTGND and VREF. \nHV set low\n\nPress OK when finished.\n' 'Detector 0'
+
+sendln 'MNS_HV_0_1_210'
+sendln 'MNS_HV_1_1_210'
+
+pause 2
+
+;messagebox 'Measure the resistance on U21 between VCONTGND and VREF. \nHV set high\n\nPress OK when finished.\n' 'Detector 0'
+
+;********************Measure resistance and HV on pot 2 (U22)*************
+sendln 'MNS_HV_0_2_50'
+sendln 'MNS_HV_1_2_50'
+
+pause 2
+
+;messagebox 'Measure the resistance on U22 between VCONTGND and VREF. \nHV set low\n\nPress OK when finished.\n' 'Detector 0'
+
+sendln 'MNS_HV_0_2_210'
+sendln 'MNS_HV_1_2_210'
+
+pause 2
+
+;messagebox 'Measure the resistance on U22 between VCONTGND and VREF. \nHV set high\n\nPress OK when finished.\n' 'Detector 0'
+
+;********************Measure resistance and HV on pot 3 (U23)*************
+sendln 'MNS_HV_0_3_50'
+sendln 'MNS_HV_1_3_50'
+
+pause 2
+
+;messagebox 'Measure the resistance on U23 between VCONTGND and VREF. \nHV set low\n\nPress OK when finished.\n' 'Detector 0'
+
+sendln 'MNS_HV_0_3_210'
+sendln 'MNS_HV_1_3_210'
+
+pause 2
+
+;messagebox 'Measure the resistance on U23 between VCONTGND and VREF. \nHV set high\n\nPress OK when finished.\n' 'Detector 0'
+
+;********************Measure resistance and HV on pot 4 (U24)*************
+sendln 'MNS_HV_0_4_50'
+sendln 'MNS_HV_1_4_50'
+
+pause 2
+
+;messagebox 'Measure the resistance on U24 between VCONTGND and VREF. \nHV set low\n\nPress OK when finished.\n' 'Detector 0'
+
+sendln 'MNS_HV_0_4_210'
+sendln 'MNS_HV_1_4_210'
+
+pause 2
+
+;messagebox 'Measure the resistance on U24 between VCONTGND and VREF. \nHV set high\n\nPress OK when finished.\n' 'Detector 0'
+
+;********************Measure resistance and HV on all pots *************
+;messagebox 'Setting all pots low.\n\nPlease wait for next box.\n\nPress OK now.\n' 'Detector 0'
+sendln 'MNS_HV_0_5_30'
+sendln 'MNS_HV_1_5_30'
+
+pause 5
+
+;messagebox 'Measure the resistance on all pots between VCONTGND and VREF. \nHV set low\n\nPress OK when finished.\n' 'Detector 0'
+
+sendln 'MNS_HV_0_5_220'
+sendln 'MNS_HV_1_5_220'
+
+pause 5
+
+;messagebox 'Measure the resistance on all pots between VCONTGND and VREF. \nHV set high\n\nPress OK when finished.\n' 'Detector 0'
+
+sendln 'MNS_DISABLE_ACT_0'
+sendln 'MNS_DISABLE_ACT_1'
+
+pause 2
+
+;messagebox 'System disabled, if all HV resistances were correct,\ncheck packet response by taking out msgboxes.\n'
+;messagebox 'Press "OK" when the board is stopped' 'Board is done.'
+setdebug 0
+logclose
+
+end

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
+* Copyright (C) 2014 - 2016 Xilinx, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -31,10 +31,10 @@
 ******************************************************************************/
 
 /*
- * Mini-NS Flight Software, Version 4.1
+ * Mini-NS Flight Software, Version 4.4
  * Graham Stoddard
  *
- * 1-9-2019
+ * 1-25-2019
  *
  */
 
@@ -172,11 +172,6 @@ int main()
 	//start timing
 	InitStartTime();
 
-//	//This code is used for timing functions to get latency measurements
-//	long long int time_holder = 0;
-//	XTime timer1 = 0;//test timers, can delete
-//	XTime timer2 = 0;
-
 	// Initialize buffers
 	char RecvBuffer[100] = "";
 
@@ -305,13 +300,13 @@ int main()
 						//turn on the system
 						//trigger a "false event" in the FPGA to log the MNS_FPGA time
 						/***************for testing, leave these out, we don't need them */
-	//					Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
-	//					Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
-	//					Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
+//						Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+//						Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+//						Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 						//record the REALTIME and write headers into files
 						status = WriteRealTime(GetRealTimeParam());
 						//call the DAQ() function
-						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer);
+//						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer);
 						//we have returned from DAQ, report success/failure
 						//we will return in three ways:
 						// time out (1) = success
@@ -578,224 +573,3 @@ int SetUpInterruptSystem(XScuGic *XScuGicInstancePtr) {
 
 }
 //////////////////////////// SetUp Interrupt System////////////////////////////////
-
-//////////////////////////// get_data ////////////////////////////////
-#ifndef BREAKUP_MAIN
-int get_data(XUartPs * Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, int i_neutron_total, char * RecvBuffer, XTime local_time_start, XTime local_time)
-#else
-int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer)
-#endif
-{
-	uint numBytesWritten = 0;
-	uint numBytesRead = 0;
-	int valid_data = 0; 	//BRAM buffer size
-	int buff_num = 0;	//keep track of which buffer we are writing
-	int array_index = 0;
-	int dram_addr;
-	int dram_base = 0xa000000;
-	int dram_ceiling = 0xA004000;
-	int ipollReturn = 0;	//keep track of user input
-	//2DH variables
-//	int i_xnumbins = 260;
-//	int i_ynumbins = 30;
-	//buffers are 4096 ints long (512 events total)
-	unsigned int * data_array;
-	unsigned int * data_array_holder;
-	data_array = (unsigned int *)malloc(sizeof(unsigned int)*DATA_BUFFER_SIZE*4);
-	memset(data_array, '0', DATA_BUFFER_SIZE * sizeof(unsigned int)); //zero out the array
-//	unsigned short twoDH_pmt1[i_xnumbins][i_ynumbins];
-//	unsigned short twoDH_pmt2[i_xnumbins][i_ynumbins];
-//	unsigned short twoDH_pmt3[i_xnumbins][i_ynumbins];
-//	unsigned short twoDH_pmt4[i_xnumbins][i_ynumbins];
-
-	//SD CARD FILES
-	FIL data_file;
-	FIL data_file_dest;
-	FRESULT ffs_res;
-
-	//timing
-//	XTime local_time_current;
-//	local_time_current = 0;
-
-	XUartPs_SetOptions(&Uart_PS,XUARTPS_OPTION_RESET_RX);
-
-	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000); 		// DMA Transfer Step 1
-	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);			// DMA Transfer Step 2
-	sleep(1);
-//	ClearBuffers();
-
-	while(ipollReturn != 15 && ipollReturn != 17)	//DATA ACQUISITION LOOP
-	{
-		//check the buffer to see if we have valid data
-		valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);	// AA write pointer // tells how far the system has read in the AA module
-		if(valid_data == 1)
-		{
-			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);				// init mux to transfer data between integrater modules to DMA
-			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);
-			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
-			usleep(54); 												// this will change
-			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
-
-			Xil_DCacheInvalidateRange(0xa0000000, 65536);
-
-			//prepare for looping
-			array_index = 0;
-			dram_addr = dram_base;
-			switch(buff_num)
-			{
-			case 0:
-				//fetch the data from the DRAM
-				data_array_holder = data_array;
-				while(dram_addr <= dram_ceiling)
-				{
-					data_array_holder[array_index] = Xil_In32(dram_addr);
-					dram_addr+=4;
-					array_index++;
-				}
-//				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
-//				ClearBuffers();
-				buff_num++;
-				break;
-			case 1:
-				//fetch the data from the DRAM //data_array + 4096
-				data_array_holder = data_array + DATA_BUFFER_SIZE; //move the pointer to the buffer
-				while(dram_addr <= dram_ceiling)
-				{
-					data_array_holder[array_index] = Xil_In32(dram_addr);
-					dram_addr+=4;
-					array_index++;
-				}
-//				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
-//				ClearBuffers();
-				buff_num++;
-				break;
-			case 2:
-				//fetch the data from the DRAM //data_array + 8192
-				data_array_holder = data_array + DATA_BUFFER_SIZE*2;
-				while(dram_addr <= dram_ceiling)
-				{
-					data_array_holder[array_index] = Xil_In32(dram_addr);
-					dram_addr+=4;
-					array_index++;
-				}
-//				ProcessData(data_array_holder, twoDH_pmt1, twoDH_pmt2, twoDH_pmt3, twoDH_pmt4);
-//				ClearBuffers();
-				buff_num++;
-				break;
-			case 3:
-				//fetch the data from the DRAM //data_array + 12288
-				data_array_holder = data_array + DATA_BUFFER_SIZE*3;
-				while(dram_addr <= dram_ceiling)
-				{
-					data_array_holder[array_index] = Xil_In32(dram_addr);
-					dram_addr+=4;
-					array_index++;
-				}
-//				process_data(data_array_holder, &(twoDH_pmt1[0][0]), &(twoDH_pmt2[0][0]), &(twoDH_pmt3[0][0]), &(twoDH_pmt4[0][0]));
-//				ClearBuffers();
-				buff_num = 0;
-
-				//write the event data to SD card
-				ffs_res = f_open(&data_file, EVT_filename1, FA_WRITE|FA_READ|FA_OPEN_ALWAYS);	//open the file
-				if(ffs_res)
-					xil_printf("Could not open file %d\n", ffs_res);
-				ffs_res = f_lseek(&data_file, file_size(&data_file));	//seek to the end of the file
-				//write the data //4 buffers total // 512 events per buff
-				ffs_res = f_write(&data_file, data_array, sizeof(u32)*4096*4, &numBytesWritten);
-				ffs_res = f_close(&data_file);
-				//write the cnt data to SD card
-				ffs_res = f_open(&data_file, CNT_filename1, FA_WRITE|FA_READ|FA_OPEN_ALWAYS);	//open the file
-				if(ffs_res)
-					xil_printf("Could not open file %d\n", ffs_res);
-				ffs_res = f_lseek(&data_file, file_size(&data_file));	//seek to the end of the file
-				//write the data //4 buffers total // 512 events per buff
-				ffs_res = f_write(&data_file, data_array, sizeof(u32)*4096*4, &numBytesWritten);
-				ffs_res = f_close(&data_file);
-				break;
-			default:
-				//how to deal if we have a weird value of buff_num?
-				//treat the data like a singleton buffer and process and save it
-				// in this way, we don't skip any data or overwrite anything we previously had
-				//should check where the data_array pointer is at first
-				xil_printf("buff_num in DAQ outside of bounds\r\n");
-				break;
-			}
-		}
-
-		//continue to loop and report SOH while waiting for user input
-#ifdef BREAKUP_MAIN
-//		CheckForSOH(Iic, Uart_PS);
-#else
-		XTime_GetTime(&local_time_current);
-		if(((local_time_current - local_time_start)/COUNTS_PER_SECOND) >= (local_time +  1))
-		{
-			local_time = (local_time_current - local_time_start)/COUNTS_PER_SECOND;
-			report_SOH(local_time, i_neutron_total, Uart_PS);
-		}
-#endif
-		//check user input
-		ipollReturn = ReadCommandType(RecvBuffer, &Uart_PS);
-		switch(ipollReturn) {
-		case 15:
-			//BREAK was received
-			break;
-		case 17:
-			//END was received
-			break;
-		case 100:
-			//too much data in the receive buffer
-			memset(RecvBuffer, '0', 100);
-			break;
-		case 999:
-			//no line ending has been entered, continue with operation
-			break;
-		default:
-			//anything else
-			memset(RecvBuffer, '0', 100);
-			XUartPs_Send(&Uart_PS, (u8 *)"FFFFFF\n", 7);
-			break;
-		}
-
-	} //END DATA ACQUISITION LOOP
-
-	//DUPLICATE the data files (CNT, EVT) onto SD 0
-	ffs_res = f_open(&data_file, EVT_filename1, FA_READ);
-	ffs_res = f_open(&data_file_dest, EVT_filename0, FA_WRITE | FA_OPEN_ALWAYS);
-
-	for(;;)
-	{
-		ffs_res = f_read(&data_file, data_array, sizeof(u32)*4096*4, &numBytesRead);
-		if(ffs_res || numBytesRead == 0)
-			break;
-		ffs_res = f_write(&data_file_dest, data_array, numBytesRead, &numBytesWritten);
-		if(ffs_res || numBytesWritten < numBytesRead)
-			break;
-	}
-
-	f_close(&data_file);
-	f_close(&data_file_dest);
-
-	ffs_res = f_open(&data_file, CNT_filename1, FA_READ);
-	ffs_res = f_open(&data_file_dest, CNT_filename0, FA_WRITE | FA_OPEN_ALWAYS);
-
-	for(;;)
-	{
-		ffs_res = f_read(&data_file, data_array, sizeof(u32)*4096*4, &numBytesRead);
-		if(ffs_res || numBytesRead == 0)
-			break;
-		ffs_res = f_write(&data_file_dest, data_array, numBytesRead, &numBytesWritten);
-		if(ffs_res || numBytesWritten < numBytesRead)
-			break;
-	}
-
-	f_close(&data_file);
-	f_close(&data_file_dest);
-
-	//Done duplicating files onto backup SD card
-
-	free(data_array);
-//  return i_neutron_total;
-	return(GetNeutronTotal());  // is there a reasons to return neuron total will if changed it will be with PutNeuronTotal in lunah_utils.c
-}
-
-//////////////////////////// get_data ////////////////////////////////

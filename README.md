@@ -52,3 +52,7 @@ Pre-DAQ and DAQ init are begun as well as handling reporting command success/fai
 - Version 4.2 Deleted a lot of unnecessary code and old code to keep things tidy. Merged the NGATES and NWGATES functions, keeping just NGATES. This is because we only need one neutron cut access functions. We are moving to elliptical cuts for the neutron cuts, so the configuration file, NGATES function have been updated to reflect the change. Taking a look at the init code near the top of main to verify that it's useful and we need to keep it. Beginning to put the structure of DAQ into place; most of the loops are established. James is working on the TX function, but that work is not reflected here.
 
 - Version 4.3 Large update including SD card work, CPS code for DAQ, the beginnings of the rest of the DAQ framework, and some testing files. Have done testing with the SD card timing and organizational structure. 
+
+- Version 4.39 This update is the code update for the Level 2 FSW. Minor changes and bug fixes were made to finalize the code which goes into this release. 
+The next update will be the L2 FSW BOOT files and the update after that will contain the instructions for programming a board with the software, testing with the provided TeraTerm macro, 
+running the Packet Reader on the output packets, a validation spreadsheet, and the telemetry dictionary. The dictionary may be distributed later than the next few updates due to complexity. 
