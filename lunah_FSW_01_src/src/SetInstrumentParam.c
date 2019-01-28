@@ -276,7 +276,7 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 
 	switch(moduleID)
 	{
-	case 0:	//module 0
+	case 1:	//module 1
 		switch(ellipseNum)
 		{
 		case 1:
@@ -296,7 +296,7 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 			break;
 		}
 		break;
-	case 1:	//module 1
+	case 2:	//module 2
 		switch(ellipseNum)
 		{
 		case 1:
@@ -316,7 +316,7 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 			break;
 		}
 		break;
-	case 2:	//module 2
+	case 3:	//module 3
 		switch(ellipseNum)
 		{
 		case 1:
@@ -336,7 +336,7 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 			break;
 		}
 		break;
-	case 3:	//module 3
+	case 4:	//module 4
 		switch(ellipseNum)
 		{
 		case 1:

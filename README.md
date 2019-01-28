@@ -56,3 +56,5 @@ Pre-DAQ and DAQ init are begun as well as handling reporting command success/fai
 - Version 4.39 This update is the code update for the Level 2 FSW. Minor changes and bug fixes were made to finalize the code which goes into this release. 
 The next update will be the L2 FSW BOOT files and the update after that will contain the instructions for programming a board with the software, testing with the provided TeraTerm macro, 
 running the Packet Reader on the output packets, a validation spreadsheet, and the telemetry dictionary. The dictionary may be distributed later than the next few updates due to complexity. 
+
+- Version 4.40 This update includes the BOOT files for the Mini-NS Level 2 FSW. A minor change has also been added to one of the Mini-NS payload commands; it has been documented in the ICD accordingly. 
