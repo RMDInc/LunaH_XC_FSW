@@ -58,3 +58,5 @@ The next update will be the L2 FSW BOOT files and the update after that will con
 running the Packet Reader on the output packets, a validation spreadsheet, and the telemetry dictionary. The dictionary may be distributed later than the next few updates due to complexity. 
 
 - Version 4.40 This update includes the BOOT files for the Mini-NS Level 2 FSW. A minor change has also been added to one of the Mini-NS payload commands; it has been documented in the ICD accordingly. 
+
+- Version 4.41 Added instructions and programs for testing the L2 FSW.  
