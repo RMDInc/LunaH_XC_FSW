@@ -62,3 +62,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 4.41 Added instructions and programs for testing the L2 FSW.  
 
 - Version 4.42 Full release of L2 FSW. The instructions for running the Macro Test have been updated, as has the executable which tests the output packets from the run. 
+
+- Version 4.43 Deleted unnecessary files from the repository.
