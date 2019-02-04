@@ -53,7 +53,8 @@ struct twoDHisto {
 
 //File Scope Variables and Buffers
 static unsigned char event_buffer[EVENT_BUFFER_SIZE];
-
+static unsigned int m_neutron_counts;
+static unsigned int m_event_number;
 
 /*
  * Will move this function to a separate source/header file later
@@ -149,44 +150,146 @@ int Process2DHData( void )
  */
 int ProcessData( unsigned int * data_raw )
 {
+	bool valid_event = FALSE;
 	int iter = 0;
 //	int cps_iter = 0;
 	int evt_iter = 0;
+	unsigned int m_invalid_events = 0;
 	unsigned int current_time = 0;
 	unsigned int num_bytes_written = 0;
+	unsigned int m_total_events_holder = 0;
+	double bl_avg = 0.0;
+	double bl1 = 0.0;
+	double bl2 = 0.0;
+	double bl3 = 0.0;
+	double bl4 = 0.0;
+	double si = 0.0;
+	double li = 0.0;
+	double fi = 0.0;
+	double psd = 0.0;
+	double energy = 0.0;
 	FIL cpsDataFile;
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE event_holder = {};
 	//we have access to our raw data now
 	// switch on the different "Sign post" identifiers we have
 
-	//there are 4096 integers in the buffer that was passed in
-	while(iter < 4096)
+	while(iter < DATA_BUFFER_SIZE)
 	{
 		switch(data_raw[iter])
 		{
 		case 111111:
 			//this is the data event case
-
-			//Check on CPS report
-			if(cpsCheckTime(current_time) == TRUE)
+			while(data_raw[iter+1] == 111111)//handles any number of 111111s in succession
 			{
-				f_res = f_write(&cpsDataFile, (char *)cpsGetEvent(), CPS_EVENT_SIZE, &num_bytes_written);
-				if(num_bytes_written != CPS_EVENT_SIZE)
+				iter++;
+			}
+			//validate event:
+			while(valid_event == FALSE)
+			{
+				if(data_raw[iter+8] == 111111)	//must be at least 8 ints from the next event
 				{
-					//handle error with writing
+					if(data_raw[iter+1] >= cpsGetCurrentTime())	//time must be the same or increasing
+					{
+						if(data_raw[iter+2] >= m_neutron_counts)	//counts must be the same or increasing
+						{
+							if(data_raw[iter+3] > m_event_number)
+							{
+								if((data_raw[iter+4] <= data_raw[iter+5]) && (data_raw[iter+5] <= data_raw[iter+6]) && (data_raw[iter+6] <= data_raw[iter+7]))//integrals must be greater than the previous
+								{
+									//get all the needed vals from the array:
+									//time = data_raw[iter+1];
+									//total counts = data_raw[iter+2];
+									//event number/PMT Hit ID = data_raw[iter+3]
+									//baseline int = data_raw[iter+4];
+									//short int = data_raw[iter+5];
+									//long int = data_raw[iter+6];
+									//full int = data_raw[iter+7];
+									valid_event = TRUE;
+									//Check on CPS report
+									if(cpsCheckTime(current_time) == TRUE)
+									{
+										f_res = f_write(&cpsDataFile, (char *)cpsGetEvent(), CPS_EVENT_SIZE, &num_bytes_written);
+										if(num_bytes_written != CPS_EVENT_SIZE)
+										{
+											//handle error with writing
+										}
+										else if(f_res != FR_OK)
+										{
+											//handle bad write
+										}
+									}
+									//begin processing the event
+									//get the PMT ID so we can process
+									event_holder.field0 = 0xFF;	//event ID is 0xFF
+									switch(data_raw[iter+3] & 0x0F)
+									{
+									case 1:
+										event_holder.field1 |= 0x00; //PMT 0
+										break;
+									case 2:
+										event_holder.field1 |= 0x40; //PMT 1
+										break;
+									case 4:
+										event_holder.field1 |= 0x80; //PMT 2
+										break;
+									case 8:
+										event_holder.field1 |= 0xC0; //PMT 3
+										break;
+									default:
+										//invalid event
+										//TODO: Handle bad/multiple hit IDs
+										//with only 2 bits, we have no way to report this...
+										//maybe take a bit or two from the Event ID?
+										event_holder.field1 |= 0x00; //PMT 0 for now
+										break;
+									}
+									m_total_events_holder = data_raw[iter+2] & 0xFFF;
+									event_holder.field1 |= m_total_events_holder >> 6;
+									event_holder.field2 |= m_total_events_holder << 2;
+									//integral calculations
+									si = 0.0;	li = 0.0;	fi = 0.0;	psd = 0.0;	energy = 0.0;
+									//calculate the baseline average (moving average for 4 events)
+									bl4 = bl3; bl3 = bl2; bl2 = bl1;
+									bl1 = (double)data_raw[iter+4] / (16.0 * 38.0);
+									if(bl4 == 0.0)
+										bl_avg = bl1;
+									else
+										bl_avg = (bl4 + bl3 + bl2 + bl1) / 4.0;
+									si = data_raw[iter+5] / (16.0) - (bl_avg * GetShortInt());
+									li = data_raw[iter+5] / (16.0) - (bl_avg * GetLongInt());
+									fi = data_raw[iter+5] / (16.0) - (bl_avg * GetFullInt());
+									energy = fi;
+									if(si != 0)
+										if(li != 0)
+											psd = si / (li - si);
+									//calculate the energy and PSD bins
+
+								}
+								else
+									valid_event = FALSE;
+							}
+							else
+								valid_event = FALSE;
+						}
+						else
+							valid_event = FALSE;
+					}
+					else
+						valid_event = FALSE;
 				}
-				else if(f_res != FR_OK)
+				else
+					valid_event = FALSE;
+				//how many events/values are skipped in the buffer?
+				if(valid_event == FALSE)
 				{
-					//handle bad write
+					m_invalid_events++;
+					iter++;
 				}
+				if(iter >= 4096)
+					break;
 			}
 
-			//begin processing the event
-
-			break;
-		case 892270675:
-			//this is a temperature event
 			break;
 		case 2147594759:
 			//this is a false event
@@ -214,6 +317,7 @@ int ProcessData( unsigned int * data_raw )
 			//this indicates that we miscounted our place in the buffer somewhere
 			//or there is junk in the buffer in the middle of an event
 			//TODO: handle a bad event or junk in the buffer
+			iter++;	//move past it, at least, we can sync back up by finding the 111111 again
 			break;
 		}//END OF SWITCH ON RAW DATA
 	}//END OF WHILE

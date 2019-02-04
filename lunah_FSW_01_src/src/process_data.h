@@ -9,8 +9,10 @@
 #define SRC_PROCESS_DATA_H_
 
 #include <string.h>
+#include <stdbool.h>
 #include "ff.h"
 #include "lunah_defines.h"
+#include "SetInstrumentParam.h"
 #include "CPSDataProduct.h"
 
 typedef struct {

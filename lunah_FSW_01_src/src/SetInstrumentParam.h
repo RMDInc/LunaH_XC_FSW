@@ -79,6 +79,10 @@ typedef struct {
 // prototypes
 void CreateDefaultConfig( void );
 CONFIG_STRUCT_TYPE * GetConfigBuffer( void );
+int GetBaselineInt( void );
+int GetShortInt( void );
+int GetLongInt( void );
+int GetFullInt( void );
 int InitConfig( void );
 int SaveConfig( void );
 int SetTriggerThreshold(int iTrigThreshold);

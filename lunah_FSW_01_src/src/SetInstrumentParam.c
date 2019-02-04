@@ -12,6 +12,11 @@
 //File-Scope Variables
 static char cConfigFile[] = "0:/MNSCONF.bin";
 static CONFIG_STRUCT_TYPE ConfigBuff;
+static int m_trigger_threshold;
+static int m_baseline_integration_time;
+static int m_short_integration_time;
+static int m_long_integration_time;
+static int m_full_integration_time;
 
 /* This can be called for two different reasons:
  *  1.) When there is no config file on the SD card, this holds the default (hard coded)
@@ -88,6 +93,26 @@ void CreateDefaultConfig( void )
 CONFIG_STRUCT_TYPE * GetConfigBuffer( void )
 {
 	return &ConfigBuff;
+}
+
+int GetBaselineInt( void )
+{
+	return m_baseline_integration_time;
+}
+
+int GetShortInt( void )
+{
+	return m_short_integration_time;
+}
+
+int GetLongInt( void )
+{
+	return m_long_integration_time;
+}
+
+int GetFullInt( void )
+{
+	return m_full_integration_time;
 }
 
 /* This function handles initializing the system with the values from the config file.
@@ -183,11 +208,9 @@ int SetTriggerThreshold(int iTrigThreshold)
 		//read back value from the FPGA and compare with intended change
 		if(iTrigThreshold == Xil_In32(XPAR_AXI_GPIO_10_BASEADDR))
 		{
-			//write to config file buffer
 			ConfigBuff.TriggerThreshold = iTrigThreshold;
-			// save config file
 			SaveConfig();
-
+			m_trigger_threshold = iTrigThreshold;
 			status = CMD_SUCCESS;
 		}
 		else
@@ -486,14 +509,15 @@ int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
 					if(Xil_In32(XPAR_AXI_GPIO_2_BASEADDR) == (Long+52)/4)
 						if(Xil_In32(XPAR_AXI_GPIO_3_BASEADDR) == (Full+52)/4)
 						{
-							// Write to config
 							ConfigBuff.IntegrationBaseline = Baseline;
 							ConfigBuff.IntegrationShort = Short;
 							ConfigBuff.IntegrationLong = Long;
 							ConfigBuff.IntegrationFull = Full;
-							// Save config
 							SaveConfig();
-
+							m_baseline_integration_time = Baseline;
+							m_short_integration_time = Short;
+							m_long_integration_time = Long;
+							m_full_integration_time = Full;
 							status = CMD_SUCCESS;
 						}
 						else

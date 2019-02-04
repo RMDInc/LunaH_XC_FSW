@@ -3,7 +3,7 @@ show -1
 ; hide TT
 showtt 0
 
-str2 = "Running through Level 2 functions.\n\nPress Ok and wait for next message."
+str2 = "Running through Level 2 functions.\n\nPress Ok to start the test."
 strspecial str2
 messagebox str2 'Detector 0'
 

@@ -26,6 +26,11 @@ void cpsSetRecordedTime( unsigned int m_recorded_time )
 	return;
 }
 
+unsigned int cpsGetCurrentTime( void )
+{
+	return m_current_1sec_interval_time;
+}
+
 /*
  * Helper function to convert the FPGA time from clock cycles to seconds
  *
