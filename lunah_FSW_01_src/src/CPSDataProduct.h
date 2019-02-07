@@ -31,11 +31,12 @@ typedef struct {
 }CPS_EVENT_STRUCT_TYPE;
 
 //Function Prototypes
+void CPSInit();
 void cpsSetFirstEventTime( unsigned int time );
 void cpsSetRecordedTime( unsigned int m_recorded_time );
 unsigned int cpsGetCurrentTime( void );
 float convertToSeconds( unsigned int time );
 bool cpsCheckTime( unsigned int time );
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void );
-
+void CPSUpdateTallies(double energy, double psd);
 #endif /* SRC_CPSDATAPRODUCT_H_ */

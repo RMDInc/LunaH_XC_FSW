@@ -11,9 +11,26 @@
 static unsigned int first_FPGA_time;				//the first FPGA time we register for the run //sync with REAL TIME
 static unsigned int m_previous_1sec_interval_time;	//the previous 1 second interval "start" time
 static unsigned int m_current_1sec_interval_time;	//the current 1 second interval "start" time
-static CPS_EVENT_STRUCT_TYPE cpsEvent;
+static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 second of counts)
+static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
+static unsigned short m_neutrons_ellipse1;		//neutrons with PSD
+static unsigned short m_neutrons_ellipse2;		//neutrons wide cut
+static unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
+static unsigned short m_events_over_threshold;	//count all events which trigger the system
 
 //Functions
+void CPSInit()
+{
+	first_FPGA_time = 0;
+	m_previous_1sec_interval_time = 0;
+	m_current_1sec_interval_time = 0;
+	cpsEvent = cpsEmptyStruct;
+	m_neutrons_ellipse1 = 0;
+	m_neutrons_ellipse2 = 0;
+	m_events_noPSD = 0;
+	m_events_over_threshold = 0;
+}
+
 void cpsSetFirstEventTime( unsigned int time )
 {
 	first_FPGA_time = time;
@@ -86,4 +103,18 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 	cpsEvent.modu_temp = (unsigned char)GetModuTemp();
 
 	return &cpsEvent;
+}
+
+
+void CPSUpdateTallies(double energy, double psd)
+{
+	//this will check the current event and see if it passes any of the cuts
+	/*
+	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD
+	 * unsigned short m_neutrons_ellipse2;		//neutrons wide cut
+	 * unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
+	 * unsigned short m_events_over_threshold;	//count all events which trigger the system
+	 */
+
+	return;
 }

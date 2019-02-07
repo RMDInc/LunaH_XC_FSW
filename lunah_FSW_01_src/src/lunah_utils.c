@@ -19,7 +19,7 @@ static XTime LocalTimeCurrent = 0;
 //also, need to verify that we are getting the correct temp
 static int analog_board_temp = 25;
 static int digital_board_temp = 1;
-static float modu_board_temp = 25;
+static float modu_board_temp = 25.0;
 static int iNeutronTotal = 50;
 static int check_temp_sensor = 0;
 
@@ -124,18 +124,15 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	i2c_Send_Buffer[0] = 0x0;
 	i2c_Send_Buffer[1] = 0x0;
 	int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
-//	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
+	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
 //	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, on module near thermistor on TEC
 
-	//if temp has not been checked in 2s, add 0.5 degrees to the temp
-	//if check_temp_sensor is 0, check analog board temp sensor, else check the next sensor
-	// then increment check_temp_sensor and reset time to next check
 	switch(check_temp_sensor){
 	case 0:	//analog board
 		XTime_GetTime(&LocalTimeCurrent);
 		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
-			/*TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
+			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
 			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
 			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
@@ -149,12 +146,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 			{
 				b = b / 16;
 			}
-			analog_board_temp = b; */
-			//using this approach for L2 because otherwise we require the user to have an analog board
-			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
-			check_temp_sensor++;
-			analog_board_temp += 0.5;
-
+			analog_board_temp = b;
 		}
 		break;
 	case 1:	//digital board

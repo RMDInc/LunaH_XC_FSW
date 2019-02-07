@@ -186,13 +186,13 @@ int main()
 
 	//This loop will continue forever and the program won't leave it
 	//This loop checks for input from the user, then checks to see if it's time to report SOH
-	//if input is received, then it reads the input for correctness
-	// if input is a valid MNS command, sends a command success packet
-	// if not, then sends a command failure packet
-	//after, SOH is checked to see if it is time to report SOH
+	//If input is received, then it reads the input for correctness
+	// if input is a valid MNS command, the system processes the command and reacts
+	// if not, then the system rejects the command and issues a failure packet
+	//After checking for input, the clock is checked to see if it is time to report SOH
 	//When it is time, reports a full CCSDS SOH packet
 
-	while(1){	//OUTER LEVEL 2 TESTING LOOP
+	while(1){	//OUTER LEVEL 3 TESTING LOOP
 		while(1){
 			//resetting this value every time is (potentially) critical
 			//resetting this ensures we don't re-use a command a second time (erroneously)
@@ -232,13 +232,22 @@ int main()
 		case DAQ_CMD:
 			//set processed data mode
 			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
+			//turn on the system
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
+			//set all the configuration parameters
+			status = ApplyDAQConfig(&Iic);
+			if(status != CMD_SUCCESS)
+			{
+				//TODO: more error checking
+			}
 			//prepare the status variables
 			done = 0;				//not done yet
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
-			//create the file names we will use for this run:
-			//check if the filename given is unique
-			//if the filename is unique, then we will go through these functions once
-			//if not, then we will loop until a unique name is found
+			/* Create the file names we will use for this run:
+			 * Check if the filename given is unique
+			 * if the filename is unique, then we will go through these functions once
+			 * if not, then we will loop until a unique name is found */
 			while(status == CMD_SUCCESS)
 			{
 				//only report a packet when the file has been successfully changed and did not exist already
@@ -249,8 +258,8 @@ int main()
 				//returns FALSE if file does NOT exist
 				//returns TRUE if file does exist
 				//we need the file to be unique, so FALSE is a positive result,
-				// if we get TRUE, we need to keep looping
-				//when status is FALSE, we need to send a packet to inform the file name
+				// if we get TRUE(CMD_SUCCESS), we need to keep looping
+				//when status is FALSE(CMD_FAILURE), we send a packet to report the file name
 				if(status == CMD_FAILURE)
 				{
 					reportSuccess(Uart_PS, 1);
@@ -263,8 +272,6 @@ int main()
 				//check to see if it is time to report SOH information, 1 Hz
 				CheckForSOH(&Iic, Uart_PS);
 			}
-
-			//begin polling for START/BREAK/READTEMP
 			while(done != 1)
 			{
 				status = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
@@ -275,45 +282,25 @@ int main()
 					//if no good input is found, silently ignore the input
 					switch(status){
 					case -1:
-						//we found an invalid command
-						done = 0;	//continue looping //not done
-						//Report CMD_FAILURE
+						done = 0;
 						reportFailure(Uart_PS);
 						break;
 					case READ_TMP_CMD:
-						//read all temp sensors
-						done = 0;	//continue looping //not done
-						//report a temp packet
+						done = 0;
 						status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
 						if(status == CMD_FAILURE)
 							reportFailure(Uart_PS);
 						break;
 					case BREAK_CMD:
-						//received the break command
-						//break out after this command //done
 						done = 1;
-						//report a success packet with the break command in it
 						reportSuccess(Uart_PS, 0);
 						break;
 					case START_CMD:
-						//received START_DAQ command
-						//turn on the system
-						//trigger a "false event" in the FPGA to log the MNS_FPGA time
-						/***************for testing, leave these out, we don't need them */
-//						Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
-//						Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
-//						Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
-						//record the REALTIME and write headers into files
-						status = WriteRealTime(GetRealTimeParam());
-						//call the DAQ() function
-//						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer);
-						//we have returned from DAQ, report success/failure
+						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer, GetIntParam(1));
 						//we will return in three ways:
 						// time out (1) = success
 						// END (2)		= success
 						// BREAK (0)	= failure
-
-						//currently, this should always report failure because the function before it(write header files) always reports status = 0
 						switch(status)
 						{
 						case 0:
@@ -329,7 +316,6 @@ int main()
 							reportFailure(Uart_PS);
 							break;
 						}
-						//break out after this command //done
 						done = 1;
 						break;
 					default:
@@ -345,8 +331,13 @@ int main()
 				}
 				//check to see if it is time to report SOH information, 1 Hz
 				CheckForSOH(&Iic, Uart_PS);
-			}
+			}//END OF WHILE DONE != 0
+
 			//data acquisition has been completed, wrap up anything not handled by the DAQ function
+			//all files should be closed by any functions which opens them
+			//turn off the active components //TODO: add this to the Flow Diagram so people know that it's off
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//enable ADC
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to analog board
 
 			break;
 		case WF_CMD:
@@ -446,7 +437,7 @@ int main()
 			//intParam2 = Short integration time
 			//intParam3 = Long integration time
 			//intParam4 = Full integration time
-			status = SetIntergrationTime(GetIntParam(1), GetIntParam(2), GetIntParam(3), GetIntParam(4));
+			status = SetIntegrationTime(GetIntParam(1), GetIntParam(2), GetIntParam(3), GetIntParam(4));
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS, 0);

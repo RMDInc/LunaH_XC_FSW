@@ -35,7 +35,7 @@
  */
 typedef struct {
 	float ECalSlope;
-	float EcalIntercept;
+	float ECalIntercept;
 	int TriggerThreshold;
 	int IntegrationBaseline;
 	int IntegrationShort;
@@ -88,7 +88,8 @@ int SaveConfig( void );
 int SetTriggerThreshold(int iTrigThreshold);
 int SetNeutronCutGates(int moduleID, int ellipseNum, float ECut1, float ECut2, float PCut1, float PCut2);
 int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int value);
-int SetIntergrationTime(int Baseline, int Short, int Long, int Full);
+int SetIntegrationTime(int Baseline, int Short, int Long, int Full);
 int SetEnergyCalParam(float Slope, float Intercept);
+int ApplyDAQConfig( XIicPs * Iic );
 
 #endif /* SRC_SETINSTRUMENTPARAM_H_ */

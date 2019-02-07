@@ -7,7 +7,16 @@ Release Notes for the Mini-NS Flight Software
 - Level 2 FSW - 
 - This release of the FSW greatly extends the level of interaction from Level 1.
 	This version accepts a number of the self-terminating commands and outputs
-	multiple kinds of packets in the CCSDS format. The system performs a more 
-	robust setup when powered on, including checking for a configuration file.
-	This version has no Data Acquisition and does not have full support for all
-	of the hardware available to the Mini-NS. 
+	multiple kinds of packets in the CCSDS format. Those commands are:
+	+ MNS_GETSTAT
+	+ MNS_READTEMP
+	+ MNS_ENABLE_ACT
+	+ MNS_DISABLE_ACT
+	+ MNS_TRG
+	+ MNS_ECAL
+	+ MNS_NGATES
+	+ MNS_HV
+	+ MNS_INT
+	The system performs a more robust setup when powered on, including checking 
+	for a configuration file. This version has no Data Acquisition and does not 
+	have full support for all of the hardware available to the Mini-NS. 

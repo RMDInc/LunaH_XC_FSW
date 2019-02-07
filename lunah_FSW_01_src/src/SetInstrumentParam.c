@@ -36,7 +36,7 @@ void CreateDefaultConfig( void )
 	//initialize the struct with all default values
 	ConfigBuff = (CONFIG_STRUCT_TYPE){
 		.ECalSlope=1.0,
-		.EcalIntercept=0.0,
+		.ECalIntercept=0.0,
 		.TriggerThreshold=9000,
 		.IntegrationBaseline=0,
 		.IntegrationShort=35,
@@ -119,6 +119,7 @@ int GetFullInt( void )
  * If no config file exists, one will be created using the default (hard coded) values
  *  available to the system.
  * If the config file is found on the SD card, then it is read in and values are assigned
+ *  to a config structure, but not set in the system.
  *
  * @param	None
  *
@@ -150,6 +151,11 @@ int InitConfig( void )
 		if(fres == FR_OK)
 			fres = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
 		f_close(&ConfigFile);
+	}
+	else
+	{
+		//TODO: handle an error which is not OK or No File
+
 	}
 
 	RetVal = (int)fres;
@@ -247,7 +253,7 @@ int SetEnergyCalParam(float Slope, float Intercept)
 		if((Intercept > -100.0) && (Intercept <= 100.0))
 		{
 			ConfigBuff.ECalSlope = Slope;
-			ConfigBuff.EcalIntercept = Intercept;
+			ConfigBuff.ECalIntercept = Intercept;
 			SaveConfig();
 
 			status = CMD_SUCCESS;
@@ -269,7 +275,7 @@ int SetEnergyCalParam(float Slope, float Intercept)
  *  around (offsetE/P) in the E-P space or scale the size of the ellipses larger or smaller (scaleE/P).
  *
  * @param moduleID	Assigns the cut values to a specific CLYC module
- * 					Valid input range: 0 - 3
+ * 					Valid input range: 1 - 4
  * @param ellipseNum	Assigns the cut values to a specific ellipse for the module chosen
  * 						Valid input range: 1, 2
  * @param scaleE/scaleP	Scale the size of the ellipse being used to cut neutrons in the data
@@ -486,7 +492,7 @@ int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
  *		Latency: TBD
  *		Return: command SUCCESS (0) or command FAILURE (1)
  */
-int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
+int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 {
 	int status = 0;
 
@@ -538,6 +544,46 @@ int SetIntergrationTime(int Baseline, int Short, int Long, int Full)
 		status = CMD_FAILURE;
 
 	return status;
-
-
 }
+
+
+int ApplyDAQConfig( XIicPs * Iic )
+{
+	int status = CMD_SUCCESS;
+
+	status = SetEnergyCalParam(ConfigBuff.ECalSlope, ConfigBuff.ECalIntercept);
+	if(status == CMD_SUCCESS)
+		status = SetTriggerThreshold(ConfigBuff.TriggerThreshold);
+	if(status == CMD_SUCCESS)
+		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
+	//set n cuts
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(1, 1, ConfigBuff.ScaleFactorEnergy_1_1, ConfigBuff.ScaleFactorPSD_1_1, ConfigBuff.OffsetEnergy_1_1, ConfigBuff.OffsetPSD_1_1);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(1, 2, ConfigBuff.ScaleFactorEnergy_1_2, ConfigBuff.ScaleFactorPSD_1_2, ConfigBuff.OffsetEnergy_1_2, ConfigBuff.OffsetPSD_1_2);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(2, 1, ConfigBuff.ScaleFactorEnergy_2_1, ConfigBuff.ScaleFactorPSD_2_1, ConfigBuff.OffsetEnergy_2_1, ConfigBuff.OffsetPSD_2_1);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(2, 2, ConfigBuff.ScaleFactorEnergy_2_2, ConfigBuff.ScaleFactorPSD_2_2, ConfigBuff.OffsetEnergy_2_2, ConfigBuff.OffsetPSD_2_2);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(3, 1, ConfigBuff.ScaleFactorEnergy_3_1, ConfigBuff.ScaleFactorPSD_3_1, ConfigBuff.OffsetEnergy_3_1, ConfigBuff.OffsetPSD_3_1);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(3, 2, ConfigBuff.ScaleFactorEnergy_3_2, ConfigBuff.ScaleFactorPSD_3_2, ConfigBuff.OffsetEnergy_3_2, ConfigBuff.OffsetPSD_3_2);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(4, 1, ConfigBuff.ScaleFactorEnergy_4_1, ConfigBuff.ScaleFactorPSD_4_1, ConfigBuff.OffsetEnergy_4_1, ConfigBuff.OffsetPSD_4_1);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(4, 2, ConfigBuff.ScaleFactorEnergy_4_2, ConfigBuff.ScaleFactorPSD_4_2, ConfigBuff.OffsetEnergy_4_2, ConfigBuff.OffsetPSD_4_2);
+
+	//TODO: error check
+
+	return status;
+}
+

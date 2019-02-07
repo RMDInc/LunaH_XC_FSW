@@ -44,6 +44,6 @@ int DoesFileExist( void );
 int CreateDAQFiles( void );
 int WriteRealTime( unsigned long long int real_time );
 void ClearBRAMBuffers( void );
-int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer );
+int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_out );
 
 #endif /* SRC_DATAACQUISITION_H_ */

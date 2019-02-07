@@ -295,21 +295,39 @@ void ClearBRAMBuffers( void )
  * 			Time Out (1) = success
  * 			END (2)		 = success
  */
-int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
+int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_out )
 {
 	//initialize variables
 	int done = 0;				//local status variable for keeping track of progress within loops
 	int status = CMD_SUCCESS;	//local status variable
-	int poll_val = 0;		//local polling status variable
+	int poll_val = 0;			//local polling status variable
 	int valid_data = 0;			//goes high/low if there is valid data within the FPGA buffers
 	int buff_num = 0;			//keep track of which buffer we are writing
+	int m_buffers_written = 0;	//keep track of how many buffers are written, but not synced
 	int array_index = 0;		//the index of our array which will hold data
 	int dram_addr;				//the address in the DRAM we are reading from
 	int dram_base = 0xa000000;	//where the buffer starts
 	int dram_ceiling = 0xA004000;	//where it ends
+	int m_run_time = time_out * 60;	//multiply minutes by 60 to get seconds
+	int m_write_header = 1;		//write a file header the first time we use a file
+	XTime m_run_start;			//timing variable
+	XTime m_run_current_time;	//timing variable
+	XTime_GetTime(&m_run_start);//record the "start" time to base a time out on
+	unsigned int m_first_event_FPGA_time = 0;
+	unsigned long long m_spacecraft_real_time = 0;
+	unsigned char m_write_times_into_header[SIZEOF_HEADER_TIMES] = "";
+	unsigned int bytes_written = 0;
+	FIL EVTS_file;
+	FRESULT f_res = FR_OK;
+	f_res = f_open(&EVTS_file, "evtfil01.bin", FA_READ|FA_WRITE|FA_OPEN_ALWAYS);
+	if(f_res != FR_OK)
+	{
+		//TODO: error check
+	}
 	//load parameters which are needed for the run
 	//	temp of the modules for the correction
 	//	any structs or memory that needs to be reserved can be done here
+	GENERAL_EVENT_TYPE * evts_array;
 	unsigned int * data_array;
 	data_array = calloc(DATA_BUFFER_SIZE * 4, sizeof(unsigned int));	//we need a buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events
 	//init a DMA transfer
@@ -350,17 +368,17 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 			case 0:
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
-				status = ProcessData( data_array );
+				status = ProcessData( data_array );	//Stop here before going through ProcessData the first time, inspect the buffer data_array
 				buff_num++;
 				break;
 			case 1:
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index + DATA_BUFFER_SIZE] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
@@ -371,7 +389,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 			case 2:
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index + DATA_BUFFER_SIZE * 2] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
@@ -382,7 +400,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 			case 3:
 				while(dram_addr <= dram_ceiling)
 				{
-					data_array[array_index + DATA_BUFFER_SIZE * 3] = Xil_In32(dram_addr);
+					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
@@ -390,11 +408,44 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 				//status = ProcessData();
 				buff_num = 0;
 
+				//write in the header if this is the first time that we have the file
+				if(m_write_header == 1)
+				{
+					//get the first event and the real time
+					m_first_event_FPGA_time = GetFirstEventTime();
+					m_spacecraft_real_time = GetRealTimeParam();
+					memcpy(&(m_write_times_into_header[0]), &m_spacecraft_real_time, sizeof(m_spacecraft_real_time));
+					m_write_times_into_header[8] = 0xFF;
+					memcpy(&(m_write_times_into_header[9]), &m_first_event_FPGA_time, sizeof(m_first_event_FPGA_time));
+					m_write_times_into_header[13] = 0xFF;
+					//write into the file
+					f_res = f_write(&EVTS_file, m_write_times_into_header, SIZEOF_HEADER_TIMES, &bytes_written);
+					if(f_res != FR_OK || bytes_written != SIZEOF_HEADER_TIMES)
+					{
+						//TODO: handle error checking the write
+					}
+					m_write_header = 0;
+				}
 				//four buffers have been processed, write the data to file
-				//If this is the first time that we've written to this file
-				//(will happen with first buffer or each time we change files)
-
-
+				evts_array = GetEVTsBufferAddress();
+				//may want to check that the evts_array address is not NULL
+				f_res = f_write(&EVTS_file, evts_array, EVENT_BUFFER_SIZE, &bytes_written);
+				if(f_res != FR_OK || bytes_written != EVENT_BUFFER_SIZE)
+				{
+					//TODO: handle error checking the write here
+				}
+				m_buffers_written++;
+				if(f_res == FR_OK && m_buffers_written == 10)
+				{
+					f_res = f_sync(&EVTS_file);
+					if(f_res != FR_OK)
+					{
+						//TODO: error check
+					}
+					m_buffers_written = 0;	//reset
+				}
+				//reset the EVTs array
+				ResetEVTsBuffer();
 				break;
 			default:
 				break;
@@ -402,10 +453,20 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 			//clear the buffers after reading through the data
 			ClearBRAMBuffers();
 			valid_data = 0;	//reset
+
 		}//END OF IF VALID DATA
 
 		//check to see if it is time to report SOH information, 1 Hz
 		CheckForSOH(Iic, Uart_PS);
+
+		//check timeout condition //calculate run time?
+		//TODO: check the time it takes to run this
+		XTime_GetTime(&m_run_current_time);
+		if(((m_run_current_time - m_run_start)/COUNTS_PER_SECOND) >= m_run_time)
+		{
+			status = DAQ_TIME_OUT;
+			done = 1;
+		}
 
 		//check for user input
 		poll_val = ReadCommandType(RecvBuffer, &Uart_PS);
@@ -416,16 +477,29 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer )
 			//no real need for a case if we aren't handling it
 			//just leave this to default
 			break;
-		case 16:
+		case READ_TMP_CMD:
+			status = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			if(status == CMD_FAILURE)
+				reportFailure(Uart_PS);
 			break;
-		case 17:
+		case BREAK_CMD:
+			//write in footer to data files
+
+			f_close(&EVTS_file);
+			status = DAQ_BREAK;
+			done = 1;
 			break;
-		case 18:
+		case END_CMD:
+			//write in footer to data files
+
+			f_close(&EVTS_file);
+			status = DAQ_END;
+			done = 1;
 			break;
 		default:
 			break;
 		}
-	}
+	}//END OF WHILE DONE != 1
 
 	//cleanup operations
 	free(data_array);

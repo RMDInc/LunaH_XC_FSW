@@ -7,54 +7,33 @@
 
 #include "process_data.h"
 
-///// Structure Definitions ////
-struct event_raw {			// Structure is 8+4+8+8+8+8= 44 bytes long
-	double time;
-	long long total_events;
-	long long event_num;
-	double bl;
-	double si;
-	double li;
-	double fi;
-	double psd;
-	double energy;
-};
-
-struct cps_data {
-	unsigned short n_psd;
-	unsigned short counts;
-	unsigned short n_no_psd;
-	unsigned short n_wide_cut;
-	unsigned int time;
-	unsigned char temp;
-};
-
-struct event_by_event {
-	unsigned short u_EplusPSD;
-	unsigned int ui_localTime;
-	unsigned int ui_nEvents_temp_ID;
-};
-
-struct counts_per_second {
-	unsigned char uTemp;
-	unsigned int ui_nPSD_CNTsOverThreshold;
-	unsigned int ui_nNoPSD_nWideCuts;
-	unsigned int ui_localTime;
-};
-
-struct twoDHisto {
-	unsigned int greatestBinVal;
-	unsigned char numXBins;
-	unsigned char numYBins;
-	unsigned char xRangeMax;
-	unsigned char yRangeMax;
-	unsigned short twoDHisto[25][78];
-};
-
 //File Scope Variables and Buffers
-static unsigned char event_buffer[EVENT_BUFFER_SIZE];
-static unsigned int m_neutron_counts;
-static unsigned int m_event_number;
+static const GENERAL_EVENT_TYPE evtEmptyStruct;				//use this to reset the holder struct each iteration
+static GENERAL_EVENT_TYPE event_buffer[EVENT_BUFFER_SIZE];	//buffer to store events
+static unsigned int m_neutron_counts;						//total neutron counts
+static unsigned int m_event_number;							//event number holder
+static unsigned int m_first_event_time_FPGA;				//the first event time which needs to be written into every data product header
+
+/*
+ * Helper function to allow Data Acquisition to grab the EVTs buffer and write it to SD
+ */
+GENERAL_EVENT_TYPE * GetEVTsBufferAddress( void )
+{
+	return event_buffer;
+}
+
+
+void ResetEVTsBuffer( void )
+{
+	memset(event_buffer, '\0', sizeof(event_buffer));
+	return;
+}
+
+
+unsigned int GetFirstEventTime( void )
+{
+	return m_first_event_time_FPGA;
+}
 
 /*
  * Will move this function to a separate source/header file later
@@ -151,13 +130,17 @@ int Process2DHData( void )
 int ProcessData( unsigned int * data_raw )
 {
 	bool valid_event = FALSE;
+//	int m_ret = 0;
 	int iter = 0;
-//	int cps_iter = 0;
 	int evt_iter = 0;
+	unsigned int m_x_bin_number = 0;
+	unsigned int m_y_bin_number = 0;
 	unsigned int m_invalid_events = 0;
-	unsigned int current_time = 0;
 	unsigned int num_bytes_written = 0;
 	unsigned int m_total_events_holder = 0;
+	unsigned int m_pmt_ID_holder = 0;
+	unsigned int m_FPGA_time_holder = 0;
+	unsigned int m_bad_event = 0;
 	double bl_avg = 0.0;
 	double bl1 = 0.0;
 	double bl2 = 0.0;
@@ -170,12 +153,14 @@ int ProcessData( unsigned int * data_raw )
 	double energy = 0.0;
 	FIL cpsDataFile;
 	FRESULT f_res = FR_OK;
-	GENERAL_EVENT_TYPE event_holder = {};
+	GENERAL_EVENT_TYPE event_holder = evtEmptyStruct;
 	//we have access to our raw data now
 	// switch on the different "Sign post" identifiers we have
 
 	while(iter < DATA_BUFFER_SIZE)
 	{
+		event_holder = evtEmptyStruct;	//reset event structure
+
 		switch(data_raw[iter])
 		{
 		case 111111:
@@ -187,7 +172,7 @@ int ProcessData( unsigned int * data_raw )
 			//validate event:
 			while(valid_event == FALSE)
 			{
-				if(data_raw[iter+8] == 111111)	//must be at least 8 ints from the next event
+				if(data_raw[iter+8] == 111111)	//must be at least 8 integers from the next event
 				{
 					if(data_raw[iter+1] >= cpsGetCurrentTime())	//time must be the same or increasing
 					{
@@ -207,7 +192,7 @@ int ProcessData( unsigned int * data_raw )
 									//full int = data_raw[iter+7];
 									valid_event = TRUE;
 									//Check on CPS report
-									if(cpsCheckTime(current_time) == TRUE)
+									if(cpsCheckTime(data_raw[iter+1]) == TRUE)
 									{
 										f_res = f_write(&cpsDataFile, (char *)cpsGetEvent(), CPS_EVENT_SIZE, &num_bytes_written);
 										if(num_bytes_written != CPS_EVENT_SIZE)
@@ -222,7 +207,8 @@ int ProcessData( unsigned int * data_raw )
 									//begin processing the event
 									//get the PMT ID so we can process
 									event_holder.field0 = 0xFF;	//event ID is 0xFF
-									switch(data_raw[iter+3] & 0x0F)
+									m_pmt_ID_holder = data_raw[iter+3] & 0x0F;
+									switch(m_pmt_ID_holder)
 									{
 									case 1:
 										event_holder.field1 |= 0x00; //PMT 0
@@ -261,10 +247,47 @@ int ProcessData( unsigned int * data_raw )
 									fi = data_raw[iter+5] / (16.0) - (bl_avg * GetFullInt());
 									energy = fi;
 									if(si != 0)
-										if(li != 0)
+										if(li != 0 && li != si) //test for undefined
 											psd = si / (li - si);
+										else
+										{
+											//handle not have a PSD value
+											//TODO: PSD value undefined
+											psd = 0.0;
+											m_bad_event++;
+										}
+									else
+									{
+										//handle not have a PSD value
+										//TODO: PSD value undefined
+										psd = 0.0;
+										m_bad_event++;
+									}
 									//calculate the energy and PSD bins
-
+									//add the energy ad PSD tallies to the correct histogram
+//									m_ret = Tally2DH(energy, psd, m_pmt_ID_holder);
+//									if(m_ret == CMD_FAILURE)
+//									{
+//										//handle error in tallying the event into the 2DH
+//										//TODO: identify what can go wrong and handle a bad tally
+//									}
+									m_x_bin_number = Get2DHArrayIndexX(energy);
+									m_y_bin_number = Get2DHArrayIndexY(psd);
+									event_holder.field2 |= (unsigned char)(m_x_bin_number >> 8);
+									event_holder.field3 |= (unsigned char)(m_x_bin_number);
+									event_holder.field4 |= (unsigned char)(m_y_bin_number);
+									//get the time
+									m_FPGA_time_holder = data_raw[iter+1] & 0x03FFFFFF;
+									event_holder.field4 |= (unsigned char)(m_FPGA_time_holder >> 24);
+									event_holder.field5 = (unsigned char)(m_FPGA_time_holder >> 16);
+									event_holder.field6 = (unsigned char)(m_FPGA_time_holder >> 8);
+									event_holder.field7 = (unsigned char)(m_FPGA_time_holder);
+									//save the event
+									event_buffer[evt_iter] = event_holder;
+									evt_iter++;
+									iter++;
+									//update the tallies for the CPS data
+									CPSUpdateTallies(energy, psd);
 								}
 								else
 									valid_event = FALSE;
@@ -297,6 +320,7 @@ int ProcessData( unsigned int * data_raw )
 			if( data_raw[iter + 1] == 2147594759 && data_raw[iter + 9] == 111111)
 			{
 				cpsSetFirstEventTime(data_raw[iter + 2]);
+				m_first_event_time_FPGA = data_raw[iter + 2];
 
 				event_holder.field0 = 0xDD;
 				event_holder.field1 = 0xDD;
@@ -307,7 +331,13 @@ int ProcessData( unsigned int * data_raw )
 				event_holder.field6 = data_raw[iter + 2] >> 14;
 				event_holder.field7 = data_raw[iter + 2] >> 6;
 
-				memcpy(event_buffer + EVTS_EVENT_SIZE * evt_iter, &event_holder, sizeof(event_holder));	//write one event to the array
+				event_buffer[evt_iter] = event_holder;	//store the event in the buffer
+				evt_iter++;
+				iter += 8;
+
+				//we should save the first event time from the FPGA and write it into the data product files
+				//here is an alright spot to do that potentially
+				//can we get the FIL pointer?
 			}
 			else
 				break;	//not a valid first event
@@ -320,6 +350,10 @@ int ProcessData( unsigned int * data_raw )
 			iter++;	//move past it, at least, we can sync back up by finding the 111111 again
 			break;
 		}//END OF SWITCH ON RAW DATA
+
+		//TODO: fully error check the buffering here
+		//need to check that we don't go out of range with either iterator
+		//iter can be 0 -> 4096
 	}//END OF WHILE
 
 	return 0;

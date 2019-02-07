@@ -27,7 +27,7 @@ static float ffirstVal = 0.0;
 static float fsecondVal = 0.0;
 static float fthirdVal = 0.0;
 static float ffourthVal = 0.0;
-static unsigned long long int realTime = 0;
+static unsigned long long realTime = 0;
 
 /* Delete a scanned out command from the buffer then shift the buffer over */
 // This function deletes bytes from the beginning of a char buffer then
@@ -117,7 +117,6 @@ unsigned int GetLastCommandSize( void )
  */
 int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	//Variables
-	//char is_line_ending = '\0';
 	int ret = 0;
 	int bytes_scanned = 0;
 	int detectorVal = 0;
@@ -136,7 +135,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 		//Maybe something like scan the buffer for a '\n' and if we find one,
 		// then we can scan to that place and process the command like normal, which should shift it out.
 		//That way we can just get through what's there and try and handle stuff.
-		return 100;
+		return INPUT_OVERFLOW;
 	}
 	if(iPollBufferIndex != 0)
 	{
@@ -159,7 +158,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)	//invalid input
 						commandNum = -1;
 					else			//proper input
-						commandNum = 0;
+						commandNum = DAQ_CMD;
 
 				}
 				else if(!strcmp(commandBuffer, "WF"))
@@ -169,7 +168,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 1;
+						commandNum = WF_CMD;
 				}
 				else if(!strcmp(commandBuffer, "READTEMP"))
 				{
@@ -178,7 +177,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 1)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 2;
+						commandNum = READ_TMP_CMD;
 				}
 				else if(!strcmp(commandBuffer, "GETSTAT"))
 				{
@@ -187,7 +186,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 1)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 3;
+						commandNum = GETSTAT_CMD;
 				}
 				else if(!strcmp(commandBuffer, "DISABLE"))
 				{
@@ -200,7 +199,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					else	//scanned two items from the buffer
 					{
 						if(!strcmp(commandBuffer2, "ACT"))
-							commandNum = 4;
+							commandNum = DISABLE_ACT_CMD;
 						else
 							commandNum = -1;
 					}
@@ -216,7 +215,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					else	//scanned two items from the buffer
 					{
 						if(!strcmp(commandBuffer2, "ACT"))	//proper input
-							commandNum = 5;
+							commandNum = ENABLE_ACT_CMD;
 						else
 							commandNum = -1;	//anything else
 					}
@@ -228,7 +227,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)
 						commandNum = -1;
 					else
-						commandNum = 6;
+						commandNum = TX_CMD;
 				}
 				else if(!strcmp(commandBuffer, "DEL"))
 				{
@@ -237,20 +236,20 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)
 						commandNum = -1;
 					else
-						commandNum = 7;
+						commandNum = DEL_CMD;
 				}
 				else if(!strcmp(commandBuffer, "LS"))
 				{
 					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %s_%d", commandBuffer2, &detectorVal);
 
-					if(ret != 2)	//invalid input
+					if(ret != 2)
 						commandNum = -1;
-					else	//scanned two items from the buffer
+					else
 					{
-						if(!strcmp(commandBuffer2, "FILES"))	//proper input
-							commandNum = 8;
+						if(!strcmp(commandBuffer2, "FILES"))
+							commandNum = LS_CMD;
 						else
-							commandNum = -1;	//anything else
+							commandNum = -1;
 					}
 				}
 				else if(!strcmp(commandBuffer, "TXLOG"))
@@ -259,7 +258,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 1)
 						commandNum = -1;
 					else
-						commandNum = 9;
+						commandNum = TXLOG_CMD;
 				}
 				else if(!strcmp(commandBuffer, "CONF"))
 				{
@@ -267,7 +266,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 1)
 						commandNum = -1;
 					else
-						commandNum = 10;
+						commandNum = CONF_CMD;
 				}
 				else if(!strcmp(commandBuffer, "TRG"))
 				{
@@ -276,7 +275,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 11;
+						commandNum = TRG_CMD;
 				}
 				else if(!strcmp(commandBuffer, "ECAL"))
 				{
@@ -285,7 +284,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 3)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 12;
+						commandNum = ECAL_CMD;
 				}
 				else if(!strcmp(commandBuffer, "NGATES"))	//Need to grab another param, ModuleID
 				{
@@ -294,7 +293,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 7)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 13;
+						commandNum = NGATES_CMD;
 				}
 				else if(!strcmp(commandBuffer, "HV"))
 				{
@@ -304,7 +303,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 3)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 14;
+						commandNum = HV_CMD;
 				}
 				else if(!strcmp(commandBuffer, "INT"))
 				{
@@ -313,7 +312,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if( ret != 5 )
 						commandNum = -1;	//bad input, nothing scanned
 					else
-						commandNum = 15;
+						commandNum = INT_CMD;
 				}
 				else if(!strcmp(commandBuffer, "BREAK"))
 				{
@@ -321,19 +320,22 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 1)
 						commandNum = -1;
 					else
-						commandNum = 16;
+						commandNum = BREAK_CMD;
 				}
 				else if(!strcmp(commandBuffer, "START"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llu_%d", &detectorVal, &realTime, &firstVal);	//check for the _number of the waveform
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llu_%d", &detectorVal, &realTime, &firstVal);
 
 					if(ret != 3)	//invalid input
 						commandNum = -1;
 					else
 					{
-						//TODO: need to enable the system here, as this is the first place where we would know that the start command
-						// was valid.
-						commandNum = 17;
+						if(detectorVal == MNS_DETECTOR_NUM)
+						{
+							//enable system
+							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+						}
+						commandNum = START_CMD;
 					}
 				}
 				else if(!strcmp(commandBuffer, "END"))
@@ -343,7 +345,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					if(ret != 2)	//invalid input
 						commandNum = -1;
 					else
-						commandNum = 18;
+						commandNum = END_CMD;
 				}
 				else
 				{
@@ -357,7 +359,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				commandNum = -1;
 
 			//now check to see if the command pertains to this detector
-			if(detectorVal == 1)
+			if(detectorVal != MNS_DETECTOR_NUM)
 				commandNum += 900;
 		}//end of is_line_ending
 	}//end of ifpoll != 0
@@ -493,7 +495,7 @@ float GetFloatParam( int param_num )
 // @return	(long long int) returns the value assigned when the command was scanned
 //			This is a 64-bit number, so we need a large data type
 //
-unsigned long long int GetRealTimeParam( void )
+unsigned long long GetRealTimeParam( void )
 {
 	return realTime;
 }

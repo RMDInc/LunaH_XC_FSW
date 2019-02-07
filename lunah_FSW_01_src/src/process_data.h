@@ -14,6 +14,8 @@
 #include "lunah_defines.h"
 #include "SetInstrumentParam.h"
 #include "CPSDataProduct.h"
+//TODO: Figure out why this doesn't link to the source/header for 2DHs
+#include "TwoDHisto.h"
 
 typedef struct {
 	unsigned char field0;
@@ -26,7 +28,10 @@ typedef struct {
 	unsigned char field7;
 }GENERAL_EVENT_TYPE;
 
-//function prototype
+//function prototypes
+GENERAL_EVENT_TYPE * GetEVTsBufferAddress( void );
+void ResetEVTsBuffer( void );
+unsigned int GetFirstEventTime( void );
 int Process2DHData( void );
 int ProcessData( unsigned int * data_raw );
 
