@@ -8,8 +8,9 @@
 #include "process_data.h"
 
 //File Scope Variables and Buffers
+static int evt_iter;										//event buffer iterator
 static const GENERAL_EVENT_TYPE evtEmptyStruct;				//use this to reset the holder struct each iteration
-static GENERAL_EVENT_TYPE event_buffer[EVENT_BUFFER_SIZE];	//buffer to store events
+static GENERAL_EVENT_TYPE event_buffer[EVENT_BUFFER_SIZE];	//buffer to store events //2048 * 8 bytes = 16384 bytes
 static unsigned int m_neutron_counts;						//total neutron counts
 static unsigned int m_event_number;							//event number holder
 static unsigned int m_first_event_time_FPGA;				//the first event time which needs to be written into every data product header
@@ -130,9 +131,10 @@ int Process2DHData( void )
 int ProcessData( unsigned int * data_raw )
 {
 	bool valid_event = FALSE;
-//	int m_ret = 0;
+//	int m_ret = 0;	//for 2DH tallies
 	int iter = 0;
-	int evt_iter = 0;
+//	int evt_iter = buffer_number * VALID_BUFFER_SIZE; //made file scope so we don't have "skipped" events in the buffer
+	int m_events_processed = 0;
 	unsigned int m_x_bin_number = 0;
 	unsigned int m_y_bin_number = 0;
 	unsigned int m_invalid_events = 0;
@@ -154,8 +156,6 @@ int ProcessData( unsigned int * data_raw )
 	FIL cpsDataFile;
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE event_holder = evtEmptyStruct;
-	//we have access to our raw data now
-	// switch on the different "Sign post" identifiers we have
 
 	while(iter < DATA_BUFFER_SIZE)
 	{
@@ -163,16 +163,17 @@ int ProcessData( unsigned int * data_raw )
 
 		switch(data_raw[iter])
 		{
-		case 111111:
-			//this is the data event case
+		case 111111: //this is the data event case
 			while(data_raw[iter+1] == 111111)//handles any number of 111111s in succession
 			{
 				iter++;
 			}
+			if(iter >= (DATA_BUFFER_SIZE - 7))	//if we are at the top of the buffer, need to break out
+				break;
 			//validate event:
 			while(valid_event == FALSE)
 			{
-				if(data_raw[iter+8] == 111111)	//must be at least 8 integers from the next event
+				if(data_raw[iter+8] == 111111)	//must be at least 8 integers from the next event //TODO: Is this a good criteria? We will miss the last event in the buffer b/c of this
 				{
 					if(data_raw[iter+1] >= cpsGetCurrentTime())	//time must be the same or increasing
 					{
@@ -286,6 +287,7 @@ int ProcessData( unsigned int * data_raw )
 									event_buffer[evt_iter] = event_holder;
 									evt_iter++;
 									iter++;
+									m_events_processed++;
 									//update the tallies for the CPS data
 									CPSUpdateTallies(energy, psd);
 								}
@@ -309,9 +311,9 @@ int ProcessData( unsigned int * data_raw )
 					m_invalid_events++;
 					iter++;
 				}
-				if(iter >= 4096)
+				if(iter >= (DATA_BUFFER_SIZE - 7))
 					break;
-			}
+			}//END OF VALID EVENT WHILE LOOP
 
 			break;
 		case 2147594759:
@@ -334,7 +336,7 @@ int ProcessData( unsigned int * data_raw )
 				event_buffer[evt_iter] = event_holder;	//store the event in the buffer
 				evt_iter++;
 				iter += 8;
-
+				m_events_processed++;
 				//we should save the first event time from the FPGA and write it into the data product files
 				//here is an alright spot to do that potentially
 				//can we get the FIL pointer?
@@ -351,10 +353,17 @@ int ProcessData( unsigned int * data_raw )
 			break;
 		}//END OF SWITCH ON RAW DATA
 
+		if(iter >= (DATA_BUFFER_SIZE - 7))	//will read past the array if iter goes above
+			break;
+		if(evt_iter >= EVENT_BUFFER_SIZE)	//we have run out of open events in the buffer
+			break;
+		if(m_events_processed > VALID_BUFFER_SIZE)	//we have processed every event in the buffer (max of 512)
+			break;
 		//TODO: fully error check the buffering here
 		//need to check that we don't go out of range with either iterator
 		//iter can be 0 -> 4096
 	}//END OF WHILE
 
+	//TODO: give this return value a meaning
 	return 0;
 }

@@ -277,9 +277,14 @@ int WriteRealTime( unsigned long long int real_time )
 //Tells the FPGA, we are done with this buffer, read from the next one
 void ClearBRAMBuffers( void )
 {
+	xil_printf("\n\nClear buffers 1\n\n");
+
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,1);
 	usleep(1);
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,0);
+
+	xil_printf("\n\nClear buffers 2\n\n");
+
 }
 
 /* What it's all about.
@@ -324,18 +329,27 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	{
 		//TODO: error check
 	}
-	//load parameters which are needed for the run
-	//	temp of the modules for the correction
-	//	any structs or memory that needs to be reserved can be done here
+
+	xil_printf("\n\nIn DAQ\n\n");
+
 	GENERAL_EVENT_TYPE * evts_array;
 	unsigned int * data_array;
-	data_array = calloc(DATA_BUFFER_SIZE * 4, sizeof(unsigned int));	//we need a buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events
+	data_array = calloc(DATA_BUFFER_SIZE * 4, sizeof(unsigned int));	//we need a buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
+	if(data_array == NULL)
+	{
+		xil_printf("\ncalloc not allocating!\n");
+		return 100;
+	}
 	//init a DMA transfer
 	//Is this necessary before we check to see if there is anything there yet?
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);	// DMA Transfer Step 1
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);		// DMA Transfer Step 2
+	sleep(1);
 	//Clear BRAM buffers
-	ClearBRAMBuffers();
+//	ClearBRAMBuffers();
+
+	xil_printf("\n\nafter clear buffers\n");
+
 	//begin the valid data check loop
 	while(done != 1)
 	{
@@ -383,7 +397,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					array_index++;
 				}
 				//we have collected all the data, process it and then get back to check for more data
-				//status = ProcessData();
+				status = ProcessData(data_array);
 				buff_num++;
 				break;
 			case 2:
@@ -394,7 +408,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					array_index++;
 				}
 				//we have collected all the data, process it and then get back to check for more data
-				//status = ProcessData();
+				status = ProcessData(data_array);
 				buff_num++;
 				break;
 			case 3:
@@ -405,7 +419,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					array_index++;
 				}
 				//we have collected all the data, process it and then get back to check for more data
-				//status = ProcessData();
+				status = ProcessData(data_array);
 				buff_num = 0;
 
 				//write in the header if this is the first time that we have the file
@@ -429,8 +443,8 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				//four buffers have been processed, write the data to file
 				evts_array = GetEVTsBufferAddress();
 				//may want to check that the evts_array address is not NULL
-				f_res = f_write(&EVTS_file, evts_array, EVENT_BUFFER_SIZE, &bytes_written);
-				if(f_res != FR_OK || bytes_written != EVENT_BUFFER_SIZE)
+				f_res = f_write(&EVTS_file, evts_array, EVTS_DATA_BUFF_SIZE, &bytes_written); //write the entire events buffer
+				if(f_res != FR_OK || bytes_written != EVTS_DATA_BUFF_SIZE)
 				{
 					//TODO: handle error checking the write here
 				}

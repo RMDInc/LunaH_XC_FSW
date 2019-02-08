@@ -267,6 +267,8 @@ int main()
 					//This also fills in the data header, as much as we know
 					// at this point, we don't know the Real Time yet
 					status = CreateDAQFiles();
+					if(status == CMD_SUCCESS)
+						break;
 				}
 				//in case this takes longer, let's check for SOH in case this has to loop more than once
 				//check to see if it is time to report SOH information, 1 Hz

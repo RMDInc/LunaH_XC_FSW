@@ -1,0 +1,61 @@
+; don't show the macro window
+show -1
+; hide TT
+;showtt 0
+
+str2 = "Running through Level 2 functions.\n\nPress Ok to start the test."
+strspecial str2
+messagebox str2 'Detector 0'
+
+flushrecv
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\L3_macro_1.bin' 1 0
+; show the log window
+showtt 8
+
+; perform actions with the board here
+; enter commands 
+; send NO OP command
+sendln 'MNS_GETSTAT_0'
+sendln 'MNS_GETSTAT_1'
+
+pause 2
+
+sendln 'MNS_TRG_0_8512'
+sendln 'MNS_TRG_1_8765'
+
+pause 2
+
+sendln 'MNS_ENABLE_ACT_0'
+sendln 'MNS_ENABLE_ACT_1'
+pause 2
+sendln 'MNS_HV_0_1_181'
+sendln 'MNS_HV_1_1_50'
+pause 2
+sendln 'MNS_DISABLE_ACT_0'
+sendln 'MNS_DISABLE_ACT_1'
+
+pause 2
+
+sendln 'MNS_DAQ_0_0'
+sendln 'MNS_DAQ_1_19'
+
+pause 5
+
+sendln 'MNS_START_0_12345_10'
+sendln 'MNS_START_1_12356_10'
+
+pause 30
+
+sendln 'MNS_END_0_23456'
+sendln 'MNS_END_1_23467'
+
+pause 5
+
+sendln 'MNS_GETSTAT_0'
+sendln 'MNS_GETSTAT_1'
+
+setdebug 0
+logclose
+
+end

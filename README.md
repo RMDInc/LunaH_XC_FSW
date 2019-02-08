@@ -66,3 +66,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 4.43 Deleted unnecessary files from the repository.
 
 - Version 5.0 First update post-L2 FSW. This software is now moving towards running DAQ and WF to collect data while on the lab bench. Lots of code has been added to initialize, error check, and otherwise support data acquisition operations. This version has not been tested in the lab yet. 
+
+- Version 5.1 Investingating issue with the bitstream and clearing the buffers, performing DMA transfers. 

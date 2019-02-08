@@ -23,14 +23,14 @@
 int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 {
 	int status = CMD_FAILURE;
-	double m_energy_bin = 0.0;
-	double m_psd_bin = 0.0;
-	double m_x_bin_size = TWODH_ENERGY_MAX / TWODH_X_BINS;
-	double m_y_bin_size = TWODH_PSD_MAX / TWODH_Y_BINS;
+//	double m_energy_bin = 0.0;
+//	double m_psd_bin = 0.0;
+//	double m_x_bin_size = TWODH_ENERGY_MAX / TWODH_X_BINS;
+//	double m_y_bin_size = TWODH_PSD_MAX / TWODH_Y_BINS;
 
 	//find the bin numbers
-	m_energy_bin = energy_value / m_x_bin_size;
-	m_psd_bin = psd_value / m_y_bin_size;
+//	m_energy_bin = energy_value / m_x_bin_size;
+//	m_psd_bin = psd_value / m_y_bin_size;
 
 	//validate the bin numbers, then increment the bin in the end-of-run 2DH
 /*	if(0 <= m_energy_bin && energy_bin <= (TWODH_X_BINS - 1))
