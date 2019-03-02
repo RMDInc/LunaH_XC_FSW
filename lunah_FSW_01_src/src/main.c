@@ -31,10 +31,13 @@
 ******************************************************************************/
 
 /*
- * Mini-NS Flight Software, Version 4.4
+ * Mini-NS Flight Software, Version 5.2
  * Graham Stoddard
  *
- * 1-25-2019
+ * 02-25-2019
+ *
+ * Added a compiler option "m" to allow us to include math.h to be linked in so we
+ *  may use the floor() function. If this can be worked around, I think we should. - GJS
  *
  */
 
@@ -42,12 +45,30 @@
 
 int main()
 {
-    // Initialize System
+	int status = 0;			//local status variable for reporting SUCCESS/FAILURE
+
+	int valid_data = 0;		//local test variable for WF
+	int array_index = 0;
+	int dram_addr = 0;
+	int dram_base = 0xA000000;
+	int dram_ceiling = 0xA004000;
+	int numWFs = 0;
+	unsigned int numBytesWritten = 0;
+	unsigned int wf_data[DATA_BUFFER_SIZE] = {};
+	FIL WFData;
+	FRESULT f_res = FR_OK;
+
+	init_platform();		//Maybe we dropped out important init functions?
 	ps7_post_config();
 	Xil_DCacheDisable();	// Disable the L1/L2 data caches
 	InitializeAXIDma();		// Initialize the AXI DMA Transfer Interface
-	InitializeInterruptSystem(XPAR_PS7_SCUGIC_0_DEVICE_ID);
 
+	status = InitializeInterruptSystem(XPAR_PS7_SCUGIC_0_DEVICE_ID);
+	if(status != XST_SUCCESS)
+	{
+		xil_printf("Interrupt system initialization error\n");
+
+	}
 	// *********** Setup the Hardware Reset GPIO ****************//
 	// GPIO/TEC Test Variables
 	XGpioPs Gpio;
@@ -97,18 +118,18 @@ int main()
 	Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//capture module enable
 
 	//*******************Setup the UART **********************//
-	int Status = 0;
+	status = 0;
 	int LoopCount = 0;
 	XUartPs Uart_PS;	// instance of UART
 
 	XUartPs_Config *Config = XUartPs_LookupConfig(UART_DEVICEID);
 	if (Config == NULL) { return 1;}
-	Status = XUartPs_CfgInitialize(&Uart_PS, Config, Config->BaseAddress);
-	if (Status != 0){ xil_printf("XUartPS did not CfgInit properly.\n");	}
+	status = XUartPs_CfgInitialize(&Uart_PS, Config, Config->BaseAddress);
+	if (status != 0){ xil_printf("XUartPS did not CfgInit properly.\n");	}
 
 	/* Conduct a Selftest for the UART */
-	Status = XUartPs_SelfTest(&Uart_PS);
-	if (Status != 0) { xil_printf("XUartPS failed self test.\n"); }			//handle error checks here better
+	status = XUartPs_SelfTest(&Uart_PS);
+	if (status != 0) { xil_printf("XUartPS failed self test.\n"); }			//handle error checks here better
 
 	/* Set to normal mode. */
 	XUartPs_SetOperMode(&Uart_PS, XUARTPS_OPER_MODE_NORMAL);
@@ -173,14 +194,10 @@ int main()
 	InitStartTime();
 
 	// Initialize buffers
-	char RecvBuffer[100] = "";
-
-	char * last_command;				//pointer to handle writing commands to the log file
-	unsigned int last_command_size = 0;	//holder for size
-	int done = 0;						//local status variable for keeping track of progress within loops
-	int status = 0;						//local status variable for reporting SUCCESS/FAILURE
-	int DAQ_run_number = 0;				//run number value for file names, tracks the number of runs per POR
-	int	menusel = 99999;				//case select variable for polling
+	char RecvBuffer[100] = "";	//user input buffer
+	int done = 0;				//local status variable for keeping track of progress within loops
+	int DAQ_run_number = 0;		//run number value for file names, tracks the number of runs per POR
+	int	menusel = 99999;		//case select variable for polling
 
 	// ******************* APPLICATION LOOP *******************//
 
@@ -204,17 +221,7 @@ int main()
 				//we found a valid LUNAH command or input was bad (-1)
 				//log the command issued, unless it is an error
 				if(menusel != -1)
-				{
-					//write to the log file
-					//get the command from ReadCommandType
-					last_command = GetLastCommand();
-					//get the size of the command
-					last_command_size = GetLastCommandSize();
-					//send the command to the log file write function
-					LogFileWrite( last_command, last_command_size );
-					//should probably just have the following syntax
-					//LogFileWrite( GetLastCommand(), GetLastCommandSize() );
-				}
+					LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 				break;	//leave the inner loop and execute the commanded function
 			}
 			//check to see if it is time to report SOH information, 1 Hz
@@ -250,10 +257,10 @@ int main()
 			 * if not, then we will loop until a unique name is found */
 			while(status == CMD_SUCCESS)
 			{
-				//only report a packet when the file has been successfully changed and did not exist already
+				//only report a packet when the file has been successfully changed and did not exist already?
 				++DAQ_run_number;	//initialized to 0, the first run will increment to 1
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
-				//check that the file name(s) do not already exist on the SD card...we do not want to append files
+				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
 				status = DoesFileExist();
 				//returns FALSE if file does NOT exist
 				//returns TRUE if file does exist
@@ -263,15 +270,12 @@ int main()
 				if(status == CMD_FAILURE)
 				{
 					reportSuccess(Uart_PS, 1);
-					//create the files before polling for user input
+					//create the files before polling for user input, leave them open
 					//This also fills in the data header, as much as we know
-					// at this point, we don't know the Real Time yet
 					status = CreateDAQFiles();
 					if(status == CMD_SUCCESS)
 						break;
 				}
-				//in case this takes longer, let's check for SOH in case this has to loop more than once
-				//check to see if it is time to report SOH information, 1 Hz
 				CheckForSOH(&Iic, Uart_PS);
 			}
 			while(done != 1)
@@ -280,7 +284,8 @@ int main()
 				//see if we got anything meaningful //we'll accept any valid command
 				if ( status >= -1 && status <= 23 )
 				{
-					//compare to what is accepted
+					if(status != -1)
+						LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 					//if no good input is found, silently ignore the input
 					switch(status){
 					case -1:
@@ -298,6 +303,7 @@ int main()
 						reportSuccess(Uart_PS, 0);
 						break;
 					case START_CMD:
+						//TODO: pass in the FIL pointers
 						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer, GetIntParam(1));
 						//we will return in three ways:
 						// time out (1) = success
@@ -306,12 +312,14 @@ int main()
 						switch(status)
 						{
 						case 0:
+							LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 							reportFailure(Uart_PS);
 							break;
 						case 1:
 							reportSuccess(Uart_PS, 0);
 							break;
 						case 2:
+							LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 							reportSuccess(Uart_PS, 0);
 							break;
 						default:
@@ -343,9 +351,68 @@ int main()
 
 			break;
 		case WF_CMD:
-			//do WF acquisition here
-			//this is level 3 stuff
-			//xil_printf("received WF command\r\n");
+			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+			//set processed data mode
+			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 0);	//get AA waveforms
+//			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 3);	//get TRG waveforms
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
+
+			status = ApplyDAQConfig(&Iic);
+			f_res = f_open(&WFData, "wfAA01.bin", FA_WRITE|FA_OPEN_ALWAYS);
+			if(f_res != FR_OK)
+				xil_printf("1 open file fail WF\n");
+			f_res = f_lseek(&WFData, file_size(&WFData));
+			if(f_res != FR_OK)
+				xil_printf("2 lseek fail WF\n");
+
+			memset(wf_data, '\0', sizeof(unsigned int)*DATA_BUFFER_SIZE);
+			ClearBRAMBuffers();
+			while(done != 1)
+			{
+				valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);
+				if(valid_data == 1)
+				{
+					//init/start MUX to transfer data between integrator modules and the DMA
+					Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
+					Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);
+					Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
+					usleep(54);
+					//TODO: need to check a shared variable within the interrupt handler and this function
+					// to see if the transfer is completed
+					//This check would replace the sleep statement.
+
+					Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
+
+					ClearBRAMBuffers();
+
+					Xil_DCacheInvalidateRange(0xa0000000, 65536);
+
+					array_index = 0;
+					dram_addr = dram_base;
+					while(dram_addr < dram_ceiling)
+					{
+						wf_data[array_index] = Xil_In32(dram_addr);
+						dram_addr += 4;
+						array_index++;
+					}
+
+					numWFs++;
+					//have the WF, save to file //WFData
+					f_res = f_write(&WFData, wf_data, DATA_BUFFER_SIZE, &numBytesWritten);
+					if(f_res != FR_OK)
+						xil_printf("3 write fail WF\n");
+				}
+
+				//check for input
+				CheckForSOH(&Iic, Uart_PS);
+				if(numWFs > 100)
+					done = 1;
+			}
+			f_close(&WFData);
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//enable ADC
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to analog board
+			reportSuccess(Uart_PS, 0);
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
@@ -364,7 +431,6 @@ int main()
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
 			//No SW check on success/failure
-			//Report SUCCESS (no way to check for failure)
 			reportSuccess(Uart_PS, 0);
 			break;
 		case ENABLE_ACT_CMD:
@@ -372,15 +438,23 @@ int main()
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 1);		//enable 5V to analog board
 			//No SW check on success/failure
-			//Report SUCCESS (no way to check for failure)
 			reportSuccess(Uart_PS, 0);
 			break;
 		case TX_CMD:
 			//transfer any file on the SD card
-			//xil_printf("received TX command\r\n");
+			//Transfer options:
+			// 0 = data product file
+			// 1 = Log File
+			// 2 = Config file
+			status = TransferSDFile( Uart_PS, TX_CMD );
+			if(status == 0)
+				reportSuccess(Uart_PS, 0);
+			else
+				reportFailure(Uart_PS);
 			break;
 		case DEL_CMD:
 			//delete a file from the SD card
+
 			//xil_printf("received DEL command\r\n");
 			break;
 		case LS_CMD:
@@ -389,11 +463,27 @@ int main()
 			break;
 		case TXLOG_CMD:
 			//transfer the system log file
-			//xil_printf("received TXLOG command\r\n");
+			//Transfer options:
+			// 0 = data product file
+			// 1 = Log File
+			// 2 = Config file
+			status = TransferSDFile( Uart_PS, TXLOG_CMD );
+			if(status == 0)
+				reportSuccess(Uart_PS, 0);
+			else
+				reportFailure(Uart_PS);
 			break;
 		case CONF_CMD:
 			//transfer the configuration file
-			//xil_printf("received CONF command\r\n");
+			//Transfer options:
+			// 0 = data product file
+			// 1 = Log File
+			// 2 = Config file
+			status = TransferSDFile( Uart_PS, CONF_CMD );
+			if(status == 0)
+				reportSuccess(Uart_PS, 0);
+			else
+				reportFailure(Uart_PS);
 			break;
 		case TRG_CMD:
 			//set the trigger threshold
@@ -449,14 +539,11 @@ int main()
 		case INPUT_OVERFLOW:
 			//too much input
 			//TODO: Handle this problem here and in ReadCommandType
-//			xil_printf("Overflowed the buffer (too much input at one time)\r\n");
-//			xil_printf("The buffer will try and read through what was sent\r\n");
+			reportFailure(Uart_PS);
 			break;
 		default:
 			//got a value for menusel we did not expect
-			//list of accepted values are found in "lunah_defines.h"
-			//what is the list of values we can receive total?
-			//xil_printf("something weird happened: default at main menu\r\n");
+			//valid things can come here: Break, End, Start
 			//Report CMD_FAILURE
 			break;
 		}//END OF SWITCH/CASE (MAIN MENU OF FUNCTIONS)
@@ -466,23 +553,6 @@ int main()
 		CheckForSOH(&Iic, Uart_PS);
 	}//END OF OUTER LEVEL 2 TESTING LOOP
 
-/*********************************BELOW THIS IS OLD CODE*************************************
- *
- * There are a couple of functions related to Init which need to be retained. They are:
- *
- * InitializeAXIDma
- * InitializeInterruptSystem
- * InterruptHandler
- * SetUpInterruptSystem
- *
- * At some point, these functions will need to be moved to a separate file, likely to
- * the lunah_utils file.
- *
- * TODO: Figure out if we need the interrupt system code.
- * TODO: Move this code to the Lunah_utils source file
- *
- */
-
     return 0;
 }
 
@@ -490,14 +560,15 @@ int main()
 // Sets up the AXI DMA
 int InitializeAXIDma(void) {
 	u32 tmpVal_0 = 0;
-	//u32 tmpVal_1 = 0;
 
 	tmpVal_0 = Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x30);
 
 	tmpVal_0 = tmpVal_0 | 0x1001; //<allow DMA to produce interrupts> 0 0 <run/stop>
 
 	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x30, tmpVal_0);
-	Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x30);	//what does the return value give us? What do we do with it?
+	Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x30);
+
+	tmpVal_0 = Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x30);
 
 	return 0;
 }
@@ -506,11 +577,8 @@ int InitializeAXIDma(void) {
 //////////////////////////// InitializeInterruptSystem////////////////////////////////
 int InitializeInterruptSystem(u16 deviceID) {
 	int Status;
-	static XScuGic_Config *GicConfig; 	// GicConfig
-	XScuGic InterruptController;		// Interrupt controller
 
 	GicConfig = XScuGic_LookupConfig (deviceID);
-
 	if(NULL == GicConfig) {
 
 		return XST_FAILURE;
@@ -545,15 +613,23 @@ int InitializeInterruptSystem(u16 deviceID) {
 
 
 //////////////////////////// Interrupt Handler////////////////////////////////
+/*
+ * This function is called when the system issues an interrupt. Currently, an interrupt is
+ *  issued when the DMA transfer is completed. When that happens, we need to clear a bit
+ *  which is set by the completion of that transfer so that we may acknowledge and clear
+ *  the interrupt. If that does not happen, the system will hang.
+ *
+ *  We have the DMA in Direct Register Mode with Interrupt on Complete enabled.
+ *  This means that an interrupt is generated on the completion of a transfer.
+ *  The interrupt handler writes to the DMA status register to clear the
+ */
 void InterruptHandler (void ) {
+	u32 tmpValue = 0;
+	tmpValue = Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x34);	//Read the DMA status register
+	tmpValue |= 0x1000;							//bit 12 is write-to-clear, this acknowledges the interrupt generated by IOC
+	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x34, tmpValue);	//write to the DMA status register
 
-	u32 global_frame_counter = 0;	// Counts for the interrupt system
-	u32 tmpValue;
-	tmpValue = Xil_In32(XPAR_AXI_DMA_0_BASEADDR + 0x34);
-	tmpValue = tmpValue | 0x1000;
-	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x34, tmpValue);
 
-	global_frame_counter++;
 }
 //////////////////////////// Interrupt Handler////////////////////////////////
 

@@ -16,6 +16,13 @@ static unsigned int daq_run_id_number = 0;
 static unsigned int daq_run_run_number = 0;
 static unsigned int daq_run_set_number = 0;
 
+static FIL m_EVT_file;
+static FIL m_CPS_file;
+static FIL m_2DH_file;
+
+//Data buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
+static unsigned int data_array[DATA_BUFFER_SIZE * 4];
+
 //We only want to use this here for now, so hide it from the user
 //This is a struct featuring the information from the config buffer
 // plus a few extra pieces that need to go into headers.
@@ -177,22 +184,39 @@ int DoesFileExist( void )
 	return status;
 }
 
+/* Creates the data acquisition files for the run requested by the DAQ command.
+ * Uses the filenames which are created from the ID number sent with the DAQ
+ *  command to open and write the header into the files.
+ * The files are left open by this function intentionally so that DAQ doesn't
+ *  have to spend the time opening them.
+ *
+ * @param	None
+ *
+ * @return	Success/failure based on how we finished the run:
+ * 			BREAK (0)	 = failure
+ * 			Time Out (1) = success
+ * 			END (2)		 = success
+ */
 int CreateDAQFiles( void )
 {
-	char * file_to_open;
+	char * file_to_open = NULL;
 	int iter = 0;
 	int status = CMD_SUCCESS;
 	uint NumBytesWr;
-	FIL daq_file;
+	FIL *DAQ_file = NULL;
 	FRESULT ffs_res;
 	struct DATA_FILE_HEADER_TYPE file_header_to_write;
 
 	file_header_to_write.configBuff = *GetConfigBuffer();		//dereference to copy the struct
+	//TODO: check the return was not NULL
 	file_header_to_write.IDNum = daq_run_id_number;
 	file_header_to_write.RunNum = daq_run_run_number;
 	file_header_to_write.SetNum = daq_run_set_number;
 	file_header_to_write.TempCorrectionSetNum = 1;		//will have to get this from somewhere
 	file_header_to_write.EventIDFF = 0xFF;
+
+//	TODO: do we need to check to see if any of the FILs are NULL?
+	//they should be automatically created when the program starts, but...good practice to check them
 
 	//just need to open EVT, CPS, 2DH files for DAQ, if WAV, make a switch
 	for(iter = 0; iter < 3; iter++)
@@ -202,35 +226,67 @@ int CreateDAQFiles( void )
 		case 0:
 			file_to_open = current_filename_EVT;
 			file_header_to_write.FileTypeAPID = 0x77;
+			DAQ_file = &m_EVT_file;
 			break;
 		case 1:
 			file_to_open = current_filename_CPS;
 			file_header_to_write.FileTypeAPID = 0x55;
+			DAQ_file = &m_CPS_file;
 			break;
 		case 2:
 			file_to_open = current_filename_2DH;
 			file_header_to_write.FileTypeAPID = 0x88;
+			DAQ_file = &m_2DH_file;
 			break;
 		default:
 			status = CMD_FAILURE;
 			break;
 		}
 
-		ffs_res = f_open(&daq_file, file_to_open, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
+		ffs_res = f_open(DAQ_file, file_to_open, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
 		if(ffs_res == FR_OK)
-			ffs_res = f_lseek(&daq_file, 0);
-		if(ffs_res == FR_OK)
-			ffs_res = f_write(&daq_file, &file_header_to_write, sizeof(file_header_to_write), &NumBytesWr);
-		if(ffs_res == FR_OK)
-			ffs_res = f_close(&daq_file);
-		if(ffs_res == FR_OK && NumBytesWr != 0)
-			status = CMD_SUCCESS;
+		{
+			ffs_res = f_lseek(DAQ_file, 0);
+			if(ffs_res == FR_OK)
+			{
+				ffs_res = f_write(DAQ_file, &file_header_to_write, sizeof(file_header_to_write), &NumBytesWr);
+				if(ffs_res == FR_OK && NumBytesWr == sizeof(file_header_to_write))
+				{
+					ffs_res = f_sync(DAQ_file);
+					if(ffs_res == FR_OK)
+						status = CMD_SUCCESS;
+					else
+						status = CMD_FAILURE;
+				}
+				else
+					status = CMD_FAILURE;
+			}
+			else
+				status = CMD_FAILURE;
+		}
 		else
 			status = CMD_FAILURE;
 	}
 
 	return status;
 }
+
+
+FIL *GetEVTFilePointer( void )
+{
+	return &m_EVT_file;
+}
+
+FIL *GetCPSFilePointer( void )
+{
+	return &m_CPS_file;
+}
+
+FIL *Get2DHFilePointer( void )
+{
+	return &m_2DH_file;
+}
+
 
 int WriteRealTime( unsigned long long int real_time )
 {
@@ -277,14 +333,9 @@ int WriteRealTime( unsigned long long int real_time )
 //Tells the FPGA, we are done with this buffer, read from the next one
 void ClearBRAMBuffers( void )
 {
-	xil_printf("\n\nClear buffers 1\n\n");
-
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,1);
 	usleep(1);
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,0);
-
-	xil_printf("\n\nClear buffers 2\n\n");
-
 }
 
 /* What it's all about.
@@ -311,8 +362,8 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	int m_buffers_written = 0;	//keep track of how many buffers are written, but not synced
 	int array_index = 0;		//the index of our array which will hold data
 	int dram_addr;				//the address in the DRAM we are reading from
-	int dram_base = 0xa000000;	//where the buffer starts
-	int dram_ceiling = 0xA004000;	//where it ends
+	int dram_base = 0xA000000;	//where the buffer starts	//167,772,160
+	int dram_ceiling = 0xA004000;	//where it ends			//167,788,544
 	int m_run_time = time_out * 60;	//multiply minutes by 60 to get seconds
 	int m_write_header = 1;		//write a file header the first time we use a file
 	XTime m_run_start;			//timing variable
@@ -322,35 +373,22 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	unsigned long long m_spacecraft_real_time = 0;
 	unsigned char m_write_times_into_header[SIZEOF_HEADER_TIMES] = "";
 	unsigned int bytes_written = 0;
-	FIL EVTS_file;
 	FRESULT f_res = FR_OK;
-	f_res = f_open(&EVTS_file, "evtfil01.bin", FA_READ|FA_WRITE|FA_OPEN_ALWAYS);
+	GENERAL_EVENT_TYPE * evts_array = NULL;
+
+	//getting raw data with these variables
+	unsigned int numBytesWritten = 0;
+	FIL rawData;
+	f_res = f_open(&rawData, "rawDat01.bin", FA_WRITE|FA_READ|FA_OPEN_ALWAYS);
 	if(f_res != FR_OK)
-	{
-		//TODO: error check
-	}
+		xil_printf("1 open file fail DAQ\n");
+	f_res = f_lseek(&rawData, file_size(&rawData));
+	if(f_res != FR_OK)
+		xil_printf("2 lseek fail DAQ\n");
 
-	xil_printf("\n\nIn DAQ\n\n");
-
-	GENERAL_EVENT_TYPE * evts_array;
-	unsigned int * data_array;
-	data_array = calloc(DATA_BUFFER_SIZE * 4, sizeof(unsigned int));	//we need a buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
-	if(data_array == NULL)
-	{
-		xil_printf("\ncalloc not allocating!\n");
-		return 100;
-	}
-	//init a DMA transfer
-	//Is this necessary before we check to see if there is anything there yet?
-	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);	// DMA Transfer Step 1
-	Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);		// DMA Transfer Step 2
-	sleep(1);
-	//Clear BRAM buffers
-//	ClearBRAMBuffers();
-
-	xil_printf("\n\nafter clear buffers\n");
-
-	//begin the valid data check loop
+	ResetEVTsBuffer();
+	ResetEVTsIterator();
+	ClearBRAMBuffers();
 	while(done != 1)
 	{
 		//check the FPGA to see if there is valid data in the buffers
@@ -360,69 +398,68 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		{
 			//init/start MUX to transfer data between integrator modules and the DMA
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
-			//DMA Transfer, step 1, 2
 			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);
 			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
-			//this is a mandatory sleep which gives the system enough time to transfer the data out
-			//TODO: Optimize/remove this sleep
 			usleep(54);
-			//I assume this turns off the MUX and stops the transfer; send when the transfer is done (we have all the data)
+			//TODO: need to check a shared variable within the interrupt handler and this function
+			// to see if the transfer is completed
+			//This check would replace the sleep statement.
+
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
-			//block an area of memory out for us to read from so we don't collide with anything else
-			//is this necessary? I have never tried to run without this, but have messed with the settings
-			// before and found no specific differences. If we are using this, need to make sure that
-			// the memory range we specify is correct and that we actually need to invalidate it.
+
+			ClearBRAMBuffers();
+
 			Xil_DCacheInvalidateRange(0xa0000000, 65536);
 
-			//prepare for looping
 			array_index = 0;
 			dram_addr = dram_base;
 			switch(buff_num)
 			{
 			case 0:
-				while(dram_addr <= dram_ceiling)
+				while(dram_addr < dram_ceiling) //Does this need to be non-inclusive? Can we include the dram_ceiling? //TRYING THIS 2/26/19 GJS
 				{
 					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
-				status = ProcessData( data_array );	//Stop here before going through ProcessData the first time, inspect the buffer data_array
+				status = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 				buff_num++;
 				break;
 			case 1:
-				while(dram_addr <= dram_ceiling)
+				while(dram_addr < dram_ceiling)
 				{
 					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
-				//we have collected all the data, process it and then get back to check for more data
-				status = ProcessData(data_array);
+				status = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 				buff_num++;
 				break;
 			case 2:
-				while(dram_addr <= dram_ceiling)
+				while(dram_addr < dram_ceiling)
 				{
 					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
-				//we have collected all the data, process it and then get back to check for more data
-				status = ProcessData(data_array);
+				status = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 				buff_num++;
 				break;
 			case 3:
-				while(dram_addr <= dram_ceiling)
+				while(dram_addr < dram_ceiling)
 				{
 					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 					dram_addr += 4;
 					array_index++;
 				}
-				//we have collected all the data, process it and then get back to check for more data
-				status = ProcessData(data_array);
+				f_res = f_lseek(&rawData, file_size(&rawData));
+				f_res = f_write(&rawData, data_array, sizeof(int) * 4096 * 4, &numBytesWritten);	//TEST LINE
+				if(f_res != FR_OK)
+					xil_printf("6 write fail DAQ\n");
+				status = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 				buff_num = 0;
 
-				//write in the header if this is the first time that we have the file
+				//If this is the first time that we have used a file, write in the header
 				if(m_write_header == 1)
 				{
 					//get the first event and the real time
@@ -433,39 +470,48 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					memcpy(&(m_write_times_into_header[9]), &m_first_event_FPGA_time, sizeof(m_first_event_FPGA_time));
 					m_write_times_into_header[13] = 0xFF;
 					//write into the file
-					f_res = f_write(&EVTS_file, m_write_times_into_header, SIZEOF_HEADER_TIMES, &bytes_written);
+					f_res = f_write(&m_EVT_file, m_write_times_into_header, SIZEOF_HEADER_TIMES, &bytes_written);
 					if(f_res != FR_OK || bytes_written != SIZEOF_HEADER_TIMES)
 					{
 						//TODO: handle error checking the write
+						xil_printf("10 error writing DAQ\n");
 					}
-					m_write_header = 0;
+					m_write_header = 0;	//turn off header writing
 				}
-				//four buffers have been processed, write the data to file
 				evts_array = GetEVTsBufferAddress();
-				//may want to check that the evts_array address is not NULL
-				f_res = f_write(&EVTS_file, evts_array, EVTS_DATA_BUFF_SIZE, &bytes_written); //write the entire events buffer
+				//TODO: check that the evts_array address is not NULL
+				f_res = f_write(&m_EVT_file, evts_array, EVTS_DATA_BUFF_SIZE, &bytes_written); //write the entire events buffer
 				if(f_res != FR_OK || bytes_written != EVTS_DATA_BUFF_SIZE)
 				{
 					//TODO: handle error checking the write here
+					xil_printf("7 error writing DAQ\n");
 				}
 				m_buffers_written++;
-				if(f_res == FR_OK && m_buffers_written == 10)
+				if(f_res == FR_OK && m_buffers_written == 4)
 				{
-					f_res = f_sync(&EVTS_file);
+					f_res = f_sync(&m_EVT_file);
 					if(f_res != FR_OK)
 					{
 						//TODO: error check
+						xil_printf("8 error syncing DAQ\n");
 					}
+					f_res = f_sync(&rawData);
+					if(f_res != FR_OK)
+						xil_printf("9 sync fail DAQ\n");
 					m_buffers_written = 0;	//reset
 				}
 				//reset the EVTs array
 				ResetEVTsBuffer();
+				ResetEVTsIterator();
 				break;
 			default:
+				//TODO: fill in the default behavior when we don't get the right buff_num
+				//maybe try and figure out what buffer this should be?
+				// could be worth trying to figure out what went wrong with buff_num and fix that
+				//otherwise maybe just throw out everything and start over (zero out most stuff)
+				// this could maybe get us back to a "good" state, or at least a known one?
 				break;
 			}
-			//clear the buffers after reading through the data
-			ClearBRAMBuffers();
 			valid_data = 0;	//reset
 
 		}//END OF IF VALID DATA
@@ -499,14 +545,20 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		case BREAK_CMD:
 			//write in footer to data files
 
-			f_close(&EVTS_file);
+			f_close(&m_EVT_file);
+			f_close(&m_CPS_file);
+			f_close(&m_2DH_file);
+			f_close(&rawData);
 			status = DAQ_BREAK;
 			done = 1;
 			break;
 		case END_CMD:
 			//write in footer to data files
 
-			f_close(&EVTS_file);
+			f_close(&m_EVT_file);
+			f_close(&m_CPS_file);
+			f_close(&m_2DH_file);
+			f_close(&rawData);
 			status = DAQ_END;
 			done = 1;
 			break;
@@ -515,8 +567,16 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		}
 	}//END OF WHILE DONE != 1
 
+	//here is where we should transfer the CPS, 2DH files?
+
 	//cleanup operations
-	free(data_array);
+	if(poll_val != BREAK_CMD && poll_val != END_CMD && status != DAQ_TIME_OUT)
+	{
+		f_close(&m_EVT_file);
+		f_close(&m_CPS_file);
+		f_close(&m_2DH_file);
+		f_close(&rawData);
+	}
 
 	return status;
 }

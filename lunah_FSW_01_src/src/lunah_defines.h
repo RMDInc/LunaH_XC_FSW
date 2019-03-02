@@ -12,6 +12,8 @@
 
 #define MNS_DETECTOR_NUM	0
 
+#define NS_TO_SAMPLES		4		//conversion factor number of nanoseconds per sample
+#define INTEG_TIME_START	200
 #define LOG_FILE_BUFF_SIZE	120
 #define UART_DEVICEID		XPAR_XUARTPS_0_DEVICE_ID
 #define SW_BREAK_GPIO		51
@@ -32,9 +34,16 @@
 #define	TWODH_Y_BINS		30
 #define TWODH_ENERGY_MAX	1000000
 #define TWODH_PSD_MAX		2.0
+#define RMD_CHECKSUM_SIZE	2
+#define SYNC_MARKER			892270675	//0x35 2E F8 53
 #define SYNC_MARKER_SIZE	4
+#define EVENT_ID_VALUE		111111
+#define EVENT_ID_SIZE		4
 #define CHECKSUM_SIZE		4
-#define CCSDS_HEADER_SIZE	11
+#define CCSDS_HEADER_DATA	7		//without the sync marker, with the reset request byte
+#define CCSDS_HEADER_PRIM	10		//with the sync marker
+#define CCSDS_HEADER_FULL	11		//with the reset request byte
+
 
 // Command definitions
 #define DAQ_CMD			0
@@ -85,24 +94,6 @@
 #define DAQ_BREAK		0
 #define DAQ_TIME_OUT	1
 #define DAQ_END			2
-
-enum LoopStateTypes
-{
-    MainLoopState,
-	DataQState,
-	WaitStartState,
-	CollectDataState,
-};
-
-enum ReadTempState
-{
-   AlogTempCmdSent,
-   AlogTempCmdRcved,
-   DigTempCmdSent,
-   DigTempCmdRcved,
-   ModTempCmdSent,
-   ModTempCmdRcved,
-};
 
 int DataAcqInit(int Command, int orbit_number);
 

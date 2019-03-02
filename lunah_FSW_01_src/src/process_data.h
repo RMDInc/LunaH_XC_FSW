@@ -12,9 +12,9 @@
 #include <stdbool.h>
 #include "ff.h"
 #include "lunah_defines.h"
+#include "lunah_utils.h"
 #include "SetInstrumentParam.h"
 #include "CPSDataProduct.h"
-//TODO: Figure out why this doesn't link to the source/header for 2DHs
 #include "TwoDHisto.h"
 
 typedef struct {
@@ -31,8 +31,8 @@ typedef struct {
 //function prototypes
 GENERAL_EVENT_TYPE * GetEVTsBufferAddress( void );
 void ResetEVTsBuffer( void );
+void ResetEVTsIterator( void );
 unsigned int GetFirstEventTime( void );
-int Process2DHData( void );
 int ProcessData( unsigned int * data_raw );
 
 #endif /* SRC_PROCESS_DATA_H_ */

@@ -20,8 +20,8 @@ sendln 'MNS_GETSTAT_0'
 sendln 'MNS_GETSTAT_1'
 
 pause 2
-
-sendln 'MNS_TRG_0_8512'
+MNS_TRG_0_11000
+sendln 'MNS_TRG_0_9050'
 sendln 'MNS_TRG_1_8765'
 
 pause 2
@@ -29,7 +29,10 @@ pause 2
 sendln 'MNS_ENABLE_ACT_0'
 sendln 'MNS_ENABLE_ACT_1'
 pause 2
-sendln 'MNS_HV_0_1_181'
+sendln 'MNS_HV_0_2_219'
+MNS_HV_0_3_219
+MNS_HV_0_1_219
+MNS_HV_0_4_219
 sendln 'MNS_HV_1_1_50'
 pause 2
 sendln 'MNS_DISABLE_ACT_0'
@@ -37,17 +40,24 @@ sendln 'MNS_DISABLE_ACT_1'
 
 pause 2
 
-sendln 'MNS_DAQ_0_4'
+sendln 'MNS_DAQ_0_18'
 sendln 'MNS_DAQ_1_19'
+
+MNS_BREAK_0
 
 pause 5
 
-sendln 'MNS_START_0_12345_10'
+sendln 'MNS_START_0_12345_1'
+;sendln 'MNS_START_0_23456_5'
 sendln 'MNS_START_1_12356_10'
+
+pause 5
+
+sendln 'MNS_WF_0_1'
 
 pause 30
 
-sendln 'MNS_END_0_23456'
+sendln 'MNS_END_0_3456'
 sendln 'MNS_END_1_23467'
 
 pause 5
@@ -57,7 +67,7 @@ sendln 'MNS_GETSTAT_1'
 
 pause 2
 
-sendln 'MNS_INT_0_-51_87_399_5999'
+sendln 'MNS_INT_0_-52_88_472_6000'
 
 setdebug 0
 logclose

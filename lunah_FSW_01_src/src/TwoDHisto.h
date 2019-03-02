@@ -8,6 +8,7 @@
 #ifndef SRC_TWODHISTO_H_
 #define SRC_TWODHISTO_H_
 
+#include <math.h>
 #include "lunah_defines.h"
 
 //function prototypes

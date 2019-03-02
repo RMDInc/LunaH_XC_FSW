@@ -68,3 +68,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 5.0 First update post-L2 FSW. This software is now moving towards running DAQ and WF to collect data while on the lab bench. Lots of code has been added to initialize, error check, and otherwise support data acquisition operations. This version has not been tested in the lab yet. 
 
 - Version 5.1 Investingating issue with the bitstream and clearing the buffers, performing DMA transfers. 
+
+- Version 5.2 ASU update number 1. This has DAQ which saves EVTs data product to the SD card, can TX files from the SD card, can collect AA waveforms. Changed the verison of the Zynq document in the folder. Added a new test macro to L3 folder.

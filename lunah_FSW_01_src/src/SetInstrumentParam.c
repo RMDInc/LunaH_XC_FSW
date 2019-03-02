@@ -13,10 +13,10 @@
 static char cConfigFile[] = "0:/MNSCONF.bin";
 static CONFIG_STRUCT_TYPE ConfigBuff;
 static int m_trigger_threshold;
-static int m_baseline_integration_time;
-static int m_short_integration_time;
-static int m_long_integration_time;
-static int m_full_integration_time;
+static int m_baseline_integration_samples;
+static int m_short_integration_samples;
+static int m_long_integration_samples;
+static int m_full_integration_samples;
 
 /* This can be called for two different reasons:
  *  1.) When there is no config file on the SD card, this holds the default (hard coded)
@@ -95,24 +95,34 @@ CONFIG_STRUCT_TYPE * GetConfigBuffer( void )
 	return &ConfigBuff;
 }
 
+/*
+ * Access the integration times which are set with the system at the moment.
+ * This function returns the value of the requested integration time in SAMPLES, not nanoseconds.
+ *  The reason to return samples over ns is so that we don't have to convert to
+ *  process the data.
+ *
+ * @param	None
+ *
+ * @return	(int)baseline samples
+ */
 int GetBaselineInt( void )
 {
-	return m_baseline_integration_time;
+	return m_baseline_integration_samples;
 }
 
 int GetShortInt( void )
 {
-	return m_short_integration_time;
+	return m_short_integration_samples;
 }
 
 int GetLongInt( void )
 {
-	return m_long_integration_time;
+	return m_long_integration_samples;
 }
 
 int GetFullInt( void )
 {
-	return m_full_integration_time;
+	return m_full_integration_samples;
 }
 
 /* This function handles initializing the system with the values from the config file.
@@ -498,7 +508,7 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 
 	//should do more error checking on the range for baseline and full
 	//TODO: Get the range of acceptable values for the integration times
-	if((Baseline >= -200) && (Full <= 8000))
+	if((Baseline >= -200) && (Full < 16384))
 	{
 		if((Baseline < Short) && ( Short < Long) && (Long < Full))
 		{
@@ -520,10 +530,10 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 							ConfigBuff.IntegrationLong = Long;
 							ConfigBuff.IntegrationFull = Full;
 							SaveConfig();
-							m_baseline_integration_time = Baseline;
-							m_short_integration_time = Short;
-							m_long_integration_time = Long;
-							m_full_integration_time = Full;
+							m_baseline_integration_samples = (INTEG_TIME_START + Baseline) / NS_TO_SAMPLES + 1;	//add one sample to each
+							m_short_integration_samples = (INTEG_TIME_START + Short) / NS_TO_SAMPLES + 1;
+							m_long_integration_samples = (INTEG_TIME_START + Long) / NS_TO_SAMPLES + 1;
+							m_full_integration_samples = (INTEG_TIME_START + Full) / NS_TO_SAMPLES + 1;
 							status = CMD_SUCCESS;
 						}
 						else

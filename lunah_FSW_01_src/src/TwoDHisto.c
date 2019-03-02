@@ -70,13 +70,13 @@ unsigned int Get2DHArrayIndexX( double energy_value )
 {
 	unsigned int m_bin_number = 0;
 
-	//find the bin numbers
-	m_bin_number = energy_value / (TWODH_ENERGY_MAX / TWODH_X_BINS);
+	//this line is bothersome, as I want to floor the value, but then have to cast it anyway...
+	m_bin_number = (unsigned int)floor(energy_value / ((double)TWODH_ENERGY_MAX / (double)TWODH_X_BINS));
 
-	if(0 <= m_bin_number && m_bin_number < (TWODH_X_BINS - 1))
+	if(0 <= m_bin_number && m_bin_number < TWODH_X_BINS)
 		m_bin_number &= 0x03FF;
 	else
-		m_bin_number = 0x03FF;
+		m_bin_number = 0x0103;
 
 	return m_bin_number;
 }
@@ -92,13 +92,13 @@ unsigned int Get2DHArrayIndexY( double psd_value )
 {
 	unsigned int m_bin_number = 0;
 
-	//find the bin numbers
-	m_bin_number = psd_value / (TWODH_PSD_MAX / TWODH_Y_BINS);
+	//this line is bothersome, as I want to floor the value, but then have to cast it anyway...
+	m_bin_number = (unsigned int)floor(psd_value / ((double)TWODH_PSD_MAX / (double)TWODH_Y_BINS));
 
-	if(0 <= m_bin_number && m_bin_number < (TWODH_Y_BINS - 1))
+	if(0 <= m_bin_number && m_bin_number < TWODH_Y_BINS)
 		m_bin_number &= 0x3F;
 	else
-		m_bin_number = 0x3F;
+		m_bin_number = 0x1D;
 
 	return m_bin_number;
 }

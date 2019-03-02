@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <xtime_l.h>
 #include <xuartps.h>
-#include "ff.h"
+//#include "ff.h"
 //gives access to last command strings
 #include "ReadCommandType.h"
 #include "lunah_defines.h"
@@ -23,21 +23,19 @@
 // prototypes
 void InitStartTime( void );
 XTime GetLocalTime( void );
+XTime GetTempTime(void);
 int GetNeutronTotal( void );
+int PutNeutronTotal(int total);
+int IncNeutronTotal(int increment);
 int GetDigiTemp( void );
 int GetAnlgTemp( void );
 int GetModuTemp( void );
 int CheckForSOH(XIicPs * Iic, XUartPs Uart_PS);
 int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type);
 void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type);
-void CalculateChecksums(unsigned char * packet_array, int length);
 int reportSuccess(XUartPs Uart_PS, int report_filename);
 int reportFailure(XUartPs Uart_PS);
-
-// lunah_config structure
-// instrument parameters
-
-
-
+void CalculateChecksums(unsigned char * packet_array, int length);
+int TransferSDFile( XUartPs Uart_PS, int file_to_access );
 
 #endif /* SRC_LUNAH_UTILS_H_ */

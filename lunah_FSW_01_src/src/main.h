@@ -41,13 +41,15 @@
 #include "DataAcquisition.h"
 #include "LNumDigits.h"
 
+//Global Interrupt Control Variables
+//These need to be global for interrupts to be handled appropriately within the system
+static XScuGic_Config *GicConfig; 	// Configuration parameters of the controller
+XScuGic InterruptController;		// Interrupt controller
+
 // Methods
 int InitializeAXIDma( void ); 		// Initialize AXI DMA Transfer
 int InitializeInterruptSystem(u16 deviceID);
 void InterruptHandler ( void );
 int SetUpInterruptSystem(XScuGic *XScuGicInstancePtr);
-void ClearBuffers();				// Clear Processeed Data Buffers
-int ReadDataIn(int numfilesWritten, FIL * filObj);	//OLD
-int get_data(XUartPs Uart_PS, char * EVT_filename0, char * CNT_filename0, char * EVT_filename1, char * CNT_filename1, char * RecvBuffer);	//OLD
 
 #endif /* SRC_MAIN_H_ */

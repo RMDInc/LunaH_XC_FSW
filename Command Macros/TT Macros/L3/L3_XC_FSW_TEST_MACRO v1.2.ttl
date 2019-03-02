@@ -1,0 +1,24 @@
+; don't show the macro window
+show -1
+setecho 0
+; hide TT
+showtt 0
+
+flushrecv
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\MNSTX\tx_test05.bin' 1 0
+; show the log window
+showtt 8
+pause 2
+setdebug 3
+;sendln 'MNS_TX_0_rawDat18.bin'
+;sendln 'MNS_TX_0_wfAA02.bin'
+;sendln 'MNS_TX_0_evt_I000017_R000001_S000000.bin'
+;sendln 'MNS_TX_0_evt_I000016_R000001_S000000.bin'
+sendln 'MNS_TX_0_evt_I000015_R000001_S000000.bin'
+messagebox "Press OK when Data has Transferred for Detector 1" "Detector 1"
+setdebug 0
+logclose
+
+flushrecv
+end

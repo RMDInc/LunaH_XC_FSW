@@ -53,13 +53,13 @@ int GetNeutronTotal(void)
 	return(iNeutronTotal);
 }
 
-int PutNeuronTotal(int total)
+int PutNeutronTotal(int total)
 {
 	iNeutronTotal = total;
 	return iNeutronTotal;
 }
 
-int IncNeuronTotal(int increment)
+int IncNeutronTotal(int increment)
 {
     iNeutronTotal += increment;
 	return iNeutronTotal;
@@ -194,8 +194,8 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		PutCCSDSHeader(report_buff, i_sprintf_ret, APID_TEMP);
 		//calculate the checksums
 		CalculateChecksums(report_buff, i_sprintf_ret);
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
-		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
+		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
 			status = CMD_SUCCESS;
 		else
 			status = CMD_FAILURE;
@@ -207,8 +207,8 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		PutCCSDSHeader(report_buff, i_sprintf_ret, APID_SOH);
 		//calculate the checksums
 		CalculateChecksums(report_buff, i_sprintf_ret);
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
-		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
+		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
 			status = CMD_SUCCESS;
 		else
 			status = CMD_FAILURE;
@@ -276,7 +276,7 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type)
 	//To calculate the length of the packet, we need to add all the bytes in the MiniNS-data
 	// plus the checksums (4 bytes) plus the reset request byte (1 byte)
 	// then we subtract one byte
-	//ICD specifies the CCSDS packet length as: the number of bytes after the CCSDS header - 1
+	//ICD specifies the CCSDS packet length as: the number of bytes after the Packet Length byte - 1
 	length += 4;
 	SOH_buff[8] = (length & 0xFF00) >> 8;
 	SOH_buff[9] = length & 0xFF;
@@ -360,8 +360,8 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 	CalculateChecksums(cmdSuccess, packet_size);
 
 	//send out the packet
-	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (packet_size + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
-	if(bytes_sent == (packet_size + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (packet_size + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
+	if(bytes_sent == (packet_size + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
 		status = CMD_SUCCESS;
 	else
 		status = CMD_FAILURE;
@@ -402,8 +402,8 @@ int reportFailure(XUartPs Uart_PS)
 	//calculate the checksums
 	CalculateChecksums(cmdFailure, i_sprintf_ret);
 	//send out the packet
-	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdFailure, (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE));
-	if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_SIZE + CHECKSUM_SIZE))
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdFailure, (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
+	if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
 		status = CMD_SUCCESS;
 	else
 		status = CMD_FAILURE;
@@ -412,16 +412,17 @@ int reportFailure(XUartPs Uart_PS)
 	return status;
 }
 
-/* Function to calculate all four checksums for CCSDS packets */
-//This function calculates the Simple, Fletcher, and BCT checksums
-// by looping over the bytes within the packet after the sync marker.
-//
-// @param	packet_array	This is a pointer to the CCSDS packet which
-//							needs to have its checksums calculated.
-// @param	length			The length of the packet data bytes.
-// Note: the length should not account for the CCSDS Header, just give the length of the data bytes.
-//
-// @return	(int) returns the value assigned when the command was scanned
+/* Function to calculate all four checksums for CCSDS packets
+ * This function calculates the Simple, Fletcher, and BCT checksums
+ *  by looping over the bytes within the packet after the sync marker.
+ *
+ *  @param	packet_array	This is a pointer to the CCSDS packet which
+ *    							needs to have its checksums calculated.
+ *	@param	length			The length of the packet data bytes.
+ *	 Note: the length should not account for the CCSDS Header, just give the length of the data bytes.
+ *
+ *	@return	(int) returns the value assigned when the command was scanned
+ */
 void CalculateChecksums(unsigned char * packet_array, int length)
 {
 	//this function will calculate the simple, Fletcher, and CCSDS checksums for any packet going out
@@ -434,21 +435,130 @@ void CalculateChecksums(unsigned char * packet_array, int length)
 	//put the length of the packet back together from the header bytes 8, 9
 	packet_size = (packet_array[8] << 8) + packet_array[9];
 
-	//loop over all the bytes in the packet and create checksums
-	while(iterator < (packet_size - SYNC_MARKER_SIZE - CHECKSUM_SIZE))
+	//create the RMD checksums
+	while(iterator <= (packet_size - CHECKSUM_SIZE))
 	{
-		rmd_checksum_simple = (rmd_checksum_simple + packet_array[SYNC_MARKER_SIZE + iterator]) % 255;
+		rmd_checksum_simple = (rmd_checksum_simple + packet_array[CCSDS_HEADER_PRIM + iterator]) % 255;
 		rmd_checksum_Fletch = (rmd_checksum_Fletch + rmd_checksum_simple) % 255;
+		iterator++;
+	}
+
+	packet_array[CCSDS_HEADER_FULL + length] = rmd_checksum_simple;
+	packet_array[CCSDS_HEADER_FULL + length + 1] = rmd_checksum_Fletch;
+
+	//calculate the BCT checksum
+	iterator = 0;
+	while(iterator < (packet_size - RMD_CHECKSUM_SIZE + CCSDS_HEADER_DATA))
+	{
 		bct_checksum += packet_array[SYNC_MARKER_SIZE + iterator];
 		iterator++;
 	}
 
-	//write the checksums into the packet
-	packet_array[CCSDS_HEADER_SIZE + length] = rmd_checksum_simple;
-	packet_array[CCSDS_HEADER_SIZE + length + 1] = rmd_checksum_Fletch;
-	packet_array[CCSDS_HEADER_SIZE + length + 2] = bct_checksum >> 8;
-	packet_array[CCSDS_HEADER_SIZE + length + 3] = bct_checksum;
+	packet_array[CCSDS_HEADER_FULL + length + 2] = bct_checksum >> 8;
+	packet_array[CCSDS_HEADER_FULL + length + 3] = bct_checksum;
 
     return;
 }
 
+
+//Transfer options:
+// 0 = data product file
+// 1 = Log File
+// 2 = Config file
+int TransferSDFile( XUartPs Uart_PS, int file_to_access )
+{
+	int status = 0;	//0=good, 1=file DNE, 2+=other problem
+	int sent = 0;
+	int bytes_sent = 0;
+	int total_sent = 0;
+	unsigned int bytes_read = 0;
+	unsigned int sizeof_tx_buffer = 0;
+	char *file_to_TX;
+	char empty_buff[20] = "";	//to keep from dereferencing an unassigned char pointer
+	char log_file[] = "0:/MNSCMDLOG.txt";
+	char config_file[] = "0:/MNSCONF.bin";
+	unsigned char tx_buffer[16392] = "";	//can transfer 16384/(4*8) = 512 evts/buff + 8 bytes for the "header"
+	sizeof_tx_buffer = sizeof(tx_buffer);
+	FIL TXFile;
+	FILINFO finfo;
+	FRESULT f_res = FR_OK;
+
+	tx_buffer[0] = (unsigned char)SYNC_MARKER;
+	tx_buffer[1] = (unsigned char)(SYNC_MARKER >> 8);
+	tx_buffer[2] = (unsigned char)(SYNC_MARKER >> 16);
+	tx_buffer[3] = (unsigned char)(SYNC_MARKER >> 24);
+	tx_buffer[4] = 0xAA;
+	tx_buffer[5] = 0xFF;
+	file_to_TX = empty_buff;	//make sure that something is here, at least
+	switch(file_to_access)
+	{
+	case TX_CMD:
+		file_to_TX = GetFilename();
+		break;
+	case TXLOG_CMD:
+		file_to_TX = log_file;
+		break;
+	case CONF_CMD:
+		file_to_TX = config_file;
+		break;
+	default:
+		file_to_TX = empty_buff;
+		break;
+	}
+
+	f_res = f_open(&TXFile, file_to_TX, FA_READ|FA_OPEN_EXISTING);
+	if(f_res != FR_OK)
+		xil_printf("1 open file fail TX\n");
+	if(f_res == FR_OK)
+	{
+		f_res = f_lseek(&TXFile, 0);
+		if(f_res != FR_OK)
+			xil_printf("2 lseek fail TX\n");
+
+		sleep(1);
+		xil_printf("\n\nFile size: %d\n", file_size(&TXFile));
+		sleep(1);
+		while(f_res == FR_OK)
+		{
+			f_res = f_read(&TXFile, &(tx_buffer[8]), sizeof_tx_buffer-8, &bytes_read);
+			if(f_res != FR_OK)
+				break;
+			bytes_read += 8;
+			tx_buffer[6] = (unsigned char)(bytes_read >> 8);
+			tx_buffer[7] = (unsigned char)(bytes_read);
+
+			sent = 0;
+			bytes_sent = 0;
+			while(sent < bytes_read)
+			{
+				bytes_sent = XUartPs_Send(&Uart_PS, &(tx_buffer[sent]), bytes_read - sent);
+				sent += bytes_sent;
+				total_sent += bytes_sent;
+			}
+			if(bytes_read < 16384)
+				break;
+		}
+		if(f_res != FR_OK)
+			status = 2;
+		else
+			status = 0;
+	}
+	else if(f_res == FR_NO_FILE)
+	{
+		//file does not exist
+		status = 1;
+	}
+	else
+	{
+		//there was a problem
+		status = 2;
+	}
+
+	f_close(&TXFile);
+
+	sleep(1);
+	xil_printf("\n\nFile size: %d\n", total_sent);
+	sleep(1);
+
+	return status;
+}

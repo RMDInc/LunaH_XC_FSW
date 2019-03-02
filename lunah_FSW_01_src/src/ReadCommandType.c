@@ -16,6 +16,7 @@
 static int iPollBufferIndex = 0;
 //last command holder buff for giving this to the data packets
 static char last_command[50] = "";
+static char m_filename_buff[50] = "";
 //last command size holder
 static int last_command_size = 0;
 //Retain the scanned command parameters so they may be accessed later
@@ -135,6 +136,8 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 		//Maybe something like scan the buffer for a '\n' and if we find one,
 		// then we can scan to that place and process the command like normal, which should shift it out.
 		//That way we can just get through what's there and try and handle stuff.
+		//for now, just delete the whole buffer, send a failure packet, and start over
+		memset(RecvBuffer, '\0', 100);
 		return INPUT_OVERFLOW;
 	}
 	if(iPollBufferIndex != 0)
@@ -222,7 +225,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "TX"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, commandBuffer2);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, m_filename_buff);
 
 					if(ret != 2)
 						commandNum = -1;
@@ -231,7 +234,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "DEL"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, commandBuffer2);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, m_filename_buff);
 
 					if(ret != 2)
 						commandNum = -1;
@@ -498,4 +501,18 @@ float GetFloatParam( int param_num )
 unsigned long long GetRealTimeParam( void )
 {
 	return realTime;
+}
+
+
+/*
+ * Getter function to access the filename parameter for TX, DEL, etc.
+ * This function returns a pointer to the buffer where the filename was saved.
+ *
+ * @param	none
+ *
+ * @return	(* char) pointer to the filename buffer
+ */
+char * GetFilename( void )
+{
+	return m_filename_buff;
 }
