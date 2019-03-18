@@ -344,7 +344,15 @@ void ClearBRAMBuffers( void )
  *  then process and save it. We are reporting SOH and various SUCCESS/FAILURE packets along
  *  the way.
  *
- * @param	None
+ * @param	(XIicPs *) Pointer to Iic instance (for read temp while in DAQ)
+ *
+ * @param	(XUartPs) UART instance for reporting SOH
+ *
+ * @param	(char *) Pointer to the receive buffer for getting user input
+ *
+ * @param	(integer) Time out value indicating when to break out of DAQ in minutes
+ * 			Ex. 1 = loop for 1 minute
+ *
  *
  * @return	Success/failure based on how we finished the run:
  * 			BREAK (0)	 = failure
@@ -528,8 +536,16 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			done = 1;
 		}
 
+		//TODO: TESTING 3/15/2019
+		//to have this break after one go-around, just comment "poll_val = ReadCommandType();
+		// and set poll_val = BREAK_CMD; so we jump out
+
 		//check for user input
-		poll_val = ReadCommandType(RecvBuffer, &Uart_PS);
+		if(buff_num == 1)			//if we have read one buffer of data, jump out for testing purposes
+			poll_val = BREAK_CMD;
+		else
+			poll_val = ReadCommandType(RecvBuffer, &Uart_PS);
+
 		switch(poll_val)
 		{
 		case -1:
@@ -570,7 +586,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	//here is where we should transfer the CPS, 2DH files?
 
 	//cleanup operations
-	if(poll_val != BREAK_CMD && poll_val != END_CMD && status != DAQ_TIME_OUT)
+	if(poll_val != BREAK_CMD && poll_val != END_CMD) // && status != DAQ_TIME_OUT) //currently need to handle closing files when breaking due to timeout
 	{
 		f_close(&m_EVT_file);
 		f_close(&m_CPS_file);

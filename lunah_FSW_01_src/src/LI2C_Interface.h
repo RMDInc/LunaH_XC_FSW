@@ -8,16 +8,7 @@
 #ifndef LI2C_INTERFACE_H_
 #define LI2C_INTERFACE_H_
 
-#include "xparameters.h"
-#include "ps7_init.h"
-#include "platform_config.h"
 #include "xiicps.h"
-#include "xil_printf.h"
-#include "unistd.h"
-#include "xuartps.h"
-
-#include <xil_io.h>
-#include <stdio.h>
 
 #define IIC_SCLK_RATE		90000
 #define TEST_BUFFER_SIZE	2

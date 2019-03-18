@@ -19,7 +19,7 @@ static XTime LocalTimeCurrent = 0;
 //also, need to verify that we are getting the correct temp
 static int analog_board_temp = 25;
 static int digital_board_temp = 1;
-static float modu_board_temp = 25.0;
+static int modu_board_temp = 25;
 static int iNeutronTotal = 50;
 static int check_temp_sensor = 0;
 
@@ -119,7 +119,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	int b = 0;
 	int status = 0;
 	int bytes_sent = 0;
-	int i_sprintf_ret = 0;
+	unsigned int local_time_holder = 0;
 
 	i2c_Send_Buffer[0] = 0x0;
 	i2c_Send_Buffer[1] = 0x0;
@@ -177,7 +177,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		{
 			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
-			modu_board_temp += 0.5;
+			modu_board_temp += 1;
 		}
 		break;
 	default:
@@ -185,30 +185,61 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		break;
 	}
 
+	//to replace the printf statement, we need to sort the integer temps into the array so they have fixed widths
+	// and since we're already using a char array, we'll sort the ints into chars
+	//do this for anlg, digi, and modu, then take that out of the cases below
+	//will still need to do this in the getstat case b/c have to include the n total and time
+	report_buff[11] = (unsigned char)(analog_board_temp >> 24);
+	report_buff[12] = (unsigned char)(analog_board_temp >> 16);
+	report_buff[13] = (unsigned char)(analog_board_temp >> 8);
+	report_buff[14] = (unsigned char)(analog_board_temp);
+	report_buff[15] = TAB_CHAR_CODE;
+	report_buff[16] = (unsigned char)(digital_board_temp >> 24);
+	report_buff[17] = (unsigned char)(digital_board_temp >> 16);
+	report_buff[18] = (unsigned char)(digital_board_temp >> 8);
+	report_buff[19] = (unsigned char)(digital_board_temp);
+	report_buff[20] = TAB_CHAR_CODE;
+	report_buff[21] = (unsigned char)(modu_board_temp >> 24);
+	report_buff[22] = (unsigned char)(modu_board_temp >> 16);
+	report_buff[23] = (unsigned char)(modu_board_temp >> 8);
+	report_buff[24] = (unsigned char)(modu_board_temp);
+	report_buff[25] = TAB_CHAR_CODE;
+
+
 	switch(packet_type)
 	{
 	case READ_TMP_CMD:
 		//print the SOH information after the CCSDS header
-		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%2.2f\n", analog_board_temp, digital_board_temp, modu_board_temp);
-		//Put in the CCSDS Header
-		PutCCSDSHeader(report_buff, i_sprintf_ret, APID_TEMP);
-		//calculate the checksums
-		CalculateChecksums(report_buff, i_sprintf_ret);
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
-		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
+//		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%2.2f\n", analog_board_temp, digital_board_temp, modu_board_temp);
+
+		PutCCSDSHeader(report_buff, TEMP_PACKET_LENGTH, APID_TEMP);
+		CalculateChecksums(report_buff);
+
+		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (TEMP_PACKET_LENGTH + CCSDS_HEADER_FULL));
+		if(bytes_sent == (TEMP_PACKET_LENGTH + CCSDS_HEADER_FULL))
 			status = CMD_SUCCESS;
 		else
 			status = CMD_FAILURE;
 		break;
 	case GETSTAT_CMD:
-		//print the SOH information after the CCSDS header
-		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%2.2f\t%d\t%llu\n", analog_board_temp, digital_board_temp, modu_board_temp, i_neutron_total, local_time);
-		//Put in the CCSDS Header
-		PutCCSDSHeader(report_buff, i_sprintf_ret, APID_SOH);
-		//calculate the checksums
-		CalculateChecksums(report_buff, i_sprintf_ret);
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
-		if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
+//		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%d\t%d\t%llu\n", analog_board_temp, digital_board_temp, modu_board_temp, i_neutron_total, local_time);
+		report_buff[26] = (unsigned char)(i_neutron_total >> 24);
+		report_buff[27] = (unsigned char)(i_neutron_total >> 16);
+		report_buff[28] = (unsigned char)(i_neutron_total >> 8);
+		report_buff[29] = (unsigned char)(i_neutron_total);
+		report_buff[30] = TAB_CHAR_CODE;
+		local_time_holder = (unsigned int)local_time;
+		report_buff[31] = (unsigned char)(local_time_holder >> 24);
+		report_buff[32] = (unsigned char)(local_time_holder >> 16);
+		report_buff[33] = (unsigned char)(local_time_holder >> 8);
+		report_buff[34] = (unsigned char)(local_time_holder);
+		report_buff[35] = NEWLINE_CHAR_CODE;
+
+		PutCCSDSHeader(report_buff, SOH_PACKET_LENGTH, APID_SOH);
+		CalculateChecksums(report_buff);
+
+		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (SOH_PACKET_LENGTH + CCSDS_HEADER_FULL));
+		if(bytes_sent == (SOH_PACKET_LENGTH + CCSDS_HEADER_FULL))
 			status = CMD_SUCCESS;
 		else
 			status = CMD_FAILURE;
@@ -221,6 +252,19 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	return status;
 }
 
+/*
+ * Put the appropriate CCSDS header values into the output packet.
+ *
+ * @param SOH_buff	Pointer to the packet buffer
+ *
+ * @param length	The length of the packet is equal to the number of bytes in the secondary CCSDS header
+ * 					plus the payload data bytes plus the checksums minus one.
+ * 					Len = 1 + N + 4 - 1
+ *
+ * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
+ * 			the correct number of bytes with the packet.
+ *
+ */
 void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type)
 {
 	//get the values for the CCSDS header
@@ -272,12 +316,6 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type)
 
 	SOH_buff[6] = 0xC0;
 	SOH_buff[7] = 0x01;
-	//add in the checksums to the length
-	//To calculate the length of the packet, we need to add all the bytes in the MiniNS-data
-	// plus the checksums (4 bytes) plus the reset request byte (1 byte)
-	// then we subtract one byte
-	//ICD specifies the CCSDS packet length as: the number of bytes after the Packet Length byte - 1
-	length += 4;
 	SOH_buff[8] = (length & 0xFF00) >> 8;
 	SOH_buff[9] = length & 0xFF;
 	SOH_buff[10] = 0x00;
@@ -310,24 +348,20 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 	int bytes_sent = 0;
 	int packet_size = 0;	//Don't record the size of the CCSDS header with this variable
 	int i_sprintf_ret = 0;
-	unsigned char *cmdSuccess = calloc(100, sizeof(unsigned char));
-	//I should look at using a regular char buffer rather than using calloc() and free()
-	PutCCSDSHeader(cmdSuccess, GetLastCommandSize(), APID_CMD_SUCC);
+	unsigned char cmdSuccess[100] = "";
+
 	//fill the data bytes
 	switch(report_filename)
 	{
 	case 1:
 		//Enabled the switch to report the filename
 		//should we check to see if the last command was DAQ/WF? No for now
-		//print the command information after the CCSDS header
-		i_sprintf_ret = snprintf((char *)cmdSuccess + 11, 100, "%s\n", GetLastCommand());
-		//check to make sure that the sizes match and we are reporting what we think we are
+		i_sprintf_ret = snprintf((char *)(&cmdSuccess[11]), 100, "%s\n", GetLastCommand());
 		if(i_sprintf_ret == GetLastCommandSize())
 		{
-			//we successfully wrote in the last command, record the bytes we wrote
 			packet_size += i_sprintf_ret;
 			//now we want to add in the new filename that is going to be used
-			i_sprintf_ret = snprintf((char *)cmdSuccess + 11 + i_sprintf_ret, 100, "%s", GetFileName( DATA_TYPE_EVTS ));
+			i_sprintf_ret = snprintf((char *)(&cmdSuccess[11 + i_sprintf_ret]), 100, "%s", GetFileName( DATA_TYPE_EVTS ));
 			if(i_sprintf_ret == GetFileNameSize())
 			{
 				packet_size += i_sprintf_ret;
@@ -343,9 +377,7 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 		//Case 0 is the default so that the normal success happens
 		// even if we get some weird value coming through
 		//no switch to report the filename, this is a normal SUCCESS PACKET
-		//print the command information after the CCSDS header
-		i_sprintf_ret = snprintf((char *)cmdSuccess + 11, 100, "%s\n", GetLastCommand());
-		//check to make sure that the sizes match and we are reporting what we think we are
+		i_sprintf_ret = snprintf((char *)(&cmdSuccess[11]), 100, "%s\n", GetLastCommand());
 		if(i_sprintf_ret == GetLastCommandSize())
 		{
 			packet_size += i_sprintf_ret;
@@ -356,17 +388,18 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 		break;
 	}
 
-	//calculate the checksums
-	CalculateChecksums(cmdSuccess, packet_size);
+	//I should look at using a regular char buffer rather than using calloc() and free() //changed 3/14/19
+	//get last command gets the size of the string minus the newline
+	//we want to add 1 (secondary header) and add 4 (checksums) minus 1
+	PutCCSDSHeader(cmdSuccess, packet_size + CHECKSUM_SIZE, APID_CMD_SUCC);
+	CalculateChecksums(cmdSuccess);
 
-	//send out the packet
-	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (packet_size + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
-	if(bytes_sent == (packet_size + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (CCSDS_HEADER_FULL + packet_size + CHECKSUM_SIZE));
+	if(bytes_sent == (CCSDS_HEADER_FULL + packet_size + CHECKSUM_SIZE))
 		status = CMD_SUCCESS;
 	else
 		status = CMD_FAILURE;
 
-	free(cmdSuccess);
 	return status;
 }
 
@@ -388,27 +421,23 @@ int reportFailure(XUartPs Uart_PS)
 	int status = 0;
 	int bytes_sent = 0;
 	int i_sprintf_ret = 0;
-	unsigned char *cmdFailure = calloc(100, sizeof(unsigned char));
-	PutCCSDSHeader(cmdFailure, GetLastCommandSize(), APID_CMD_FAIL);
+	unsigned char cmdFailure[100] = "";
 
-	//fill the data bytes
-	//print the command information after the CCSDS header
-	i_sprintf_ret = snprintf((char *)cmdFailure + 11, 100, "%s\n", GetLastCommand());
-	//check to make sure that the sizes match and we are reporting what we think we are
+	i_sprintf_ret = snprintf((char *)(&cmdFailure[11]), 100, "%s\n", GetLastCommand());
 	if(i_sprintf_ret == GetLastCommandSize())
 		status = CMD_SUCCESS;
 	else
 		status = CMD_FAILURE;
-	//calculate the checksums
-	CalculateChecksums(cmdFailure, i_sprintf_ret);
-	//send out the packet
-	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdFailure, (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE));
-	if(bytes_sent == (i_sprintf_ret + CCSDS_HEADER_FULL + CHECKSUM_SIZE))
+
+	PutCCSDSHeader(cmdFailure, GetLastCommandSize() + CHECKSUM_SIZE, APID_CMD_FAIL);
+	CalculateChecksums(cmdFailure);
+
+	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdFailure, (CCSDS_HEADER_FULL + i_sprintf_ret + CHECKSUM_SIZE));
+	if(bytes_sent == (CCSDS_HEADER_FULL + i_sprintf_ret + CHECKSUM_SIZE))
 		status = CMD_SUCCESS;
 	else
 		status = CMD_FAILURE;
 
-	free(cmdFailure);
 	return status;
 }
 
@@ -418,22 +447,22 @@ int reportFailure(XUartPs Uart_PS)
  *
  *  @param	packet_array	This is a pointer to the CCSDS packet which
  *    							needs to have its checksums calculated.
- *	@param	length			The length of the packet data bytes.
- *	 Note: the length should not account for the CCSDS Header, just give the length of the data bytes.
+ *	@param	length			The packet length
  *
  *	@return	(int) returns the value assigned when the command was scanned
  */
-void CalculateChecksums(unsigned char * packet_array, int length)
+void CalculateChecksums(unsigned char * packet_array)
 {
 	//this function will calculate the simple, Fletcher, and CCSDS checksums for any packet going out
 	int packet_size = 0;
+	int total_packet_size = 0;
 	int iterator = 0;
 	int rmd_checksum_simple = 0;
 	int rmd_checksum_Fletch = 0;
 	unsigned short bct_checksum = 0;
 
-	//put the length of the packet back together from the header bytes 8, 9
-	packet_size = (packet_array[8] << 8) + packet_array[9];
+	packet_size = (packet_array[8] << 8) + packet_array[9];	//from the packet, includes payload data plus checksums
+	total_packet_size = packet_size + CCSDS_HEADER_FULL;	//includes both primary and secondary CCSDS headers
 
 	//create the RMD checksums
 	while(iterator <= (packet_size - CHECKSUM_SIZE))
@@ -443,8 +472,8 @@ void CalculateChecksums(unsigned char * packet_array, int length)
 		iterator++;
 	}
 
-	packet_array[CCSDS_HEADER_FULL + length] = rmd_checksum_simple;
-	packet_array[CCSDS_HEADER_FULL + length + 1] = rmd_checksum_Fletch;
+	packet_array[total_packet_size - CHECKSUM_SIZE] = rmd_checksum_simple;
+	packet_array[total_packet_size - CHECKSUM_SIZE + 1] = rmd_checksum_Fletch;
 
 	//calculate the BCT checksum
 	iterator = 0;
@@ -454,8 +483,8 @@ void CalculateChecksums(unsigned char * packet_array, int length)
 		iterator++;
 	}
 
-	packet_array[CCSDS_HEADER_FULL + length + 2] = bct_checksum >> 8;
-	packet_array[CCSDS_HEADER_FULL + length + 3] = bct_checksum;
+	packet_array[total_packet_size - CHECKSUM_SIZE + 2] = bct_checksum >> 8;
+	packet_array[total_packet_size - CHECKSUM_SIZE + 3] = bct_checksum;
 
     return;
 }
@@ -480,7 +509,6 @@ int TransferSDFile( XUartPs Uart_PS, int file_to_access )
 	unsigned char tx_buffer[16392] = "";	//can transfer 16384/(4*8) = 512 evts/buff + 8 bytes for the "header"
 	sizeof_tx_buffer = sizeof(tx_buffer);
 	FIL TXFile;
-	FILINFO finfo;
 	FRESULT f_res = FR_OK;
 
 	tx_buffer[0] = (unsigned char)SYNC_MARKER;

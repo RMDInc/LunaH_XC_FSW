@@ -151,7 +151,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				//couldn't scan properly or input didn't match the format specifier
 				commandNum = -1;
 			}
-			else if((ret == 2) && !strcmp(commandMNSBuf, "MNS"))	//If we scanned two things out of the command, and one was the MNS identifier begin testing commands
+			else if((ret == 2))// && !strcmp(commandMNSBuf, "MNS"))	//If we scanned two things out of the command, and one was the MNS identifier begin testing commands
 			{
 				if(!strcmp(commandBuffer, "DAQ"))
 				{

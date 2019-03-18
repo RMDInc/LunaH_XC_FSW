@@ -5,10 +5,10 @@
  *      Author: IRDLAB
  */
 
-#include "xparameters.h"
-
 #ifndef SRC_LUNAH_DEFINES_H_
 #define SRC_LUNAH_DEFINES_H_
+
+#include "xparameters.h"
 
 #define MNS_DETECTOR_NUM	0
 
@@ -41,8 +41,8 @@
 #define EVENT_ID_SIZE		4
 #define CHECKSUM_SIZE		4
 #define CCSDS_HEADER_DATA	7		//without the sync marker, with the reset request byte
-#define CCSDS_HEADER_PRIM	10		//with the sync marker
-#define CCSDS_HEADER_FULL	11		//with the reset request byte
+#define CCSDS_HEADER_PRIM	10		//with the sync marker, without the reset request byte
+#define CCSDS_HEADER_FULL	11		//with the sync marker, with the reset request byte
 
 
 // Command definitions

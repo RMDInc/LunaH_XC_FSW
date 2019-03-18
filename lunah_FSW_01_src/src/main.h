@@ -9,31 +9,26 @@
 #define SRC_MAIN_H_
 
 #include <stdio.h>
+#include <xil_io.h>
 #include "platform.h"
 #include "ps7_init.h"
-#include <xil_io.h>
-#include <xil_exception.h>
-#include "xscugic.h"
-#include "xaxidma.h"
+#include "xscugic.h"		// Global interrupt controller
+#include "xaxidma.h"		// AXI DMA handler
 #include "xparameters.h"	// SDK generated parameters
 #include "platform_config.h"
-#include "xgpiops.h"
-#include "xuartps.h"
-#include "xil_printf.h"
-#include "sleep.h"
-#include "xtime_l.h"
-//SD CARD INCLUDES
+#include "xgpiops.h"		// GPIO handlers
+#include "xuartps.h"		// UART handler
+#include "xil_printf.h"		// will remove when we move entirely to packets
+#include "sleep.h"			// needed for one usleep() call
+#include "xtime_l.h"		// timing
 #include "xsdps.h"			// SD device driver
-#include "ff.h"
-#include "xil_cache.h"
-//IIC INTERFACE
-#include "LI2C_Interface.h"
-#include "xiicps.h"
-//USER INPUT/POLLING
-#include "ReadCommandType.h"
-//PROCESSING
-#include "process_data.h"
+#include "ff.h"				// SD libraries
+#include "xil_cache.h"		// for cache invalidation
+#include "LI2C_Interface.h"	// IIC handler // Includes "xiicps.h"
+
 //GJS CODE LIBRARIES
+#include "ReadCommandType.h"
+#include "process_data.h"
 #include "SetInstrumentParam.h"
 #include "lunah_defines.h"
 #include "lunah_utils.h"

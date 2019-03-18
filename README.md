@@ -70,3 +70,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 5.1 Investingating issue with the bitstream and clearing the buffers, performing DMA transfers. 
 
 - Version 5.2 ASU update number 1. This has DAQ which saves EVTs data product to the SD card, can TX files from the SD card, can collect AA waveforms. Changed the verison of the Zynq document in the folder. Added a new test macro to L3 folder.
+
+- Version 5.3 Post-ASU trip update. I have updated the code with the patch to SOH packet creation, so the checksums are now calculated correctly. Further, SOH packets are updated for V3 and all versions going forward with FIXED field sizes for all information reported. This will allow packets to be displayed when we are reading them from AIT and COSMOS. This version has an unidentified bug within DAQ which causes multiple columns & rows to not be displayed/sorted when creating the 2DH during and at the end of a run. Some testing code is currently in this version within DAQ, process data, main source files. To test the new SOH packetization, the V1 and V2 macros were updated. Graham has test packet readers on the K drive at RMD.

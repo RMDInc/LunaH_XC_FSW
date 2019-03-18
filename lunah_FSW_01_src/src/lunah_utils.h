@@ -11,14 +11,16 @@
 #include <stdlib.h>
 #include <xtime_l.h>
 #include <xuartps.h>
-//#include "ff.h"
-//gives access to last command strings
-#include "ReadCommandType.h"
-#include "lunah_defines.h"
-//let's us get the temperature
+#include "ff.h"
+#include "ReadCommandType.h"	//gives access to last command strings
+#include "lunah_defines.h"		//let's us get the temperature
 #include "LI2C_Interface.h"
-//gives access to current filename
-#include "DataAcquisition.h"
+#include "DataAcquisition.h"	//gives access to current filename
+
+#define TAB_CHAR_CODE			9
+#define NEWLINE_CHAR_CODE		10
+#define SOH_PACKET_LENGTH		29
+#define TEMP_PACKET_LENGTH		19
 
 // prototypes
 void InitStartTime( void );
@@ -35,7 +37,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type);
 int reportSuccess(XUartPs Uart_PS, int report_filename);
 int reportFailure(XUartPs Uart_PS);
-void CalculateChecksums(unsigned char * packet_array, int length);
+void CalculateChecksums(unsigned char * packet_array);
 int TransferSDFile( XUartPs Uart_PS, int file_to_access );
 
 #endif /* SRC_LUNAH_UTILS_H_ */
