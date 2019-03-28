@@ -1,0 +1,53 @@
+; don't show the macro window
+show -1
+setecho 0
+; hide TT
+showtt 0
+
+flushrecv
+; open the log file, overwrite
+logopen 'C:\Users\gstoddard\Desktop\MNSTX\tx_test05.bin' 1 0
+; show the log window
+showtt 8
+pause 2
+setdebug 3
+;sendln 'MNS_TX_0_rawDat18.bin'
+;sendln 'MNS_TX_0_wfAA02.bin'
+;sendln 'MNS_TX_0_evt_I000017_R000001_S000000.bin'
+;sendln 'MNS_TX_0_evt_I000016_R000001_S000000.bin'
+sendln 'MNS_TX_0_evt_I000015_R000001_S000000.bin'
+
+MNS_TRG_0_10
+MNS_TRG_0_6000
+MNS_TRG_0_8765
+
+MNS_INT_0_-52_88_472_6000
+
+MNS_ENABLE_ACT_0
+MNS_HV_0_2_219
+MNS_HV_0_3_219
+MNS_HV_0_1_219
+MNS_DISABLE_ACT_0
+
+MNS_DAQ_0_18
+MNS_DAQ_0_17
+MNS_DAQ_0_0320
+MNS_DAQ_0_03201
+
+MNS_START_0_654321_5
+MNS_START_0_777_1
+MNS_START_0_666_1
+MNS_START_0_234567_1
+MNS_START_0_345678_1
+MNS_START_0_456789_1
+MNS_START_0_123456_3
+
+MNS_END_0_456
+
+MNS_BREAK_0
+
+setdebug 0
+logclose
+
+flushrecv
+end

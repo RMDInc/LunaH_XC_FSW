@@ -117,6 +117,7 @@ void XIicPs_MasterSend(XIicPs *InstancePtr, u8 *MsgPtr, s32 ByteCount,
 	Xil_AssertVoid(InstancePtr->IsReady == (u32)XIL_COMPONENT_IS_READY);
 	Xil_AssertVoid(XIICPS_ADDR_MASK >= SlaveAddr);
 
+
 	BaseAddr = InstancePtr->Config.BaseAddress;
 	InstancePtr->SendBufferPtr = MsgPtr;
 	InstancePtr->SendByteCount = ByteCount;

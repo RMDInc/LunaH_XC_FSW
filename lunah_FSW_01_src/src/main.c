@@ -31,11 +31,10 @@
 ******************************************************************************/
 
 /*
- * Mini-NS Flight Software, Version 5.2
- * Graham Stoddard
+ * Mini-NS Flight Software, Version 5.4
+ * Graham Stoddard, 3/28/2019
  *
  * 02-25-2019
- *
  * Added a compiler option "m" to allow us to include math.h to be linked in so we
  *  may use the floor() function. If this can be worked around, I think we should. - GJS
  *
@@ -198,7 +197,8 @@ int main()
 	int done = 0;				//local status variable for keeping track of progress within loops
 	int DAQ_run_number = 0;		//run number value for file names, tracks the number of runs per POR
 	int	menusel = 99999;		//case select variable for polling
-
+	FIL *cpsDataFile;
+	FIL *evtDataFile;
 	// ******************* APPLICATION LOOP *******************//
 
 	//This loop will continue forever and the program won't leave it
@@ -232,7 +232,6 @@ int main()
 		switch (menusel) { // Switch-Case Menu Select
 		case -1:
 			//we found an invalid command
-			//xil_printf("bad command detected\r\n");	//break and return to polling loop
 			//Report CMD_FAILURE
 			reportFailure(Uart_PS);
 			break;
@@ -244,6 +243,7 @@ int main()
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 			//set all the configuration parameters
 			status = ApplyDAQConfig(&Iic);
+			CPSInit();	//reset neutron counts for the run
 			if(status != CMD_SUCCESS)
 			{
 				//TODO: more error checking
@@ -287,7 +287,8 @@ int main()
 					if(status != -1)
 						LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 					//if no good input is found, silently ignore the input
-					switch(status){
+					switch(status)
+					{
 					case -1:
 						done = 0;
 						reportFailure(Uart_PS);
@@ -343,9 +344,22 @@ int main()
 				CheckForSOH(&Iic, Uart_PS);
 			}//END OF WHILE DONE != 0
 
+			cpsDataFile = GetCPSFilePointer();	//check the FIL pointers created by DAQ are closed safely
+			if (cpsDataFile->fs != NULL)
+				f_close(cpsDataFile);
+			evtDataFile = GetEVTFilePointer();
+			if (evtDataFile->fs != NULL)
+				f_close(evtDataFile);
+
+			//change directories back to the root directory
+			f_res = f_chdir("0:/");
+			if(f_res != FR_OK)
+			{
+				//TODO: handle change directory fail
+			}
 			//data acquisition has been completed, wrap up anything not handled by the DAQ function
-			//all files should be closed by any functions which opens them
 			//turn off the active components //TODO: add this to the Flow Diagram so people know that it's off
+			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable capture module
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//enable ADC
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to analog board
 
@@ -353,7 +367,13 @@ int main()
 		case WF_CMD:
 			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
 			//set processed data mode
-			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 0);	//get AA waveforms
+			if(GetIntParam(1) == 0)
+				Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, GetIntParam(1));	//get AA wfs = 0 //TRG wfs = 3
+			else
+			{
+				reportFailure(Uart_PS);	//report failure
+				break;
+			}
 //			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 3);	//get TRG waveforms
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
@@ -365,6 +385,7 @@ int main()
 			f_res = f_lseek(&WFData, file_size(&WFData));
 			if(f_res != FR_OK)
 				xil_printf("2 lseek fail WF\n");
+
 
 			memset(wf_data, '\0', sizeof(unsigned int)*DATA_BUFFER_SIZE);
 			ClearBRAMBuffers();
@@ -406,7 +427,7 @@ int main()
 
 				//check for input
 				CheckForSOH(&Iic, Uart_PS);
-				if(numWFs > 100)
+				if(numWFs > GetIntParam(2))
 					done = 1;
 			}
 			f_close(&WFData);

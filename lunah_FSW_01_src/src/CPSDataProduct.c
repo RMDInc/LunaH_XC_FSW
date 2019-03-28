@@ -19,6 +19,12 @@ static unsigned short m_events_noPSD;			//all events within an energy range, no 
 static unsigned short m_events_over_threshold;	//count all events which trigger the system
 
 //Functions
+/*
+ * Reset the counts per second data product counters and event structures for the run.
+ *
+ * @return	none
+ *
+ */
 void CPSInit()
 {
 	first_FPGA_time = 0;
@@ -108,6 +114,8 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 
 void CPSUpdateTallies(double energy, double psd)
 {
+	//This will be where to place the neutron cutting algorithm. This function call will increment the
+	// values above which are static. They keep track of the events which are within the neutron cuts.
 	//this will check the current event and see if it passes any of the cuts
 	/*
 	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD

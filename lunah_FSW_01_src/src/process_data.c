@@ -16,7 +16,7 @@ static unsigned int m_event_number;							//event number holder
 static unsigned int m_first_event_time_FPGA;				//the first event time which needs to be written into every data product header
 
 /*
- * Helper function to allow Data Acquisition to grab the EVTs buffer and write it to SD
+ * Helper function to allow external functions to grab the EVTs buffer and write it to SD
  */
 GENERAL_EVENT_TYPE * GetEVTsBufferAddress( void )
 {
@@ -57,9 +57,8 @@ unsigned int GetFirstEventTime( void )
 int ProcessData( unsigned int * data_raw )
 {
 	bool valid_event = FALSE;
-//	int m_ret = 0;	//for 2DH tallies
 	int iter = 0;
-//	int evt_iter = buffer_number * VALID_BUFFER_SIZE; //made file scope so we don't have "skipped" events in the buffer
+	int m_ret = 0;	//for 2DH tallies
 	int m_events_processed = 0;
 	unsigned int m_x_bin_number = 0;
 	unsigned int m_y_bin_number = 0;
@@ -86,6 +85,11 @@ int ProcessData( unsigned int * data_raw )
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE event_holder = evtEmptyStruct;
 
+	unsigned int val1 = 0;	//TEST
+	unsigned int val2 = 0;	//TEST
+	unsigned int val3 = 0;	//TEST
+	unsigned int val4 = 0;	//TEST
+
 	//get the integration times
 	m_baseline_int = (double)GetBaselineInt();
 	m_short_int = (double)GetShortInt();
@@ -102,6 +106,11 @@ int ProcessData( unsigned int * data_raw )
 	while(iter < DATA_BUFFER_SIZE)
 	{
 		event_holder = evtEmptyStruct;	//reset event structure
+
+		val1 = data_raw[iter];	//TEST
+		val2 = data_raw[iter+1];	//TEST
+		val3 = data_raw[iter+8];	//TEST
+		val4 = data_raw[iter+9];	//TEST
 
 		switch(data_raw[iter])
 		{
@@ -120,16 +129,7 @@ int ProcessData( unsigned int * data_raw )
 					{
 						if((data_raw[iter+4] < data_raw[iter+5]) && (data_raw[iter+5] < data_raw[iter+6]) && (data_raw[iter+6] < data_raw[iter+7]))
 						{
-							//get all the needed vals from the array:
-							//time = data_raw[iter+1];
-							//total counts = data_raw[iter+2];
-							//event number/PMT Hit ID = data_raw[iter+3]
-							//baseline int = data_raw[iter+4];
-							//short int = data_raw[iter+5];
-							//long int = data_raw[iter+6];
-							//full int = data_raw[iter+7];
 							valid_event = TRUE;
-							//Check on CPS report
 							if(cpsCheckTime(data_raw[iter+1]) == TRUE)
 							{
 								f_res = f_write(cpsDataFile, (char *)cpsGetEvent(), CPS_EVENT_SIZE, &num_bytes_written);
@@ -145,8 +145,7 @@ int ProcessData( unsigned int * data_raw )
 									xil_printf("error writing 5\n");
 								}
 							}
-							//begin processing the event
-							//get the PMT ID so we can process
+
 							event_holder.field0 = 0xFF;	//event ID is 0xFF
 							m_pmt_ID_holder = data_raw[iter+3] & 0x0F;
 							switch(m_pmt_ID_holder)
@@ -187,28 +186,25 @@ int ProcessData( unsigned int * data_raw )
 							fi = ((double)data_raw[iter+7]) / (16.0) - (bl_avg * m_full_int);
 							energy = fi;
 
-							if( li != 0 && li != si) //TODO: do we want to test for >0 ? //removed si!=0
+							//li, si must be positive, li greater than si (ensures positive psd values and li != si)
+							if( li > 0 && si > 0 && li > si) //TODO: how much should we test here? //si != 0, li > si, si > 0 ?
 								psd = si / (li - si);
 							else
 							{
-								//handle no PSD value
-								//TODO: PSD value undefined
+								//TODO: PSD value not good
 								psd = 1.999;	//set to highest good bin
 								m_bad_event++;
 							}
 
-							//add the energy ad PSD tallies to the correct histogram
-//							m_ret = Tally2DH(energy, psd, m_pmt_ID_holder);
-//							if(m_ret == CMD_FAILURE)
-//							{
-//								//handle error in tallying the event into the 2DH
-//								//TODO: identify what can go wrong and handle a bad tally
-//							}
-							m_x_bin_number = Get2DHArrayIndexX(energy);
-							if(m_x_bin_number != 0x0103)
-								m_y_bin_number = Get2DHArrayIndexY(psd);
-							else
-								m_y_bin_number = 0x1D;
+							//add the energy and PSD tallies to the correct histogram
+							m_ret = Tally2DH(energy, psd, m_pmt_ID_holder);
+							if(m_ret == CMD_FAILURE)
+							{
+								//handle error in tallying the event into the 2DH
+								//TODO: identify what can go wrong and handle a bad tally
+							}
+							m_x_bin_number = Get2DHArrayIndexX();
+							m_y_bin_number = Get2DHArrayIndexY();
 							event_holder.field2 |= (unsigned char)((m_x_bin_number >> 8) & 0x03);
 							event_holder.field3 |= (unsigned char)(m_x_bin_number);
 							event_holder.field4 |= (unsigned char)(m_y_bin_number << 2);
@@ -221,9 +217,9 @@ int ProcessData( unsigned int * data_raw )
 							evt_iter++;
 							iter += 8;
 							m_events_processed++;
-							//update the tallies for the CPS data
-//									CPSUpdateTallies(energy, psd);
-							IncNeutronTotal(1);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased
+
+//							CPSUpdateTallies(energy, psd);
+							IncNeutronTotal(1);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
 						}
 						else
 							valid_event = FALSE;
@@ -238,7 +234,7 @@ int ProcessData( unsigned int * data_raw )
 				valid_event = FALSE;
 			break;
 		case 2147594759:	//this is a false event
-			if(iter >= DATA_BUFFER_SIZE - 9 )
+			if(iter >= DATA_BUFFER_SIZE - 9 )	//meant to protect from writing above array indices...
 			{
 				iter++;
 				break;

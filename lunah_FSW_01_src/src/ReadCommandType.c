@@ -166,9 +166,9 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "WF"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d", &detectorVal, &firstVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d", &detectorVal, &firstVal, &secondVal);
 
-					if(ret != 2)	//invalid input
+					if(ret != 3)	//invalid input
 						commandNum = -1;
 					else
 						commandNum = WF_CMD;
@@ -512,7 +512,7 @@ unsigned long long GetRealTimeParam( void )
  *
  * @return	(* char) pointer to the filename buffer
  */
-char * GetFilename( void )
+char * GetFileToAccess( void )
 {
 	return m_filename_buff;
 }

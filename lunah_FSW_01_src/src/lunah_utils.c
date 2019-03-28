@@ -92,12 +92,12 @@ int GetModuTemp( void )
  */
 int CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 {
-  int iNeutronTotal;
+//  int iNeutronTotal;
 
 	XTime_GetTime(&LocalTimeCurrent);
 	if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (LocalTime +  1))
 	{
-		iNeutronTotal = GetNeutronTotal();
+//		iNeutronTotal = GetNeutronTotal();
 		LocalTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND;
 		report_SOH(Iic, LocalTime, iNeutronTotal, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
 	}
@@ -209,9 +209,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	switch(packet_type)
 	{
 	case READ_TMP_CMD:
-		//print the SOH information after the CCSDS header
-//		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%2.2f\n", analog_board_temp, digital_board_temp, modu_board_temp);
-
 		PutCCSDSHeader(report_buff, TEMP_PACKET_LENGTH, APID_TEMP);
 		CalculateChecksums(report_buff);
 
@@ -222,7 +219,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 			status = CMD_FAILURE;
 		break;
 	case GETSTAT_CMD:
-//		i_sprintf_ret = snprintf((char *)report_buff + 11, 100, "%d\t%d\t%d\t%d\t%llu\n", analog_board_temp, digital_board_temp, modu_board_temp, i_neutron_total, local_time);
 		report_buff[26] = (unsigned char)(i_neutron_total >> 24);
 		report_buff[27] = (unsigned char)(i_neutron_total >> 16);
 		report_buff[28] = (unsigned char)(i_neutron_total >> 8);
@@ -521,7 +517,7 @@ int TransferSDFile( XUartPs Uart_PS, int file_to_access )
 	switch(file_to_access)
 	{
 	case TX_CMD:
-		file_to_TX = GetFilename();
+		file_to_TX = GetFileToAccess();	//gets the file name from ReadCommandType
 		break;
 	case TXLOG_CMD:
 		file_to_TX = log_file;

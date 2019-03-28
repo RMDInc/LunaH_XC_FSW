@@ -22,7 +22,9 @@
 #define FILENAME_SIZE		50
 #define	TEC_PIN				18
 #define EVTS_EVENT_SIZE		8
-#define SIZEOF_FILENAME		34		//filename example: "I000001_R000001_S000001_cps.bin"
+#define ROOT_DIR_NAME_SIZE	3
+#define FOLDER_NAME_SIZE	11		//"I1234_R1234"
+#define SIZEOF_FILENAME		13		//filename example: "cps_S0001.bin"
 #define DATA_PACKET_SIZE	2040
 #define PAYLOAD_MAX_SIZE	2028
 #define VALID_BUFFER_SIZE	512
@@ -43,7 +45,7 @@
 #define CCSDS_HEADER_DATA	7		//without the sync marker, with the reset request byte
 #define CCSDS_HEADER_PRIM	10		//with the sync marker, without the reset request byte
 #define CCSDS_HEADER_FULL	11		//with the sync marker, with the reset request byte
-
+#define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes)
 
 // Command definitions
 #define DAQ_CMD			0
@@ -87,14 +89,15 @@
 //MNS DATA PRODUCT TYPES
 #define DATA_TYPE_EVTS 	0
 #define DATA_TYPE_WAV	1
-#define DATA_TYPE_2DH	2
-#define DATA_TYPE_CPS	3
+#define DATA_TYPE_CPS	2
+#define DATA_TYPE_2DH_1	3
+#define DATA_TYPE_2DH_2	4
+#define DATA_TYPE_2DH_3	5
+#define DATA_TYPE_2DH_4	6
 
 //DAQ FINAL STATE
 #define DAQ_BREAK		0
 #define DAQ_TIME_OUT	1
 #define DAQ_END			2
-
-int DataAcqInit(int Command, int orbit_number);
 
 #endif /* SRC_LUNAH_DEFINES_H_ */
