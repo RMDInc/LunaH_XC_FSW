@@ -11,8 +11,10 @@
 #include <stdio.h>		//needed for unsigned types
 #include <string.h>		//needed for mem functions
 #include <sleep.h>		//needed for usleep
+#include "xil_cache.h"	//TEST
 #include "xuartps.h"	//needed for uart functions
 #include "lunah_defines.h"
+#include "DataAcquisition.h"
 
 void bufferShift(char * buff, int bytes_to_del, int buff_strlen);
 char * GetLastCommand( void );

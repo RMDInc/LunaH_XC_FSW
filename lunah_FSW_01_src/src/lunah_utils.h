@@ -13,7 +13,7 @@
 #include <xuartps.h>
 #include "ff.h"
 #include "ReadCommandType.h"	//gives access to last command strings
-#include "lunah_defines.h"		//let's us get the temperature
+#include "lunah_defines.h"		//lets us get the temperature
 #include "LI2C_Interface.h"
 #include "DataAcquisition.h"	//gives access to current filename
 
@@ -38,6 +38,6 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int length, int packet_type);
 int reportSuccess(XUartPs Uart_PS, int report_filename);
 int reportFailure(XUartPs Uart_PS);
 void CalculateChecksums(unsigned char * packet_array);
-int TransferSDFile( XUartPs Uart_PS, int file_to_access );
+int TransferSDFile( XUartPs Uart_PS, int file_type, int id_num, int run_num,  int set_num_low, int set_num_hi );
 
 #endif /* SRC_LUNAH_UTILS_H_ */

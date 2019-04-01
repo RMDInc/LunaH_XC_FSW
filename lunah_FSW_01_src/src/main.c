@@ -239,7 +239,7 @@ int main()
 			//set processed data mode
 			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
 			//turn on the system
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+//			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC //TEST MOVING THIS TO AFTER SETTING GPIO 18 HIGH (read command type)
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 			//set all the configuration parameters
 			status = ApplyDAQConfig(&Iic);
@@ -360,8 +360,8 @@ int main()
 			//data acquisition has been completed, wrap up anything not handled by the DAQ function
 			//turn off the active components //TODO: add this to the Flow Diagram so people know that it's off
 			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable capture module
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//enable ADC
-			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to analog board
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to analog board
 
 			break;
 		case WF_CMD:
@@ -467,7 +467,7 @@ int main()
 			// 0 = data product file
 			// 1 = Log File
 			// 2 = Config file
-			status = TransferSDFile( Uart_PS, TX_CMD );
+//			status = TransferSDFile( Uart_PS, TX_CMD );
 			if(status == 0)
 				reportSuccess(Uart_PS, 0);
 			else
@@ -488,7 +488,7 @@ int main()
 			// 0 = data product file
 			// 1 = Log File
 			// 2 = Config file
-			status = TransferSDFile( Uart_PS, TXLOG_CMD );
+//			status = TransferSDFile( Uart_PS, TXLOG_CMD );
 			if(status == 0)
 				reportSuccess(Uart_PS, 0);
 			else
@@ -500,7 +500,7 @@ int main()
 			// 0 = data product file
 			// 1 = Log File
 			// 2 = Config file
-			status = TransferSDFile( Uart_PS, CONF_CMD );
+//			status = TransferSDFile( Uart_PS, CONF_CMD );
 			if(status == 0)
 				reportSuccess(Uart_PS, 0);
 			else

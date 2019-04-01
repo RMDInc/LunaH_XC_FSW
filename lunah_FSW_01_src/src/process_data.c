@@ -85,10 +85,10 @@ int ProcessData( unsigned int * data_raw )
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE event_holder = evtEmptyStruct;
 
-	unsigned int val1 = 0;	//TEST
-	unsigned int val2 = 0;	//TEST
-	unsigned int val3 = 0;	//TEST
-	unsigned int val4 = 0;	//TEST
+//	unsigned int val1 = 0;	//TEST
+//	unsigned int val2 = 0;	//TEST
+//	unsigned int val3 = 0;	//TEST
+//	unsigned int val4 = 0;	//TEST
 
 	//get the integration times
 	m_baseline_int = (double)GetBaselineInt();
@@ -107,10 +107,10 @@ int ProcessData( unsigned int * data_raw )
 	{
 		event_holder = evtEmptyStruct;	//reset event structure
 
-		val1 = data_raw[iter];	//TEST
-		val2 = data_raw[iter+1];	//TEST
-		val3 = data_raw[iter+8];	//TEST
-		val4 = data_raw[iter+9];	//TEST
+//		val1 = data_raw[iter];	//TEST
+//		val2 = data_raw[iter+1];	//TEST
+//		val3 = data_raw[iter+8];	//TEST
+//		val4 = data_raw[iter+9];	//TEST
 
 		switch(data_raw[iter])
 		{

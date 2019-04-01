@@ -123,6 +123,14 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	int detectorVal = 0;
 	int commandNum = 999;	//this value tells the main menu what command we read from the rs422 buffer
 
+	//TESTING
+	int valid_data = 0;	//TESTING VARIABLE
+	unsigned int data_array = 0;	//TESTING
+	int dram_addr;				//the address in the DRAM we are reading from
+	int dram_base = 0xA000000;	//where the buffer starts	//167,772,160
+	int dram_ceiling = 0xA004000;	//where it ends			//167,788,544
+	//TESTING
+
 	char commandMNSBuf[20] = "";
 	char commandBuffer[20] = "";
 	char commandBuffer2[50] = "";
@@ -335,8 +343,15 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					{
 						if(detectorVal == MNS_DETECTOR_NUM)
 						{
-							//enable system
-							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+							Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
+							usleep(1);
+							ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to
+							usleep(1);
+							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module //write false event
+							usleep(1);
+							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable capture module
+							usleep(1);
+							Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC //Begin collecting data
 						}
 						commandNum = START_CMD;
 					}

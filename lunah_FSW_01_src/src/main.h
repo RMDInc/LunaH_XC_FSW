@@ -28,8 +28,8 @@
 
 //GJS CODE LIBRARIES
 #include "ReadCommandType.h"
-#include "process_data.h"
 #include "SetInstrumentParam.h"
+#include "process_data.h"
 #include "lunah_defines.h"
 #include "lunah_utils.h"
 #include "LogFileControl.h"

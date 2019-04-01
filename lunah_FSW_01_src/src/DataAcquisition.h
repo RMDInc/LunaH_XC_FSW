@@ -14,6 +14,7 @@
 #include "xil_cache.h"
 #include "ff.h"
 #include <string.h>
+#include "xiicps.h"
 #include "xscugic.h"
 #include "lunah_defines.h"
 #include "sleep.h"

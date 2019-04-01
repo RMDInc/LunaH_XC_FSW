@@ -76,6 +76,23 @@ typedef struct {
 	float OffsetPSD_4_2;
 } CONFIG_STRUCT_TYPE;
 
+/*
+* We only want to use this here for now, so hide it from the user
+* This is a struct which includes the information from the config buffer above
+* plus a few extra pieces that need to go into headers.
+* This data structure is 188 bytes in size
+*/
+typedef struct{
+	CONFIG_STRUCT_TYPE configBuff;	//43 4-byte values
+	unsigned int IDNum;
+	unsigned int RunNum;
+	unsigned int SetNum;
+	unsigned char FileTypeAPID;
+	unsigned char TempCorrectionSetNum;
+	unsigned char EventIDFF;
+	//padding byte added by compiler
+}DATA_FILE_HEADER_TYPE;
+
 // prototypes
 void CreateDefaultConfig( void );
 CONFIG_STRUCT_TYPE * GetConfigBuffer( void );

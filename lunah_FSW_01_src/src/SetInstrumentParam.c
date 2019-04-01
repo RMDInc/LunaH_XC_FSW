@@ -217,7 +217,7 @@ int SetTriggerThreshold(int iTrigThreshold)
 	int status = 0;	//0=SUCCESS, 1=FAILURE
 
 	//check that it's within accepted values
-	if((iTrigThreshold > 0) && (iTrigThreshold < 16000))
+	if((iTrigThreshold > 0) && (iTrigThreshold < 16384))
 	{
 		//set the threshold in the FPGA
 		Xil_Out32(XPAR_AXI_GPIO_10_BASEADDR, (u32)(iTrigThreshold));
@@ -566,14 +566,14 @@ int ApplyDAQConfig( XIicPs * Iic )
 		status = SetTriggerThreshold(ConfigBuff.TriggerThreshold);
 	if(status == CMD_SUCCESS)
 		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
-	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
-	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
-	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
-	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
+//	if(status == CMD_SUCCESS)
+//		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
+//	if(status == CMD_SUCCESS)
+//		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
+//	if(status == CMD_SUCCESS)
+//		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
+//	if(status == CMD_SUCCESS)
+//		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts
 	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(1, 1, ConfigBuff.ScaleFactorEnergy_1_1, ConfigBuff.ScaleFactorPSD_1_1, ConfigBuff.OffsetEnergy_1_1, ConfigBuff.OffsetPSD_1_1);

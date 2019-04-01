@@ -124,7 +124,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	i2c_Send_Buffer[0] = 0x0;
 	i2c_Send_Buffer[1] = 0x0;
 	int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
-	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
+//	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
 //	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, on module near thermistor on TEC
 
 	switch(check_temp_sensor){
@@ -132,20 +132,21 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		XTime_GetTime(&LocalTimeCurrent);
 		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
-			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
-			check_temp_sensor++;
-			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
-			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
-			a = i2c_Recv_Buffer[0]<< 5;
-			b = a | i2c_Recv_Buffer[1] >> 3;
-			if(i2c_Recv_Buffer[0] >= 128)
-			{
-				b = (b - 8192) / 16;
-			}
-			else
-			{
-				b = b / 16;
-			}
+//			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
+//			check_temp_sensor++;
+//			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+//			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+//			a = i2c_Recv_Buffer[0]<< 5;
+//			b = a | i2c_Recv_Buffer[1] >> 3;
+//			if(i2c_Recv_Buffer[0] >= 128)
+//			{
+//				b = (b - 8192) / 16;
+//			}
+//			else
+//			{
+//				b = b / 16;
+//			}
+			b = 23;
 			analog_board_temp = b;
 		}
 		break;
@@ -490,22 +491,191 @@ void CalculateChecksums(unsigned char * packet_array)
 // 0 = data product file
 // 1 = Log File
 // 2 = Config file
-int TransferSDFile( XUartPs Uart_PS, int file_to_access )
+/*
+ * Transfers any one file that is on the SD card. Will return command FAILURE if the file does not exist.
+ *
+ * @param	Uart_PS	The instance of the UART so we can push the packet to the bus
+ * @param 	(int)id_num 	The ID number for the folder the user wants to access
+ * @param	(int)run_num	The Run number for the folder the user wants to access
+ * @param	(int)file_type	The macro for the type of file to TX back, see lunah_defines.h for the codes
+ * 							 There are 9 file types:
+ * 							 DATA_TYPE_EVT, DATA_TYPE_CPS, DATA_TYPE_WAV,
+ * 							 DATA_TYPE_2DH_1, DATA_TYPE_2DH_2, DATA_TYPE_2DH_3, DATA_TYPE_2DH_4,
+ * 							 DATA_TYPE_LOG, DATA_TYPE_CFG,
+ *
+ * @param	(int)set_num_low	The set number to TX
+ * @param	(int)set_num_hi		To TX a group of EVTs files, set this value higher than the first set number.
+ *
+ * NOTES: For this function, the file type is the important parameter because it tells the function how to
+ * 			interpret the parameters which are given.
+ * 		: For the Log and configuration files, parameters other than file_type should be written as 0's.
+ * 		: For CPS, WAV, and 2DH files, the set numbers should be 0's.
+ * 		: For EVT, the set numbers give a way to selectively transfer one or more set files at a time. If the
+ * 			set_num_high value is 0, then just one set file will be TX'd. Otherwise, each set file from set low
+ * 			to set high will be sent. There will be a checks on the user input, but no SOH in between the files.
+ */
+int TransferSDFile( XUartPs Uart_PS, int file_type, int id_num, int run_num, int set_num_low, int set_num_hi )
 {
 	int status = 0;	//0=good, 1=file DNE, 2+=other problem
 	int sent = 0;
 	int bytes_sent = 0;
 	int total_sent = 0;
+	int file_TX_size = 0;
+	unsigned int bytes_written;
 	unsigned int bytes_read = 0;
 	unsigned int sizeof_tx_buffer = 0;
 	char *file_to_TX;
+	char *ptr_file_TX_filename;
 	char empty_buff[20] = "";	//to keep from dereferencing an unassigned char pointer
-	char log_file[] = "0:/MNSCMDLOG.txt";
-	char config_file[] = "0:/MNSCONF.bin";
+	char log_file[] = "MNSCMDLOG.txt";
+	char config_file[] = "MNSCONF.bin";
+	char file_TX_folder[100] = "";
+	char file_TX_filename[100] = "";
+	char file_TX_path[100] = "";
 	unsigned char tx_buffer[16392] = "";	//can transfer 16384/(4*8) = 512 evts/buff + 8 bytes for the "header"
 	sizeof_tx_buffer = sizeof(tx_buffer);
-	FIL TXFile;
-	FRESULT f_res = FR_OK;
+	FIL TXFile;			//file object
+	FILINFO fno;		//file info structure
+	FRESULT f_res = FR_OK;	//SD card status variable type
+
+	switch(file_type)
+	{
+	case DATA_TYPE_EVTS:
+		//set up event-by-event data structures, packets
+
+		break;
+	case DATA_TYPE_WAV:
+		//Waveform packets
+		//where are these files stored? I think they get their own folders
+
+		break;
+	case DATA_TYPE_CPS:
+		//cps file
+
+		break;
+	case DATA_TYPE_2DH_1:
+		//2DH file for pmt 1
+
+		break;
+	case DATA_TYPE_2DH_2:
+		//2DH file for pmt 2
+
+		break;
+	case DATA_TYPE_2DH_3:
+		//2DH file for pmt 3
+
+		break;
+	case DATA_TYPE_2DH_4:
+		//2DH file for pmt 4
+
+		break;
+	case DATA_TYPE_LOG:
+		//log file
+
+		break;
+	case DATA_TYPE_CFG:
+		//configuration file
+
+		break;
+	default:
+		//if the file requested is not from the list of files, send back CMD_FAILURE
+		status = 1;
+		break;
+	}
+
+	//find the folder/file that was requested
+	//create the folder name and file name to look for
+	if(file_type == DATA_TYPE_LOG)
+	{
+		//just on the root directory
+		bytes_written = snprintf(file_TX_folder, 100, "0:");
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+			status = 1;
+		ptr_file_TX_filename = log_file;
+	}
+	else if(file_type == DATA_TYPE_CFG)
+	{
+		//just on the root directory
+		bytes_written = snprintf(file_TX_folder, 100, "0:");
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+			status = 1;
+		ptr_file_TX_filename = config_file;
+	}
+	else
+	{
+		bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + FOLDER_NAME_SIZE)
+			status = 1;
+		bytes_written = snprintf(file_TX_filename, 100, "evt_S%04d.bin", set_num_low);
+		if(bytes_written == 0)
+			status = 1;
+		ptr_file_TX_filename = file_TX_filename;
+	}
+	//write the total file path
+	bytes_written = snprintf(file_TX_path, 100, "%s/%s", file_TX_folder, ptr_file_TX_filename);
+	if(bytes_written == 0)
+		status = 1;
+
+	//check that the folder/file we just wrote exists in the file system
+	f_res = f_stat(file_TX_path, &fno);
+	if(f_res == FR_NO_FILE)
+	{
+		//couldn't find the folder
+		status = 1;	//folder DNE
+	}
+	//can just do an open on the dir:/folder/file.bin if we want, that way we don't have to use chdir or anything
+	if(status == 0)
+	{
+		f_res = f_open(&TXFile, file_TX_path, FA_READ | FA_OPEN_ALWAYS);	//the files exists, so just open it
+		if(f_res != FR_OK)
+		{
+			if(f_res == FR_NO_PATH)
+				status = 1;
+			else
+				status = 2;
+		}
+	}
+	//read in important information (file size, header, first event, real time, etc.)
+	if(status == 0)
+	{
+		file_TX_size = file_size(&TXFile);
+		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG)	//read in the data header from data product files
+		{
+			DATA_FILE_HEADER_TYPE data_file_header;
+			f_res = f_read(&TXFile, &data_file_header, sizeof(data_file_header), &bytes_read);
+			if(f_res != FR_OK || bytes_read != sizeof(data_file_header.configBuff))
+				status = 2;
+			//forward seek to pass through the rest of the header, which should be 16384 bytes total
+//			f_res = f_lseek(&TXFile, DP_HEADER_SIZE);	//bring this in once that change is made
+		}
+		else if(file_type == DATA_TYPE_CFG)	//the config file is just one config header
+		{
+			CONFIG_STRUCT_TYPE config_file_header;
+			f_res = f_read(&TXFile, &config_file_header, sizeof(config_file_header), &bytes_read);
+			if(f_res != FR_OK || bytes_read != sizeof(config_file_header))
+				status = 2;
+		}
+		//no header information in the log file
+	}
+	//compile the CCSDS header
+	if(status == 0)
+	{
+
+	}
+
+	//compile the RMD data header (different based on file type)
+
+	//read in data from the file to fill a packet
+
+	//if packet isn't full, pad with 0's (pattern?)
+
+	//send the file
+
+	//loop back to //find if there are multiple files to send (EVT)
+
+	//check return values/status variable
+
+	//check for user interaction (break, too many bytes)
 
 	tx_buffer[0] = (unsigned char)SYNC_MARKER;
 	tx_buffer[1] = (unsigned char)(SYNC_MARKER >> 8);
@@ -514,21 +684,21 @@ int TransferSDFile( XUartPs Uart_PS, int file_to_access )
 	tx_buffer[4] = 0xAA;
 	tx_buffer[5] = 0xFF;
 	file_to_TX = empty_buff;	//make sure that something is here, at least
-	switch(file_to_access)
-	{
-	case TX_CMD:
-		file_to_TX = GetFileToAccess();	//gets the file name from ReadCommandType
-		break;
-	case TXLOG_CMD:
-		file_to_TX = log_file;
-		break;
-	case CONF_CMD:
-		file_to_TX = config_file;
-		break;
-	default:
-		file_to_TX = empty_buff;
-		break;
-	}
+//	switch(file_to_access)
+//	{
+//	case TX_CMD:
+//		file_to_TX = GetFileToAccess();	//gets the file name from ReadCommandType
+//		break;
+//	case TXLOG_CMD:
+//		file_to_TX = log_file;
+//		break;
+//	case CONF_CMD:
+//		file_to_TX = config_file;
+//		break;
+//	default:
+//		file_to_TX = empty_buff;
+//		break;
+//	}
 
 	f_res = f_open(&TXFile, file_to_TX, FA_READ|FA_OPEN_EXISTING);
 	if(f_res != FR_OK)

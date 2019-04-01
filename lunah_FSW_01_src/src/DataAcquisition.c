@@ -27,21 +27,6 @@ static FIL m_2DH_file;
 //Data buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
 static unsigned int data_array[DATA_BUFFER_SIZE * 4];
 
-//We only want to use this here for now, so hide it from the user
-//This is a struct featuring the information from the config buffer
-// plus a few extra pieces that need to go into headers.
-//This data structure is 188 bytes in size
-struct DATA_FILE_HEADER_TYPE{
-	CONFIG_STRUCT_TYPE configBuff;	//43 4-byte values
-	unsigned int IDNum;
-	unsigned int RunNum;
-	unsigned int SetNum;
-	unsigned char FileTypeAPID;
-	unsigned char TempCorrectionSetNum;
-	unsigned char EventIDFF;
-	//padding byte added by compiler
-};
-
 struct DATA_FILE_FOOTER_TYPE{
 	unsigned char eventID1;
 	unsigned char spacecraftRealTime[8];
@@ -53,7 +38,7 @@ struct DATA_FILE_FOOTER_TYPE{
 	unsigned char eventID6;
 };
 
-static struct DATA_FILE_HEADER_TYPE file_header_to_write;	//not declaring this above so we can make it static
+static DATA_FILE_HEADER_TYPE file_header_to_write;	//not declaring this above so we can make it static
 static struct DATA_FILE_FOOTER_TYPE file_footer_to_write;
 /*
  * Getter function for the size of the filenames which are assembled by the system
@@ -66,6 +51,15 @@ static struct DATA_FILE_FOOTER_TYPE file_footer_to_write;
  */
 int GetFileNameSize( void )
 {
+	//TESTING
+	int myvar = GetBaselineInt();
+	if(myvar > 100)
+		myvar++;
+
+	CONFIG_STRUCT_TYPE mycfg;
+	if(mycfg.IntegrationBaseline == myvar - 1)
+		myvar++;
+
 	return (int)strlen(current_filename_EVT);
 }
 
@@ -270,6 +264,9 @@ int DoesFileExist( void )
  *  command to open and write the header into the files.
  * The FIL pointers are left open by this function intentionally so that DAQ doesn't
  *  have to spend the time opening them.
+ *NOTE: Upon successful completion, this function leaves the SD card in the directory
+ *		 which was created. The user needs to change directories before doing other
+ *		 file operations.
  *
  * @param	None
  *

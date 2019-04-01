@@ -46,6 +46,8 @@
 #define CCSDS_HEADER_PRIM	10		//with the sync marker, without the reset request byte
 #define CCSDS_HEADER_FULL	11		//with the sync marker, with the reset request byte
 #define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes)
+#define DP_HEADER_SIZE		16384	//we put blank space past the header so we always write on a cluster boundary
+
 
 // Command definitions
 #define DAQ_CMD			0
@@ -94,6 +96,8 @@
 #define DATA_TYPE_2DH_2	4
 #define DATA_TYPE_2DH_3	5
 #define DATA_TYPE_2DH_4	6
+#define DATA_TYPE_LOG	7
+#define DATA_TYPE_CFG	8
 
 //DAQ FINAL STATE
 #define DAQ_BREAK		0
