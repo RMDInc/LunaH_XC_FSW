@@ -93,6 +93,32 @@ typedef struct{
 	//padding byte added by compiler
 }DATA_FILE_HEADER_TYPE;
 
+typedef struct{
+	unsigned long long RealTime;
+	unsigned char EventID1;
+	unsigned char EventID2;
+	unsigned char EventID3;
+	unsigned char EventID4;
+	unsigned int FirstEventTime;
+	unsigned char EventID5;
+	unsigned char EventID6;
+	unsigned char EventID7;
+	unsigned char EventID8;
+	//probably padding bytes
+}DATA_FILE_SECONDARY_HEADER_TYPE;	//currently 24 bytes, see p47
+
+
+typedef struct{
+	unsigned char eventID1;
+	unsigned long long RealTime;
+	unsigned char eventID2;
+	int digiTemp;
+	unsigned char eventID3;
+	unsigned char eventID4;
+	unsigned char eventID5;
+	unsigned char eventID6;
+}DATA_FILE_FOOTER_TYPE;	//just make a regular struct and don't worry about the padding bytes
+
 // prototypes
 void CreateDefaultConfig( void );
 CONFIG_STRUCT_TYPE * GetConfigBuffer( void );

@@ -115,7 +115,7 @@ int ProcessData( unsigned int * data_raw )
 		switch(data_raw[iter])
 		{
 		case 111111: //this is the data event case
-			while(data_raw[iter+1] == 111111 && iter < (DATA_BUFFER_SIZE - EVTS_EVENT_SIZE))//handles any number of 111111's in succession
+			while(data_raw[iter+1] == 111111 && iter < (DATA_BUFFER_SIZE - EVT_EVENT_SIZE))//handles any number of 111111's in succession
 			{
 				iter++;
 			}
@@ -257,9 +257,6 @@ int ProcessData( unsigned int * data_raw )
 				evt_iter++;
 				iter += 8;
 				m_events_processed++;
-				//we should save the first event time from the FPGA and write it into the data product files
-				//here is an alright spot to do that potentially
-				//can we get the FIL pointer?
 			}
 			else
 			{
@@ -283,7 +280,7 @@ int ProcessData( unsigned int * data_raw )
 			iter++;
 		}
 
-		if(iter > (DATA_BUFFER_SIZE - EVTS_EVENT_SIZE))	//will read past the array if iter goes above
+		if(iter > (DATA_BUFFER_SIZE - EVT_EVENT_SIZE))	//will read past the array if iter goes above
 			break;
 		if(evt_iter >= EVENT_BUFFER_SIZE)	//we have run out of open events in the buffer
 			break;

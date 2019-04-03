@@ -27,6 +27,7 @@
 //Interrupt Variables
 extern XScuGic InterruptController;		// Interrupt controller
 
+char *GetFolderName( void );
 int GetFileNameSize( void );
 char *GetFileName( int file_type );
 unsigned int GetDAQRunIDNum( void );

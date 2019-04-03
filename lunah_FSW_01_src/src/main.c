@@ -238,18 +238,17 @@ int main()
 		case DAQ_CMD:
 			//set processed data mode
 			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
-			//turn on the system
-//			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC //TEST MOVING THIS TO AFTER SETTING GPIO 18 HIGH (read command type)
+			//turn on the system (not the ADC)
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 			//set all the configuration parameters
 			status = ApplyDAQConfig(&Iic);
-			CPSInit();	//reset neutron counts for the run
 			if(status != CMD_SUCCESS)
 			{
 				//TODO: more error checking
 			}
 			//prepare the status variables
-			done = 0;				//not done yet
+			done = 0;	//not done yet
+			CPSInit();	//reset neutron counts for the run
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
 			/* Create the file names we will use for this run:
 			 * Check if the filename given is unique
@@ -463,10 +462,6 @@ int main()
 			break;
 		case TX_CMD:
 			//transfer any file on the SD card
-			//Transfer options:
-			// 0 = data product file
-			// 1 = Log File
-			// 2 = Config file
 //			status = TransferSDFile( Uart_PS, TX_CMD );
 			if(status == 0)
 				reportSuccess(Uart_PS, 0);

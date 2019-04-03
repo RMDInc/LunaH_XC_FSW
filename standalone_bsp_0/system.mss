@@ -371,7 +371,7 @@ BEGIN LIBRARY
  PARAMETER LIBRARY_NAME = xilffs
  PARAMETER LIBRARY_VER = 3.7
  PARAMETER PROC_INSTANCE = ps7_cortexa9_0
- PARAMETER set_fs_rpath = 2
+ PARAMETER set_fs_rpath = 1
  PARAMETER use_lfn = true
  PARAMETER use_strfunc = 1
 END

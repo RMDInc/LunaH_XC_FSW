@@ -21,7 +21,7 @@
 #define IIC_DEVICE_ID_1		XPAR_XIICPS_1_DEVICE_ID	//thermometer/pot on digital board
 #define FILENAME_SIZE		50
 #define	TEC_PIN				18
-#define EVTS_EVENT_SIZE		8
+#define EVT_EVENT_SIZE		8
 #define ROOT_DIR_NAME_SIZE	3
 #define FOLDER_NAME_SIZE	11		//"I1234_R1234"
 #define SIZEOF_FILENAME		13		//filename example: "cps_S0001.bin"
@@ -30,7 +30,7 @@
 #define VALID_BUFFER_SIZE	512
 #define DATA_BUFFER_SIZE	4096
 #define EVENT_BUFFER_SIZE	2048
-#define EVTS_DATA_BUFF_SIZE	16384
+#define EVT_DATA_BUFF_SIZE	16384
 #define SIZEOF_HEADER_TIMES	14
 #define TWODH_X_BINS		260
 #define	TWODH_Y_BINS		30
@@ -83,13 +83,19 @@
 #define APID_TEMP		4
 #define APID_MNS_CPS	5
 #define APID_MNS_WAV	6
-#define APID_MNS_EVTS	7
+#define APID_MNS_EVT	7
 #define APID_MNS_2DH	8
 #define APID_LOG_FILE	9
 #define APID_CONFIG		10
 
+//MNS GROUP FLAGS
+#define GF_FIRST_PACKET	0
+#define GF_LAST_PACKET	1
+#define GF_INTER_PACKET 2
+#define GF_UNSEG_PACKET 3
+
 //MNS DATA PRODUCT TYPES
-#define DATA_TYPE_EVTS 	0
+#define DATA_TYPE_EVT 	0
 #define DATA_TYPE_WAV	1
 #define DATA_TYPE_CPS	2
 #define DATA_TYPE_2DH_1	3
@@ -98,6 +104,30 @@
 #define DATA_TYPE_2DH_4	6
 #define DATA_TYPE_LOG	7
 #define DATA_TYPE_CFG	8
+
+//MNS DATA PACKET HEADER SIZES //Helps with calculating packet size //includes secondary header + data header
+#define PKT_HEADER_EVT	71
+#define PKT_HEADER_WAV	71
+#define PKT_HEADER_CPS	71
+#define PKT_HEADER_2DH	59
+#define PKT_HEADER_LOG	1
+#define PKT_HEADER_CFG	1
+
+//MNS DATA PRODUCT DATA BYTE SIZES
+#define DATA_BYTES_EVT	1952
+#define DATA_BYTES_WAV	1950
+#define DATA_BYTES_CPS	1946
+#define DATA_BYTES_2DH	1967
+#define DATA_BYTES_LOG	1963
+#define DATA_BYTES_CFG	187
+
+//MNS DATA PACKET SIZES //Full size - 10 - 1
+#define PKT_SIZE_EVT 	2026
+#define PKT_SIZE_WAV	2026
+#define PKT_SIZE_CPS	2020
+#define PKT_SIZE_2DH	2029
+//#define PKT_SIZE_LOG	2029	//TODO: define this
+#define PKT_SIZE_CFG	191
 
 //DAQ FINAL STATE
 #define DAQ_BREAK		0

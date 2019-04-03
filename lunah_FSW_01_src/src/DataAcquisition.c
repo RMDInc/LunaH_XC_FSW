@@ -27,19 +27,26 @@ static FIL m_2DH_file;
 //Data buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
 static unsigned int data_array[DATA_BUFFER_SIZE * 4];
 
-struct DATA_FILE_FOOTER_TYPE{
-	unsigned char eventID1;
-	unsigned char spacecraftRealTime[8];
-	unsigned char eventID2;
-	unsigned char digiTemp;
-	unsigned char eventID3;
-	unsigned char eventID4;
-	unsigned char eventID5;
-	unsigned char eventID6;
-};
-
 static DATA_FILE_HEADER_TYPE file_header_to_write;	//not declaring this above so we can make it static
-static struct DATA_FILE_FOOTER_TYPE file_footer_to_write;
+static DATA_FILE_FOOTER_TYPE file_footer_to_write;
+static DATA_FILE_SECONDARY_HEADER_TYPE file_secondary_header_to_write;
+
+/*
+ * Getter function to get the folder name for the DAQ run which has been started.
+ * We need to let the user know what the internally tracked value of the RUN number is
+ *  so that they can request a specific run's files. The way we can do that is we
+ *  return the ID number and run number used at the beginning of a run in a SUCCESS packet.
+ *
+ *  @param	None
+ *
+ *  @return	(char *)Pointer to the name of the folder that is being used for the run.
+ *  				Note that the name is appended with the ROOT directory (0:)
+ */
+char *GetFolderName( void )
+{
+	return current_run_folder;
+}
+
 /*
  * Getter function for the size of the filenames which are assembled by the system
  * This function doesn't need a file type because the filenames were designed to
@@ -51,15 +58,6 @@ static struct DATA_FILE_FOOTER_TYPE file_footer_to_write;
  */
 int GetFileNameSize( void )
 {
-	//TESTING
-	int myvar = GetBaselineInt();
-	if(myvar > 100)
-		myvar++;
-
-	CONFIG_STRUCT_TYPE mycfg;
-	if(mycfg.IntegrationBaseline == myvar - 1)
-		myvar++;
-
 	return (int)strlen(current_filename_EVT);
 }
 
@@ -82,13 +80,13 @@ int GetFileNameSize( void )
  * @return	Pointer to the buffer holding the filename.
  *
  */
-char * GetFileName( int file_type )
+char *GetFileName( int file_type )
 {
 	char * current_filename;
 
 	switch(file_type)
 	{
-	case DATA_TYPE_EVTS:
+	case DATA_TYPE_EVT:
 		current_filename = current_filename_EVT;
 		break;
 	case DATA_TYPE_WAV:
@@ -236,25 +234,11 @@ int DoesFileExist( void )
 	//check the SD card for the folder, then the files:
 	ffs_res = f_stat(current_run_folder, &fno);
 	if(ffs_res == FR_NO_FILE)
-	{
 		status = CMD_FAILURE;
-//		//check the SD card for the existence of the current filename
-//		//this is a double check, but is unnecessary, if the folder didn't exist, then...
-//		ffs_res = f_stat(current_filename_EVT, &fno);
-//		if(ffs_res == FR_OK)
-//			ffs_res = f_stat(current_filename_CPS, &fno);
-//		if(ffs_res == FR_OK)
-//			ffs_res = f_stat(current_filename_2DH_1, &fno);
-//		if(ffs_res == FR_OK)
-//			ffs_res = f_stat(current_filename_2DH_2, &fno);
-//		if(ffs_res == FR_OK)
-//			ffs_res = f_stat(current_filename_2DH_3, &fno);
-//		if(ffs_res == FR_OK)
-//			ffs_res = f_stat(current_filename_2DH_4, &fno);
-//		else
-//			status = CMD_FAILURE;
-
-	}
+	else if(ffs_res == FR_NO_PATH)
+		status = CMD_FAILURE;
+	else if(ffs_res == FR_DENIED)
+		status = CMD_FAILURE;
 
 	return status;
 }
@@ -284,6 +268,9 @@ int CreateDAQFiles( void )
 	FIL *DAQ_file = NULL;
 	FRESULT ffs_res;
 
+	//a blank struct to write into the CPS file //reserves space for later
+	DATA_FILE_SECONDARY_HEADER_TYPE blank_file_secondary_header_to_write = {};
+
 	//gather the header information
 	file_header_to_write.configBuff = *GetConfigBuffer();		//dereference to copy the struct into our local struct
 	//	TODO: check the return was not NULL?
@@ -292,14 +279,6 @@ int CreateDAQFiles( void )
 	file_header_to_write.SetNum = daq_run_set_number;
 	file_header_to_write.TempCorrectionSetNum = 1;		//will have to get this from somewhere
 	file_header_to_write.EventIDFF = 0xFF;
-
-	//gather the footer information
-	file_footer_to_write.eventID1 = 0xFF;
-	file_footer_to_write.eventID2 = 0xFF;
-	file_footer_to_write.eventID3 = 0xFF;
-	file_footer_to_write.eventID4 = 0x45;
-	file_footer_to_write.eventID5 = 0x4E;
-	file_footer_to_write.eventID6 = 0x44;
 
 	//open the run folder so we can create the files there
 	ffs_res = f_mkdir(current_run_folder);
@@ -365,7 +344,15 @@ int CreateDAQFiles( void )
 				ffs_res = f_write(DAQ_file, &file_header_to_write, sizeof(file_header_to_write), &NumBytesWr);
 				if(ffs_res == FR_OK && NumBytesWr == sizeof(file_header_to_write))
 				{
-					if(iter < 2)
+					if(iter == 1)	//this is for CPS files only
+					{
+						ffs_res = f_write(DAQ_file, &blank_file_secondary_header_to_write, sizeof(blank_file_secondary_header_to_write), &NumBytesWr);
+						if(ffs_res == FR_OK)
+							status = CMD_SUCCESS;
+						else
+							status = CMD_FAILURE;
+					}
+					if(iter < 2)	//sync the EVT, CPS files
 					{
 						ffs_res = f_sync(DAQ_file);
 						if(ffs_res == FR_OK)
@@ -490,17 +477,15 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	int dram_ceiling = 0xA004000;	//where it ends			//167,788,544
 	int m_run_time = time_out * 60;	//multiply minutes by 60 to get seconds
 	int m_write_header = 1;		//write a file header the first time we use a file
-	int m_digi_temp = 0;		//get digital board temperature for footer
 	XTime m_run_start;			//timing variable
 	XTime m_run_current_time;	//timing variable
 	XTime_GetTime(&m_run_start);//record the "start" time to base a time out on
-	unsigned int m_first_event_FPGA_time = 0;
-	unsigned long long m_spacecraft_real_time = 0;
-	unsigned long long m_spacecraft_real_time_end = 0;
-	unsigned char m_write_times_into_header[SIZEOF_HEADER_TIMES] = "";
+	char m_write_blank_space_buff[16384] = "";
 	unsigned int bytes_written = 0;
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE * evts_array = NULL;
+
+	memset(&m_write_blank_space_buff, 186, 16384);
 
 	ResetEVTsBuffer();
 	ResetEVTsIterator();
@@ -575,10 +560,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				if(m_EVT_file.fsize >= SIZE_1_MIB)
 				{
 					//prepare and write in footer for file here
-					m_spacecraft_real_time = GetRealTimeParam();
-					memcpy(&(file_footer_to_write.spacecraftRealTime[0]), &m_spacecraft_real_time, sizeof(m_spacecraft_real_time));
-					m_digi_temp = GetDigiTemp();
-					file_footer_to_write.digiTemp = (unsigned char)m_digi_temp;
+					file_footer_to_write.digiTemp = GetDigiTemp();
+//					m_spacecraft_real_time = GetRealTimeParam();
+//					memcpy(&(file_footer_to_write.spacecraftRealTime[0]), &m_spacecraft_real_time, sizeof(m_spacecraft_real_time));
+//					m_digi_temp = GetDigiTemp();
+//					file_footer_to_write.digiTemp = (unsigned char)m_digi_temp;
 					f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 					if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 						status = CMD_FAILURE;
@@ -596,13 +582,18 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 						f_res = f_lseek(&m_EVT_file, 0);
 						if(f_res != FR_OK)
 							status = CMD_FAILURE;
-
+						//write file header
 						f_res = f_write(&m_EVT_file, &file_header_to_write, sizeof(file_header_to_write), &bytes_written);
 						if(f_res != FR_OK || bytes_written != sizeof(file_header_to_write))
 							status = CMD_FAILURE;
-
-						//update any more data structures?
-						m_write_header = 1;
+						//write secondary header
+						f_res = f_write(&m_EVT_file, &file_secondary_header_to_write, sizeof(file_secondary_header_to_write), &bytes_written);
+						if(f_res != FR_OK || bytes_written != sizeof(file_secondary_header_to_write))
+							status = CMD_FAILURE;
+						//write blank bytes up to Cluster edge (16384
+						f_res = f_write(&m_EVT_file, m_write_blank_space_buff, 16384 - file_size(&m_EVT_file), &bytes_written);
+						if(f_res != FR_OK || bytes_written != sizeof(file_secondary_header_to_write))
+							status = CMD_FAILURE;
 					}
 					else
 						status = CMD_FAILURE;
@@ -612,25 +603,50 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				if(m_write_header == 1)
 				{
 					//get the first event and the real time
-					m_first_event_FPGA_time = GetFirstEventTime();
-					m_spacecraft_real_time = GetRealTimeParam();
-					memcpy(&(m_write_times_into_header[0]), &m_spacecraft_real_time, sizeof(m_spacecraft_real_time));
-					m_write_times_into_header[8] = 0xFF;
-					memcpy(&(m_write_times_into_header[9]), &m_first_event_FPGA_time, sizeof(m_first_event_FPGA_time));
-					m_write_times_into_header[13] = 0xFF;
-					f_res = f_write(&m_EVT_file, m_write_times_into_header, SIZEOF_HEADER_TIMES, &bytes_written);
-					if(f_res != FR_OK || bytes_written != SIZEOF_HEADER_TIMES)
+					file_secondary_header_to_write.RealTime = GetRealTimeParam();
+					file_secondary_header_to_write.EventID1 = 0xFF;
+					file_secondary_header_to_write.EventID2 = 0xEE;
+					file_secondary_header_to_write.EventID3 = 0xDD;
+					file_secondary_header_to_write.EventID4 = 0xCC;
+					file_secondary_header_to_write.FirstEventTime = GetFirstEventTime();
+					file_secondary_header_to_write.EventID5 = 0xCC;
+					file_secondary_header_to_write.EventID6 = 0xDD;
+					file_secondary_header_to_write.EventID7 = 0xEE;
+					file_secondary_header_to_write.EventID8 = 0xFF;
+					//write the secondary header into the EVT file
+					f_res = f_write(&m_EVT_file, &file_secondary_header_to_write, sizeof(file_secondary_header_to_write), &bytes_written);
+					if(f_res != FR_OK || bytes_written != sizeof(file_secondary_header_to_write))
 					{
 						//TODO: handle error checking the write
 						xil_printf("10 error writing DAQ\n");
 					}
+					//write the secondary header into the CPS file
+					f_res = f_lseek(&m_CPS_file, sizeof(file_header_to_write));	//want to move to the reserved space we allocated before the run
+					//error check if we want
+					f_res = f_write(&m_CPS_file, &file_secondary_header_to_write, sizeof(file_secondary_header_to_write), &bytes_written);
+					if(f_res != FR_OK || bytes_written != sizeof(file_secondary_header_to_write))
+					{
+						//TODO: handle error checking the write
+						xil_printf("10 error writing DAQ\n");
+					}
+					//forward the file pointer so we're at the top of the file again
+					f_res = f_lseek(&m_CPS_file, file_size(&m_CPS_file));
+
+					//also write the footer information that isn't going to change //this way we only do it once
+					file_footer_to_write.eventID1 = 0xFF;
+					file_footer_to_write.RealTime = GetRealTimeParam();
+					file_footer_to_write.eventID2 = 0xFF;
+					file_footer_to_write.eventID3 = 0xFF;
+					file_footer_to_write.eventID4 = 0x45;
+					file_footer_to_write.eventID5 = 0x4E;
+					file_footer_to_write.eventID6 = 0x44;
 					m_write_header = 0;	//turn off header writing
 				}
 
 				evts_array = GetEVTsBufferAddress();
 				//TODO: check that the evts_array address is not NULL
-				f_res = f_write(&m_EVT_file, evts_array, EVTS_DATA_BUFF_SIZE, &bytes_written); //write the entire events buffer
-				if(f_res != FR_OK || bytes_written != EVTS_DATA_BUFF_SIZE)
+				f_res = f_write(&m_EVT_file, evts_array, EVT_DATA_BUFF_SIZE, &bytes_written); //write the entire events buffer
+				if(f_res != FR_OK || bytes_written != EVT_DATA_BUFF_SIZE)
 				{
 					//TODO: handle error checking the write here
 					//now we need to check to make sure that there is a file open, if we get specific return values from f_write, need to check to see if we can open a file
@@ -671,11 +687,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		XTime_GetTime(&m_run_current_time);
 		if(((m_run_current_time - m_run_start)/COUNTS_PER_SECOND) >= m_run_time)
 		{
-			m_spacecraft_real_time_end = GetRealTimeParam();	//this will just write in the begin real time
-			memcpy(&(file_footer_to_write.spacecraftRealTime[0]), &m_spacecraft_real_time_end, sizeof(m_spacecraft_real_time_end));
-			m_digi_temp = GetDigiTemp();
-			file_footer_to_write.digiTemp = (unsigned char)m_digi_temp;
+			file_footer_to_write.digiTemp = GetDigiTemp();
 			f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
+			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
+				status = CMD_FAILURE;
+			f_res = f_write(&m_CPS_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
 			status = DAQ_TIME_OUT;
@@ -696,22 +712,23 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				reportFailure(Uart_PS);
 			break;
 		case BREAK_CMD:
-			m_spacecraft_real_time_end = GetRealTimeParam();	//this will just write in the begin real time
-			memcpy(&(file_footer_to_write.spacecraftRealTime[0]), &m_spacecraft_real_time_end, sizeof(m_spacecraft_real_time_end));
-			m_digi_temp = GetDigiTemp();
-			file_footer_to_write.digiTemp = (unsigned char)m_digi_temp;
+			file_footer_to_write.digiTemp = GetDigiTemp();
 			f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
+			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
+				status = CMD_FAILURE;
+			f_res = f_write(&m_CPS_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
 			status = DAQ_BREAK;
 			done = 1;
 			break;
 		case END_CMD:
-			m_spacecraft_real_time_end = GetRealTimeParam();
-			memcpy(&(file_footer_to_write.spacecraftRealTime[0]), &m_spacecraft_real_time_end, sizeof(m_spacecraft_real_time_end));
-			m_digi_temp = GetDigiTemp();
-			file_footer_to_write.digiTemp = (unsigned char)m_digi_temp;
+			file_footer_to_write.RealTime = GetRealTimeParam();
+			file_footer_to_write.digiTemp = GetDigiTemp();
 			f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
+			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
+				status = CMD_FAILURE;
+			f_res = f_write(&m_CPS_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
 			status = DAQ_END;

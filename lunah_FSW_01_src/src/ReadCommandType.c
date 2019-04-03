@@ -122,15 +122,6 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	int bytes_scanned = 0;
 	int detectorVal = 0;
 	int commandNum = 999;	//this value tells the main menu what command we read from the rs422 buffer
-
-	//TESTING
-	int valid_data = 0;	//TESTING VARIABLE
-	unsigned int data_array = 0;	//TESTING
-	int dram_addr;				//the address in the DRAM we are reading from
-	int dram_base = 0xA000000;	//where the buffer starts	//167,772,160
-	int dram_ceiling = 0xA004000;	//where it ends			//167,788,544
-	//TESTING
-
 	char commandMNSBuf[20] = "";
 	char commandBuffer[20] = "";
 	char commandBuffer2[50] = "";
@@ -505,14 +496,14 @@ float GetFloatParam( int param_num )
 	return value;
 }
 
-/* Getter to access the Real Time entered with the START_DAQ command */
-//This function accesses the real_time value which is set grabbed from the S/C
-//
-// @param	none
-//
-// @return	(long long int) returns the value assigned when the command was scanned
-//			This is a 64-bit number, so we need a large data type
-//
+/* Getter to access the Real Time entered with the START_DAQ command
+*  This function accesses the real_time value which is set grabbed from the S/C
+*
+* @param	none
+*
+* @return	(long long int) returns the value assigned when the command was scanned
+* 			This is a 64-bit number, so we need a large data type
+*/
 unsigned long long GetRealTimeParam( void )
 {
 	return realTime;
