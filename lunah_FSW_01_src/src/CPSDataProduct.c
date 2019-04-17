@@ -15,17 +15,61 @@ static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 secon
 static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
 static unsigned short m_neutrons_ellipse1;		//neutrons with PSD
 static unsigned short m_neutrons_ellipse2;		//neutrons wide cut
-static unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
+static unsigned short m_neutrons_with_PSD;		//neutrons with PSD for CPS tallies
+static unsigned short m_neutrons_wide_cut;		//neutrons within the second cut box
+static unsigned short m_neutrons_no_PSD;			//all events within an energy range, no PSD cut applied
 static unsigned short m_events_over_threshold;	//count all events which trigger the system
 
+static CPS_BOX_CUTS_STRUCT_TYPE m_cps_box_cuts;
+
 //Functions
+//TODO: remove this function once the ellipse cuts are implemented
+void CPSSetCuts( void )
+{
+	//if the set cuts value is 0, then grab defaults, otherwise user-defined values are in the struct
+	m_cps_box_cuts = *GetCPSCutVals();
+	if(m_cps_box_cuts.set_cuts == 0)
+	{
+		m_cps_box_cuts.ecut_low = CPS_ECUT_LOW;
+		m_cps_box_cuts.ecut_high = CPS_ECUT_HIGH;
+		m_cps_box_cuts.pcut_low = CPS_PCUT_LOW;
+		m_cps_box_cuts.pcut_high = CPS_PCUT_HIGH;
+		m_cps_box_cuts.ecut_wide_low = CPS_ECUT_WIDE_LOW;
+		m_cps_box_cuts.ecut_wide_high = CPS_ECUT_WIDE_HIGH;
+		m_cps_box_cuts.pcut_wide_low = CPS_PCUT_WIDE_LOW;
+		m_cps_box_cuts.pcut_wide_high = CPS_PCUT_WIDE_HIGH;
+	}
+	else if(m_cps_box_cuts.set_cuts == 1)
+	{
+		//check that none of the params are 0, if half of the cuts (normal or wide) are not set, just take the percentage
+		if(m_cps_box_cuts.ecut_low && m_cps_box_cuts.ecut_high && m_cps_box_cuts.pcut_low && m_cps_box_cuts.pcut_high)
+		{
+			m_cps_box_cuts.ecut_low = m_cps_box_cuts.ecut_wide_low * 0.8;
+			m_cps_box_cuts.ecut_high = m_cps_box_cuts.ecut_wide_high * 0.8;
+			m_cps_box_cuts.pcut_low = m_cps_box_cuts.pcut_wide_low * 0.8;
+			m_cps_box_cuts.pcut_high = m_cps_box_cuts.pcut_wide_high * 0.8;
+		}
+		else if(m_cps_box_cuts.ecut_wide_low && m_cps_box_cuts.ecut_wide_high && m_cps_box_cuts.pcut_wide_low && m_cps_box_cuts.pcut_wide_high)
+		{
+			m_cps_box_cuts.ecut_wide_low = m_cps_box_cuts.ecut_low * 1.2;
+			m_cps_box_cuts.ecut_wide_high = m_cps_box_cuts.ecut_high * 1.2;
+			m_cps_box_cuts.pcut_wide_low = m_cps_box_cuts.pcut_low * 1.2;
+			m_cps_box_cuts.pcut_wide_high = m_cps_box_cuts.pcut_high * 1.2;
+		}
+	}
+
+	return;
+}
+
+
 /*
  * Reset the counts per second data product counters and event structures for the run.
+ * Call this function before each DAQ run.
  *
  * @return	none
  *
  */
-void CPSInit()
+void CPSInit( void )
 {
 	first_FPGA_time = 0;
 	m_previous_1sec_interval_time = 0;
@@ -33,7 +77,9 @@ void CPSInit()
 	cpsEvent = cpsEmptyStruct;
 	m_neutrons_ellipse1 = 0;
 	m_neutrons_ellipse2 = 0;
-	m_events_noPSD = 0;
+	m_neutrons_with_PSD = 0;
+	m_neutrons_wide_cut = 0;
+	m_neutrons_no_PSD = 0;
 	m_events_over_threshold = 0;
 }
 
@@ -101,7 +147,7 @@ bool cpsCheckTime( unsigned int time )
  */
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 {
-	cpsEvent.event_id = 0xAA;
+	cpsEvent.event_id = 0x55;	//use the APID for CPS
 	cpsEvent.time_MSB = (unsigned char)(m_previous_1sec_interval_time >> 24);
 	cpsEvent.time_LSB1 = (unsigned char)(m_previous_1sec_interval_time >> 16);
 	cpsEvent.time_LSB2 = (unsigned char)(m_previous_1sec_interval_time >> 8);
@@ -112,17 +158,77 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 }
 
 
-void CPSUpdateTallies(double energy, double psd)
-{
-	//This will be where to place the neutron cutting algorithm. This function call will increment the
-	// values above which are static. They keep track of the events which are within the neutron cuts.
-	//this will check the current event and see if it passes any of the cuts
-	/*
-	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD
-	 * unsigned short m_neutrons_ellipse2;		//neutrons wide cut
-	 * unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
-	 * unsigned short m_events_over_threshold;	//count all events which trigger the system
-	 */
+//	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD
+//	 * unsigned short m_neutrons_ellipse2;		//neutrons wide cut
+//	 * unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
+//	 * unsigned short m_events_over_threshold;	//count all events which trigger the system
 
-	return;
+/*
+ * Access function to update the tallies that we add each time we process an event. We store the
+ *  various neutron totals in this module and use this function to update them. This function has access
+ *  to the static neutron totals in this module and adds to them after running the input energy and psd
+ *  value through the neutron cut values.
+ * The neutron cut values are set and changed via the MNS_NGATES command.
+ *
+ * NB: The NGATES command is currently (4/12/2019) not parametrized for the neutron cuts this function
+ * 		cares about. This function is currently utilizing the old/simple neutron Box cutting. The wide
+ * 		cut box is currently hard-coded to be 20% larger in each dimension than the first cuts.
+ *
+ * NB: This function has specially defined values in the header for this file. Change those values to
+ * 		affect these cuts. Once we implement the elliptical cuts, we'll get rid of those values.
+ *
+ *
+ * @param	(float) value for the energy calculated from the Full Integral from the event
+ * @param	(float) value for the PSD calculated from the short and long integrals from the event
+ *
+ * @return	(int) returns a 1 if there was a hit in the regular or wide neutron cut boxes, returns 0 otherwise
+ */
+int CPSUpdateTallies(double energy, double psd)
+{
+	int m_neutron_detected = 0;
+	//Will eventually need to include the SetInstrumentParams.h so we can access the configuration buffer
+	//is the event greater than 10 MeV?
+	if(energy > TWODH_ENERGY_MAX)	//this will eventually be something like ConfigBuff.parameter
+	{
+		m_events_over_threshold++;
+		cpsEvent.high_energy_events_MSB = (unsigned char)(m_events_over_threshold >> 8);
+		cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
+	}
+
+	//does the event fit into the no PSD cut?
+	if(energy >= m_cps_box_cuts.ecut_low)
+		if(energy <= m_cps_box_cuts.ecut_high)
+		{
+			m_neutrons_no_PSD++;
+			cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
+			cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
+		}
+
+	//check for neutrons in the primary cuts
+	if(energy >= m_cps_box_cuts.ecut_low)
+		if(energy <= m_cps_box_cuts.ecut_high)
+			if(psd >= m_cps_box_cuts.pcut_low)
+				if(psd <= m_cps_box_cuts.pcut_high)
+				{
+					m_neutrons_with_PSD++;
+					cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_with_PSD >> 8);
+					cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_with_PSD);
+					m_neutron_detected = 1;
+				}
+
+	//check for neutrons in the secondary cuts
+	//this number should be larger than the neutrons w/psd cut because these cuts are wider, but
+	//will still catch all the neutrons from above
+	if(energy >= m_cps_box_cuts.ecut_wide_low)
+		if(energy <= m_cps_box_cuts.ecut_wide_high)
+			if(psd >= m_cps_box_cuts.pcut_wide_low)
+				if(psd <= m_cps_box_cuts.pcut_wide_high)
+				{
+					m_neutrons_wide_cut++;
+					cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_wide_cut >> 8);
+					cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_wide_cut);
+					m_neutron_detected = 1;
+				}
+
+	return m_neutron_detected;
 }

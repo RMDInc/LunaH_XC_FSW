@@ -74,6 +74,7 @@
 //Command SUCCESS/FAILURE values
 #define CMD_FAILURE		0	// 0 == FALSE
 #define CMD_SUCCESS		1	// non-zero == TRUE
+#define CMD_ERROR		2	//
 
 //APID Packet Types
 #define APID_CMD_SUCC	0
@@ -94,22 +95,24 @@
 #define GF_INTER_PACKET 2
 #define GF_UNSEG_PACKET 3
 
-//MNS DATA PRODUCT TYPES
-#define DATA_TYPE_EVT 	0
-#define DATA_TYPE_WAV	1
-#define DATA_TYPE_CPS	2
-#define DATA_TYPE_2DH_1	3
-#define DATA_TYPE_2DH_2	4
-#define DATA_TYPE_2DH_3	5
-#define DATA_TYPE_2DH_4	6
-#define DATA_TYPE_LOG	7
-#define DATA_TYPE_CFG	8
+//MNS DATA PRODUCT TYPES //UPDATED 4/10/19
+#define DATA_TYPE_CPS	5
+#define DATA_TYPE_WAV	6
+#define DATA_TYPE_EVT 	7
+#define DATA_TYPE_2DH_1	8
+#define DATA_TYPE_LOG	9
+#define DATA_TYPE_CFG	10
+//the above are made to match the APID packet types
+//the below are to make it easier to sort 2dh types
+#define DATA_TYPE_2DH_2	11
+#define DATA_TYPE_2DH_3	12
+#define DATA_TYPE_2DH_4 13
 
 //MNS DATA PACKET HEADER SIZES //Helps with calculating packet size //includes secondary header + data header
 #define PKT_HEADER_EVT	71
 #define PKT_HEADER_WAV	71
 #define PKT_HEADER_CPS	71
-#define PKT_HEADER_2DH	59
+#define PKT_HEADER_2DH	75	//TODO fix this, we are double counting the 2DH out-of-range values
 #define PKT_HEADER_LOG	1
 #define PKT_HEADER_CFG	1
 
@@ -117,7 +120,7 @@
 #define DATA_BYTES_EVT	1952
 #define DATA_BYTES_WAV	1950
 #define DATA_BYTES_CPS	1946
-#define DATA_BYTES_2DH	1967
+#define DATA_BYTES_2DH	1967	//TODO fix this, we are double counting the 2DH out-of-range values
 #define DATA_BYTES_LOG	1963
 #define DATA_BYTES_CFG	187
 
@@ -126,7 +129,7 @@
 #define PKT_SIZE_WAV	2026
 #define PKT_SIZE_CPS	2020
 #define PKT_SIZE_2DH	2029
-//#define PKT_SIZE_LOG	2029	//TODO: define this
+#define PKT_SIZE_LOG	2029	//TODO: define this
 #define PKT_SIZE_CFG	191
 
 //DAQ FINAL STATE

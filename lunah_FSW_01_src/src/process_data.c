@@ -56,13 +56,13 @@ unsigned int GetFirstEventTime( void )
  */
 int ProcessData( unsigned int * data_raw )
 {
-	bool valid_event = FALSE;
+	bool valid_event = FALSE;	//Unused (4/8/2019) //could use this to check for reset request //otherwise probably delete
 	int iter = 0;
 	int m_ret = 0;	//for 2DH tallies
 	int m_events_processed = 0;
+	int m_neutron_detected = 0;
 	unsigned int m_x_bin_number = 0;
 	unsigned int m_y_bin_number = 0;
-	unsigned int m_invalid_events = 0;
 	unsigned int num_bytes_written = 0;
 	unsigned int m_total_events_holder = 0;
 	unsigned int m_pmt_ID_holder = 0;
@@ -85,10 +85,17 @@ int ProcessData( unsigned int * data_raw )
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE event_holder = evtEmptyStruct;
 
-//	unsigned int val1 = 0;	//TEST
-//	unsigned int val2 = 0;	//TEST
-//	unsigned int val3 = 0;	//TEST
-//	unsigned int val4 = 0;	//TEST
+	unsigned int val1 = 0;	//TEST
+	unsigned int val2 = 0;	//TEST
+	unsigned int val3 = 0;	//TEST
+	unsigned int val4 = 0;	//TEST
+	unsigned int val5 = 0;	//TEST
+	unsigned int val6 = 0;	//TEST
+	unsigned int val7 = 0;	//TEST
+	unsigned int val8 = 0;	//TEST
+	unsigned int val9 = 0;	//TEST
+	unsigned int val10 = 0;	//TEST
+
 
 	//get the integration times
 	m_baseline_int = (double)GetBaselineInt();
@@ -107,10 +114,10 @@ int ProcessData( unsigned int * data_raw )
 	{
 		event_holder = evtEmptyStruct;	//reset event structure
 
-//		val1 = data_raw[iter];	//TEST
-//		val2 = data_raw[iter+1];	//TEST
-//		val3 = data_raw[iter+8];	//TEST
-//		val4 = data_raw[iter+9];	//TEST
+		val1 = data_raw[iter];	//TEST
+		val2 = data_raw[iter+1];	//TEST
+		val3 = data_raw[iter+8];	//TEST
+		val4 = data_raw[iter+9];	//TEST
 
 		switch(data_raw[iter])
 		{
@@ -119,7 +126,7 @@ int ProcessData( unsigned int * data_raw )
 			{
 				iter++;
 			}
-			if(iter >= (DATA_BUFFER_SIZE - 7))	//if we are at the top of the buffer, need to break out
+			if(iter >= (DATA_BUFFER_SIZE - 7))	//if we are at the top of the buffer, break out to avoid bad indexing
 				break;
 			if(data_raw[iter+1] >= cpsGetCurrentTime())	//time must be the same or increasing
 			{
@@ -218,8 +225,8 @@ int ProcessData( unsigned int * data_raw )
 							iter += 8;
 							m_events_processed++;
 
-//							CPSUpdateTallies(energy, psd);
-							IncNeutronTotal(1);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
+							m_neutron_detected = CPSUpdateTallies(energy, psd);
+							IncNeutronTotal(m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
 						}
 						else
 							valid_event = FALSE;
@@ -232,15 +239,30 @@ int ProcessData( unsigned int * data_raw )
 			}
 			else
 				valid_event = FALSE;
+
+			if(valid_event == FALSE)
+				iter++;
 			break;
 		case 2147594759:	//this is a false event
 			if(iter >= DATA_BUFFER_SIZE - 9 )	//meant to protect from writing above array indices...
 			{
 				iter++;
-				break;
+				break;	//skip out early
 			}
 			if( data_raw[iter + 1] == 2147594759 && data_raw[iter + 9] == 111111)
 			{
+
+				val1 = data_raw[iter];		//TEST
+				val2 = data_raw[iter+1];	//TEST
+				val3 = data_raw[iter+2];	//TEST
+				val4 = data_raw[iter+3];	//TEST
+				val5 = data_raw[iter+4];	//TEST
+				val6 = data_raw[iter+5];	//TEST
+				val7 = data_raw[iter+6];	//TEST
+				val8 = data_raw[iter+7];	//TEST
+				val9 = data_raw[iter+8];	//TEST
+				val10 = data_raw[iter+9];	//TEST
+
 				cpsSetFirstEventTime(data_raw[iter + 2]);
 				m_first_event_time_FPGA = data_raw[iter + 2];
 
@@ -255,14 +277,11 @@ int ProcessData( unsigned int * data_raw )
 
 				event_buffer[evt_iter] = event_holder;
 				evt_iter++;
-				iter += 8;
+				iter += 8; //shouldn't this be + 9?
 				m_events_processed++;
 			}
 			else
-			{
 				iter++;
-				break;	//not a valid first event
-			}
 
 			break;
 		default:
@@ -272,13 +291,6 @@ int ProcessData( unsigned int * data_raw )
 			iter++;	//move past it, at least, we can sync back up by finding the 111111 again
 			break;
 		}//END OF SWITCH ON RAW DATA
-
-		//how many events/values are skipped in the buffer?
-		if(valid_event == FALSE)
-		{
-			m_invalid_events++;
-			iter++;
-		}
 
 		if(iter > (DATA_BUFFER_SIZE - EVT_EVENT_SIZE))	//will read past the array if iter goes above
 			break;

@@ -17,7 +17,7 @@ static XTime LocalTimeCurrent = 0;
 static int analog_board_temp = 25;
 static int digital_board_temp = 1;
 static int modu_board_temp = 25;
-static int iNeutronTotal = 50;
+static int iNeutronTotal = 0;
 static int check_temp_sensor = 0;
 
 /*
@@ -130,7 +130,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
 //			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
-//			check_temp_sensor++;
+			check_temp_sensor++;
 //			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
 //			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
 //			a = i2c_Recv_Buffer[0]<< 5;
@@ -274,37 +274,46 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, 
 	switch(packet_type)
 	{
 	case APID_CMD_SUCC:
-		SOH_buff[5] = 0x00;	//APID for SOH
+		SOH_buff[5] = 0x00;	//APID for Command Success
 		break;
 	case APID_CMD_FAIL:
-		SOH_buff[5] = 0x11;	//APID for temp packet
+		SOH_buff[5] = 0x11;	//APID for Command Failure
 		break;
 	case APID_SOH:
 		SOH_buff[5] = 0x22;	//APID for SOH
 		break;
 	case APID_LS_FILES:
-		SOH_buff[5] = 0x33;	//APID for SOH
+		SOH_buff[5] = 0x33;	//APID for LS Files
 		break;
 	case APID_TEMP:
-		SOH_buff[5] = 0x44;	//APID for SOH
+		SOH_buff[5] = 0x44;	//APID for Temperature
 		break;
 	case APID_MNS_CPS:
-		SOH_buff[5] = 0x55;	//APID for SOH
+		SOH_buff[5] = 0x55;	//APID for Counts per second
 		break;
 	case APID_MNS_WAV:
-		SOH_buff[5] = 0x66;	//APID for SOH
+		SOH_buff[5] = 0x66;	//APID for Waveforms
 		break;
 	case APID_MNS_EVT:
-		SOH_buff[5] = 0x77;	//APID for SOH
+		SOH_buff[5] = 0x77;	//APID for Event-by-Event
 		break;
 	case APID_MNS_2DH:
-		SOH_buff[5] = 0x88;	//APID for SOH
+		SOH_buff[5] = 0x88;	//APID for 2D Histogram
 		break;
 	case APID_LOG_FILE:
-		SOH_buff[5] = 0x99;	//APID for SOH
+		SOH_buff[5] = 0x99;	//APID for Log
 		break;
 	case APID_CONFIG:
-		SOH_buff[5] = 0xAA;	//APID for SOH
+		SOH_buff[5] = 0xAA;	//APID for Configuration
+		break;
+	case DATA_TYPE_2DH_2:
+		SOH_buff[5] = 0x88;	//APID for 2D Histogram
+		break;
+	case DATA_TYPE_2DH_3:
+		SOH_buff[5] = 0x88;	//APID for 2D Histogram
+		break;
+	case DATA_TYPE_2DH_4:
+		SOH_buff[5] = 0x88;	//APID for 2D Histogram
 		break;
 	default:
 		SOH_buff[5] = 0x22; //default to SOH just in case?
@@ -363,7 +372,7 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 			//now we want to add in the new filename that is going to be used
 			//TODO: report the folder instead of the filename (the run number is in the folder name now)
 			i_sprintf_ret = snprintf((char *)(&cmdSuccess[11 + i_sprintf_ret]), 100, "%s", GetFolderName());
-			if(i_sprintf_ret == GetFileNameSize())
+			if(i_sprintf_ret == GetFolderNameSize())
 			{
 				packet_size += i_sprintf_ret;
 				status = CMD_SUCCESS;
@@ -493,18 +502,20 @@ void CalculateChecksums(unsigned char * packet_array)
 /*
  * Transfers any one file that is on the SD card. Will return command FAILURE if the file does not exist.
  *
- * @param	Uart_PS	The instance of the UART so we can push the packet to the bus
- * @param 	(int)id_num 	The ID number for the folder the user wants to access
- * @param	(int)run_num	The Run number for the folder the user wants to access
+ * @param	(XUartPS)The instance of the UART so we can push packets to the bus
+ * @param	(char *)pointer to the receive buffer to check for a BREAK
  * @param	(int)file_type	The macro for the type of file to TX back, see lunah_defines.h for the codes
  * 							 There are 9 file types:
  * 							 DATA_TYPE_EVT, DATA_TYPE_CPS, DATA_TYPE_WAV,
  * 							 DATA_TYPE_2DH_1, DATA_TYPE_2DH_2, DATA_TYPE_2DH_3, DATA_TYPE_2DH_4,
- * 							 DATA_TYPE_LOG, DATA_TYPE_CFG,
- *
+ * 							 DATA_TYPE_LOG, DATA_TYPE_CFG
+ * @param 	(int)id_num 	The ID number for the folder the user wants to access
+ * @param	(int)run_num	The Run number for the folder the user wants to access *
  * @param	(int)set_num_low	The set number to TX, if multiple files are requested by the user, the
  * 								 calling function will call this function multiple times with a different
  * 								 set number each time.
+ *
+ * @return	(int) returns the status of the transfer, 0 = good, 1 = file DNE, 2+ = other problems
  *
  * NOTES: For this function, the file type is the important parameter because it tells the function how to
  * 			interpret the parameters which are given.
@@ -529,6 +540,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	int file_TX_add_padding = 0;		//flag to add padding bytes to an outgoing packet
 	int file_TX_group_flags = 0;
 	int file_TX_sequence_count = 0;
+	int file_TX_apid = 0;
 	int m_loop_var = 1;					//0 = false; 1 = true
 	int bytes_to_read = 0;				//number of bytes to read from data file to put into packet data bytes
 	unsigned int bytes_written;
@@ -733,18 +745,53 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_data_bytes_size = DATA_BYTES_EVT;
 			file_TX_packet_size = PKT_SIZE_EVT;
 			file_TX_packet_header_size = PKT_HEADER_EVT;
+			file_TX_apid = 0x77;
+			break;
+		case DATA_TYPE_WAV:
+			file_TX_data_bytes_size = DATA_BYTES_WAV;
+			file_TX_packet_size = PKT_SIZE_WAV;
+			file_TX_packet_header_size = PKT_HEADER_WAV;
+			file_TX_apid = 0x66;
 			break;
 		case DATA_TYPE_CPS:
-
+			file_TX_data_bytes_size = DATA_BYTES_CPS;
+			file_TX_packet_size = PKT_SIZE_CPS;
+			file_TX_packet_header_size = PKT_HEADER_CPS;
+			file_TX_apid = 0x55;
+			break;
+		case DATA_TYPE_2DH_1:
+			/* Falls through to case 2DH_2 */
+		case DATA_TYPE_2DH_2:
+			/* Falls through to case 2DH_3 */
+		case DATA_TYPE_2DH_3:
+			/* Falls through to case 2DH_4 */
+		case DATA_TYPE_2DH_4:
+			file_TX_data_bytes_size = DATA_BYTES_2DH;
+			file_TX_packet_size = PKT_SIZE_2DH;
+			file_TX_packet_header_size = PKT_HEADER_2DH;
+			file_TX_apid = 0x88;
+			break;
+		case DATA_TYPE_LOG:
+			//can't do these yet
+			file_TX_data_bytes_size = DATA_BYTES_LOG;
+			file_TX_packet_size = PKT_SIZE_LOG;
+			file_TX_packet_header_size = PKT_HEADER_LOG;
+			file_TX_apid = 0x99;
+			break;
+		case DATA_TYPE_CFG:
+			file_TX_data_bytes_size = DATA_BYTES_CFG;
+			file_TX_packet_size = PKT_SIZE_CFG;
+			file_TX_packet_header_size = PKT_HEADER_CFG;
+			file_TX_apid = 0xAA;
 			break;
 		default:
 			//how did we get here if the file type is wrong?
 			break;
 		}
-		//assume we've read all the way through the data file header, 16384 bytes
-		if(file_TX_size >= DATA_BYTES_EVT)	//replace with file_TX_data_bytes_size
+
+		if(file_TX_size > file_TX_data_bytes_size)
 		{
-			bytes_to_read = DATA_BYTES_EVT;	//replace with file_TX_data_bytes_size
+			bytes_to_read = file_TX_data_bytes_size;
 			file_TX_add_padding = 0;
 			if(file_TX_sequence_count == 0)
 				file_TX_group_flags = 1;	//first packet
@@ -760,18 +807,19 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			else
 				file_TX_group_flags = 2;	//last packet
 		}
+		//have to match up APIDs (real value) with the APID codes in lunah defines
 
-		PutCCSDSHeader(packet_array, data_file_header.FileTypeAPID, file_TX_group_flags, file_TX_sequence_count, PKT_SIZE_EVT);	//replace with file_TX_packet_size
+		PutCCSDSHeader(packet_array, data_file_header.FileTypeAPID, file_TX_group_flags, file_TX_sequence_count, file_TX_packet_size);
 		//read in the data bytes
-		f_res = f_read(&TXFile, &(packet_array[CCSDS_HEADER_PRIM + PKT_HEADER_EVT]), bytes_to_read, &bytes_read);	//replace PKT with file_TX_packet_size
+		f_res = f_read(&TXFile, &(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), bytes_to_read, &bytes_read);
 		if(f_res != FR_OK)
 			status = 2;
 		else
-			file_TX_size -= bytes_to_read;
+			file_TX_size -= bytes_to_read; //TODO: do we want to subtract this number or bytes_read the actual numbers of bytes read?
 		//add padding bytes, if necessary
 		if(file_TX_add_padding == 1)
 		{
-			memset(&(packet_array[CCSDS_HEADER_PRIM + PKT_HEADER_EVT + bytes_read]), 0x77, PKT_SIZE_EVT + CCSDS_HEADER_FULL - CHECKSUM_SIZE);	//replace PKT with file_TX_packet_size
+			memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + bytes_read]), file_TX_apid, file_TX_packet_size - bytes_read);
 			file_TX_add_padding = 0;	//reset
 		}
 		//calculate the checksums for the packet
@@ -780,7 +828,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		//send the packet
 		sent = 0;
 		bytes_sent = 0;
-		file_TX_packet_size = PKT_SIZE_EVT + CCSDS_HEADER_FULL;	//the full packet size in bytes //replace with file_TX_packet_size += header_full
+		file_TX_packet_size += CCSDS_HEADER_FULL;	//the full packet size in bytes
 		while(sent < file_TX_packet_size)
 		{
 			bytes_sent = XUartPs_Send(&Uart_PS, &(packet_array[sent]), file_TX_packet_size - sent);
@@ -799,7 +847,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			memset(&(packet_array[6]), '\0', 2);	//reset group flags, sequence count
 			memset(&(packet_array[10]), '\0', 1);	//reset secondary header (reset request bits)
 			if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_WAV || file_type == DATA_TYPE_CPS)
-				memset(&(packet_array[81]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - PKT_HEADER_EVT);
+				memset(&(packet_array[81]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
 			else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
 				memset(&(packet_array[85]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - PKT_HEADER_2DH);
 			else if(file_type == DATA_TYPE_LOG)

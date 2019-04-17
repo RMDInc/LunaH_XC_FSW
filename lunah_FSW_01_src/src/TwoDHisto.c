@@ -53,6 +53,7 @@ int Save2DHToSD( int pmt_ID )
 			xil_printf("3 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
+		break;
 	case 2:
 		m_2DH_holder = &m_2DH_pmt2;
 		filename_pointer = GetFileName( DATA_TYPE_2DH_2 );
@@ -60,6 +61,7 @@ int Save2DHToSD( int pmt_ID )
 			xil_printf("4 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
+		break;
 	case 3:
 		m_2DH_holder = &m_2DH_pmt3;
 		filename_pointer = GetFileName( DATA_TYPE_2DH_3 );
@@ -67,6 +69,7 @@ int Save2DHToSD( int pmt_ID )
 			xil_printf("5 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
+		break;
 	case 4:
 		m_2DH_holder = &m_2DH_pmt4;
 		filename_pointer = GetFileName( DATA_TYPE_2DH_4 );
@@ -74,6 +77,7 @@ int Save2DHToSD( int pmt_ID )
 			xil_printf("6 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
+		break;
 	default:
 		break;
 	}
@@ -82,6 +86,12 @@ int Save2DHToSD( int pmt_ID )
 	if(f_res != FR_OK)
 	{
 		xil_printf("1 open file fail 2dh\n");
+		status = CMD_FAILURE;
+	}
+	f_res = f_lseek(&save2DH, file_size(&save2DH));
+	if(f_res != FR_OK)
+	{
+		xil_printf("4 lseek fail 2dh\n");
 		status = CMD_FAILURE;
 	}
 	f_res = f_write(&save2DH, m_2DH_holder, sizeof(unsigned short) * TWODH_X_BINS * TWODH_Y_BINS, &numBytesWritten);	//TEST LINE

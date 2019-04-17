@@ -1,0 +1,35 @@
+; don't show the macro window
+show -1
+;setecho 0
+; hide TT
+showtt 0
+
+flushrecv
+
+logopen 'C:\Users\gstoddard\Desktop\TX_test_94_3.bin' 1 0
+
+setdebug 3
+messagebox "Press OK to transfer CPS file." "Detector 1"
+
+pause 1
+sendln 'MNS_TX_0_5_94_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer EVT file." "Detector 1"
+
+pause 1
+sendln 'MNS_TX_0_7_94_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer 2DH file." "Detector 1"
+
+pause 1
+sendln 'MNS_TX_0_8_94_1_0_0'
+pause 1
+ 
+messagebox "Press OK when the transfer has finished." "Detector 1"
+setdebug 0
+logclose
+
+flushrecv
+end

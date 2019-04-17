@@ -18,6 +18,15 @@ static int m_short_integration_samples;
 static int m_long_integration_samples;
 static int m_full_integration_samples;
 
+//Box neutron cut parameters (these must be updated each time the system power cycles, they are not tracked)
+//TODO: remove these when moving to the ellipse cuts
+static CPS_BOX_CUTS_STRUCT_TYPE cps_box_cuts;
+
+CPS_BOX_CUTS_STRUCT_TYPE * GetCPSCutVals( void )
+{
+	return &cps_box_cuts;
+}
+
 /* This can be called for two different reasons:
  *  1.) When there is no config file on the SD card, this holds the default (hard coded)
  *  system parameters which are to be used until changed by the user.
@@ -315,6 +324,31 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 
 	switch(moduleID)
 	{
+	case 0: //BOX CUTS //TODO: remove this case when updating to ellipse cuts
+		switch(ellipseNum)
+		{
+		case 0:
+			cps_box_cuts.ecut_low = scaleE;
+			cps_box_cuts.ecut_high = scaleP;
+			cps_box_cuts.pcut_low = offsetE;
+			cps_box_cuts.pcut_high = offsetP;
+			//set variable to indicate that we should use these values and not the defined ones
+			cps_box_cuts.set_cuts = 1;
+			break;
+		case 1:
+			cps_box_cuts.ecut_wide_low = scaleE;
+			cps_box_cuts.ecut_wide_high = scaleP;
+			cps_box_cuts.pcut_wide_low = offsetE;
+			cps_box_cuts.pcut_wide_high = offsetP;
+			//set variable to indicate that we should use these values and not the defined ones
+			cps_box_cuts.set_cuts = 1;
+			break;
+		default:
+			cps_box_cuts.set_cuts = 0;
+			status = CMD_FAILURE;
+			break;
+		}
+		break;
 	case 1:	//module 1
 		switch(ellipseNum)
 		{
@@ -566,14 +600,14 @@ int ApplyDAQConfig( XIicPs * Iic )
 		status = SetTriggerThreshold(ConfigBuff.TriggerThreshold);
 	if(status == CMD_SUCCESS)
 		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
-//	if(status == CMD_SUCCESS)
-//		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
-//	if(status == CMD_SUCCESS)
-//		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
-//	if(status == CMD_SUCCESS)
-//		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
-//	if(status == CMD_SUCCESS)
-//		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
+	if(status == CMD_SUCCESS)
+		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts
 	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(1, 1, ConfigBuff.ScaleFactorEnergy_1_1, ConfigBuff.ScaleFactorPSD_1_1, ConfigBuff.OffsetEnergy_1_1, ConfigBuff.OffsetPSD_1_1);

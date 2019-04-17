@@ -24,6 +24,7 @@ static int firstVal = 0;
 static int secondVal = 0;
 static int thirdVal = 0;
 static int fourthVal = 0;
+static int fifthVal = 0;
 static float ffirstVal = 0.0;
 static float fsecondVal = 0.0;
 static float fthirdVal = 0.0;
@@ -134,12 +135,12 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 		//
 		//Maybe something like scan the buffer for a '\n' and if we find one,
 		// then we can scan to that place and process the command like normal, which should shift it out.
-		//That way we can just get through what's there and try and handle stuff.
-		//for now, just delete the whole buffer, send a failure packet, and start over
-		memset(RecvBuffer, '\0', 100);
-		return INPUT_OVERFLOW;
+		commandNum = INPUT_OVERFLOW;
+		//if we set the command number then direct the buffer to the buffershift at the end, we can handle this
+		//This does skip all the input that was in the buffer which caused the overflow, though
+		//Not perfect, but should get us through this for now
 	}
-	if(iPollBufferIndex != 0)
+	if(iPollBufferIndex != 0 && commandNum != INPUT_OVERFLOW)
 	{
 		//checks whether the last character is a line ending
 		if((RecvBuffer[iPollBufferIndex - 1] == '\n') || (RecvBuffer[iPollBufferIndex - 1] == '\r'))
@@ -224,9 +225,9 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "TX"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, m_filename_buff);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal, &fourthVal, &fifthVal);
 
-					if(ret != 2)
+					if(ret != 6)
 						commandNum = -1;
 					else
 						commandNum = TX_CMD;
@@ -334,15 +335,15 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					{
 						if(detectorVal == MNS_DETECTOR_NUM)
 						{
-							Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
-							usleep(1);
 							ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to
 							usleep(1);
 							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module //write false event
 							usleep(1);
 							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable capture module
 							usleep(1);
-							Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC //Begin collecting data
+							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module //Begin collecting data
+							usleep(1);
+							Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 						}
 						commandNum = START_CMD;
 					}
@@ -444,6 +445,10 @@ int GetIntParam( int param_num )
 	case 4:
 		//get the first integer parameter
 		value = fourthVal;
+		break;
+	case 5:
+		//get the fifth integer parameter
+		value = fifthVal;
 		break;
 	default:
 		//if the param_num was weird

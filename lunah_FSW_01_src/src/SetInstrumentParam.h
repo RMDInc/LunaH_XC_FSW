@@ -19,6 +19,22 @@
 #include "lunah_utils.h"
 #include "LI2C_Interface.h"
 
+//TODO: remove when we implement ellipse cuts
+#include "CPSDataProduct.h"
+//TODO: remove this struct when moving to the ellipse cuts
+typedef struct {
+	int set_cuts;
+	double ecut_low;
+	double ecut_high;
+	double pcut_low;
+	double pcut_high;
+	double ecut_wide_low;
+	double ecut_wide_high;
+	double pcut_wide_low;
+	double pcut_wide_high;
+}CPS_BOX_CUTS_STRUCT_TYPE;
+
+
 /*
  * Mini-NS Configuration Parameter Structure
  * This is the collection of all of the Mini-NS system parameters.
@@ -32,6 +48,8 @@
  * See the Mini-NS ICD for a breakdown of these parameters and how to change them.
  * Current ICD version: 9.3.0
  *
+ * Size = 172 bytes (4/8/19)
+ * No padding bytes (4/8/19)
  */
 typedef struct {
 	float ECalSlope;
@@ -77,10 +95,15 @@ typedef struct {
 } CONFIG_STRUCT_TYPE;
 
 /*
-* We only want to use this here for now, so hide it from the user
 * This is a struct which includes the information from the config buffer above
 * plus a few extra pieces that need to go into headers.
-* This data structure is 188 bytes in size
+*
+* NOTE: The file type APID is the INTERNAL number for the file type
+* 		Thus, for file type CPS, we put a 5 as that char, which corresponds
+* 		 to APID_MNS_CPS and DATA_TYPE_CPS
+*
+* Size = 188 bytes (4/8/19)
+* No padding bytes (4/8/19)
 */
 typedef struct{
 	CONFIG_STRUCT_TYPE configBuff;	//43 4-byte values
@@ -89,10 +112,16 @@ typedef struct{
 	unsigned int SetNum;
 	unsigned char FileTypeAPID;
 	unsigned char TempCorrectionSetNum;
-	unsigned char EventIDFF;
-	//padding byte added by compiler
+	unsigned char EventID1;
+	unsigned char EventID2;
 }DATA_FILE_HEADER_TYPE;
 
+/*
+ * Secondary file header for EVT, CPS data products
+ *
+ * Size = 24 bytes
+ * 4 padding bytes at end, noted below (4/8/19)
+ */
 typedef struct{
 	unsigned long long RealTime;
 	unsigned char EventID1;
@@ -104,22 +133,39 @@ typedef struct{
 	unsigned char EventID6;
 	unsigned char EventID7;
 	unsigned char EventID8;
-	//probably padding bytes
+	//4 padding bytes
 }DATA_FILE_SECONDARY_HEADER_TYPE;	//currently 24 bytes, see p47
 
-
+/*
+ * Footer for EVT, CPS data products
+ *
+ * Size = 32 bytes (4/8/19)
+ * 8 padding bytes, noted below (4/8/19)
+ */
 typedef struct{
 	unsigned char eventID1;
-	unsigned long long RealTime;
 	unsigned char eventID2;
-	int digiTemp;
 	unsigned char eventID3;
 	unsigned char eventID4;
+	//4 padding bytes
+	unsigned long long RealTime;
 	unsigned char eventID5;
 	unsigned char eventID6;
+	unsigned char eventID7;
+	unsigned char eventID8;
+	int digiTemp;
+	unsigned char eventID9;
+	unsigned char eventID10;
+	unsigned char eventID11;
+	unsigned char eventID12;
+	//4 padding bytes
 }DATA_FILE_FOOTER_TYPE;	//just make a regular struct and don't worry about the padding bytes
 
 // prototypes
+
+//TODO: remove this function when we move to ellipse cuts
+CPS_BOX_CUTS_STRUCT_TYPE * GetCPSCutVals( void );
+
 void CreateDefaultConfig( void );
 CONFIG_STRUCT_TYPE * GetConfigBuffer( void );
 int GetBaselineInt( void );

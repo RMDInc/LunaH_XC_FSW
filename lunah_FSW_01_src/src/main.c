@@ -31,8 +31,8 @@
 ******************************************************************************/
 
 /*
- * Mini-NS Flight Software, Version 5.4
- * Graham Stoddard, 3/28/2019
+ * Mini-NS Flight Software, Version 5.43
+ * Graham Stoddard, 4/17/2019
  *
  * 02-25-2019
  * Added a compiler option "m" to allow us to include math.h to be linked in so we
@@ -188,7 +188,6 @@ int main()
 	InitConfig();
 
 	// *********** Initialize Local Variables ****************//
-
 	//start timing
 	InitStartTime();
 
@@ -261,6 +260,12 @@ int main()
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
 				status = DoesFileExist();
+				if(status == CMD_ERROR)
+				{
+					//handle a non-success/failure return
+					//this means we don't have access to something
+					//TODO: handle return
+				}
 				//returns FALSE if file does NOT exist
 				//returns TRUE if file does exist
 				//we need the file to be unique, so FALSE is a positive result,
@@ -274,6 +279,12 @@ int main()
 					status = CreateDAQFiles();
 					if(status == CMD_SUCCESS)
 						break;
+					else
+					{
+						done = 1;	//we can't make the files correctly, report failure and return?
+						reportFailure(Uart_PS);
+						//TODO: may want check that we don't have any other files open
+					}
 				}
 				CheckForSOH(&Iic, Uart_PS);
 			}
@@ -362,6 +373,8 @@ int main()
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to analog board
 
+			ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to //TEST
+
 			break;
 		case WF_CMD:
 			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
@@ -448,14 +461,14 @@ int main()
 			break;
 		case DISABLE_ACT_CMD:
 			//disable the components
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
+//			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
 			//No SW check on success/failure
 			reportSuccess(Uart_PS, 0);
 			break;
 		case ENABLE_ACT_CMD:
 			//enable the active components
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+//			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 1);		//enable 5V to analog board
 			//No SW check on success/failure
 			reportSuccess(Uart_PS, 0);
@@ -463,6 +476,42 @@ int main()
 		case TX_CMD:
 			//transfer any file on the SD card
 //			status = TransferSDFile( Uart_PS, TX_CMD );
+//			TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num,  int set_num );
+			//switch on the file type
+			switch(GetIntParam(1))
+			{
+			case DATA_TYPE_EVT:
+				//the following will TX one EVT file which has the specified ID, run, and set number
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_EVT, GetIntParam(2), GetIntParam(3), GetIntParam(4));
+				break;
+			case DATA_TYPE_WAV:
+				status = 1;	//don't do this yet
+				break;
+			case DATA_TYPE_CPS:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_CPS, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for CPS
+				break;
+			case DATA_TYPE_2DH_1:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_1, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
+				break;
+			case DATA_TYPE_2DH_2:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_2, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
+				break;
+			case DATA_TYPE_2DH_3:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_3, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
+				break;
+			case DATA_TYPE_2DH_4:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_4, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
+				break;
+			case DATA_TYPE_LOG:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_LOG, 0, 0, 0);
+				break;
+			case DATA_TYPE_CFG:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_CFG, 0, 0, 0);
+				break;
+			default:
+				status = 1;	//failed to get data type
+				break;
+			}
 			if(status == 0)
 				reportSuccess(Uart_PS, 0);
 			else
@@ -631,7 +680,7 @@ int InitializeInterruptSystem(u16 deviceID) {
 //////////////////////////// Interrupt Handler////////////////////////////////
 /*
  * This function is called when the system issues an interrupt. Currently, an interrupt is
- *  issued when the DMA transfer is completed. When that happens, we need to clear a bit
+ *  issued(generated?) when the DMA transfer is completed. When that happens, we need to clear a bit
  *  which is set by the completion of that transfer so that we may acknowledge and clear
  *  the interrupt. If that does not happen, the system will hang.
  *
