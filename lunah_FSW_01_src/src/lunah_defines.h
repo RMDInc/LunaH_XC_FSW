@@ -76,6 +76,12 @@
 #define CMD_SUCCESS		1	// non-zero == TRUE
 #define CMD_ERROR		2	//
 
+//Mode Byte Values
+#define MODE_STANDBY	17
+#define MODE_LOAD		34
+#define MODE_TRANSFER	51
+#define MODE_DAQ		68
+
 //APID Packet Types
 #define APID_CMD_SUCC	0
 #define APID_CMD_FAIL	1

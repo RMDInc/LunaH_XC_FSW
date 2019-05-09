@@ -18,7 +18,7 @@
 
 #define TAB_CHAR_CODE			9
 #define NEWLINE_CHAR_CODE		10
-#define SOH_PACKET_LENGTH		29
+#define SOH_PACKET_LENGTH		31
 #define TEMP_PACKET_LENGTH		19
 
 // prototypes

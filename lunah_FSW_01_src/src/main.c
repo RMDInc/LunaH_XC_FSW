@@ -89,7 +89,7 @@ int main()
 	//Make the IIC Instance come from here and we pass it in to the functions
 	XIicPs Iic;
 
-	iic_status = IicPsInit(&Iic, IIC_DEVICE_ID_0);
+/*	iic_status = IicPsInit(&Iic, IIC_DEVICE_ID_0);
 	if(iic_status != XST_SUCCESS)
 	{
 		//handle the issue
@@ -100,7 +100,7 @@ int main()
 	{
 		//handle the issue
 		xil_printf("fix the Iic device 1\r\n");
-	}
+	} */
 
 	//*******************Receive and Process Packets **********************//
 	Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, 0);	//baseline integration time	//subtract 38 from each int
@@ -581,7 +581,7 @@ int main()
 			//set the PMT bias voltage for one or more PMTs
 			//intParam1 = PMT ID
 			//intParam2 = Bias Voltage (taps)
-			status = SetHighVoltage(&Iic, GetIntParam(1), GetIntParam(2));
+//			status = SetHighVoltage(&Iic, GetIntParam(1), GetIntParam(2));
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS, 0);

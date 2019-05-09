@@ -1,4 +1,5 @@
 /*
+
  * ReadCommandType.c
  *
  *  Created on: Jul 11, 2017
@@ -119,6 +120,10 @@ unsigned int GetLastCommandSize( void )
  */
 int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	//Variables
+//	int iter = 0;
+//	int str_flag = 0;
+//	int sync_flag = 0;
+//	int teleComm_packet_length = 0;
 	int ret = 0;
 	int bytes_scanned = 0;
 	int detectorVal = 0;
@@ -142,6 +147,46 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 	}
 	if(iPollBufferIndex != 0 && commandNum != INPUT_OVERFLOW)
 	{
+		//Testing 5/9/2019 GJS
+	/*	if(iPollBufferIndex > 5 && commandNum != INPUT_OVERFLOW)
+	 * {
+	 * //we need at least 4 bytes to safely check for a Sync marker or MNS_
+		for(iter = 0; iter < iPollBufferIndex - 4; iter++)
+		{
+			//both kinds of input will have a sync marker in front, so use that to find good input
+			if((RecvBuffer[iter] == 0x35) && (RecvBuffer[iter + 1] == 0x2E) &&(RecvBuffer[iter + 2] == 0xF8) && (RecvBuffer[iter + 3] == 0x53))
+			{
+				if(iPollBufferIndex > iter + 7)
+				{
+					if((RecvBuffer[iter + 4] == 'M') && (RecvBuffer[iter + 5] == 'N') &&(RecvBuffer[iter + 6] == 'S') && (RecvBuffer[iter + 7] == '_'))
+						str_flag = 1;
+					else if((RecvBuffer[iter + 4] == 0x12) &&(RecvBuffer[iter + 6] == 0xC0) && (RecvBuffer[iter + 7] == 0x01))
+						sync_flag = 1;
+				}
+			}
+			if(str_flag == 1 || sync_flag == 1)
+				break;
+		}
+		if(str_flag == 1)
+		{
+			//handle the Raw Bytes command, no need to validate further
+		}
+		else if(sync_flag == 1)
+		{
+			//handle the telecommand packet
+			//we have already validated byte 4, the sequence flags, and the sequence count
+			//before checking any values, make sure there are enough bytes in the buffer so we don't read bad values or past the end of the array
+			if(iPollBufferIndex >= 9)
+			{
+				teleComm_packet_length = RecvBuffer[iter + 8] + RecvBuffer[iter + 9];
+			}
+			//validate the APID is from acceptable
+
+			//validate the packet length is acceptable for that APID
+
+			//calculate the simple and Fletcher checksums and compare the values
+
+		} */
 		//checks whether the last character is a line ending
 		if((RecvBuffer[iPollBufferIndex - 1] == '\n') || (RecvBuffer[iPollBufferIndex - 1] == '\r'))
 		{

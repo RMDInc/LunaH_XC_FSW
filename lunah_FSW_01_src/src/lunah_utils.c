@@ -207,7 +207,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	switch(packet_type)
 	{
 	case READ_TMP_CMD:
-		PutCCSDSHeader(report_buff, APID_TEMP, GF_UNSEG_PACKET, 1,TEMP_PACKET_LENGTH);
+		PutCCSDSHeader(report_buff, APID_TEMP, GF_UNSEG_PACKET, 1, TEMP_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
 
 		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (TEMP_PACKET_LENGTH + CCSDS_HEADER_FULL));
@@ -227,7 +227,9 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		report_buff[32] = (unsigned char)(local_time_holder >> 16);
 		report_buff[33] = (unsigned char)(local_time_holder >> 8);
 		report_buff[34] = (unsigned char)(local_time_holder);
-		report_buff[35] = NEWLINE_CHAR_CODE;
+		report_buff[35] = TAB_CHAR_CODE;
+		report_buff[36] = MODE_STANDBY;		//this currently only prints that the detector is in standby mode //GJS 5/9/2019
+		report_buff[37] = NEWLINE_CHAR_CODE;
 
 		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
