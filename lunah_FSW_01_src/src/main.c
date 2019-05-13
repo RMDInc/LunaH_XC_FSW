@@ -317,9 +317,9 @@ int main()
 						//TODO: pass in the FIL pointers
 						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer, GetIntParam(1));
 						//we will return in three ways:
+						// BREAK (0)	= failure
 						// time out (1) = success
 						// END (2)		= success
-						// BREAK (0)	= failure
 						switch(status)
 						{
 						case 0:
