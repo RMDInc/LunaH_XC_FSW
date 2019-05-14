@@ -11,3 +11,21 @@ Mini-NS XC FSW V1 -
 	
 Mini-NS XC FSW V2 - 
 	This version of the FSW extends the use of the version 1 FSW and allows for the Mini-NS system parameters to be set and recorded, as well as reporting the SOH packets. This version of the FSW handles Raw Bytes commands which are prepended with the CCSDS Sync Marker. This functionality was tested at ASU during the March 2019 visit. 
+	
+HSFL XC FSW V3 - 
+	This version has data acquisition and file transfer, as well as all previous functionality enabled. 
+	NOTE: This FSW version has the code to turn on the high voltage disabled to avoid known hanging situations. 
+	- Baud rate: 921600 bps
+	
+HSFL XC FSW V3-Low Baud
+	This version is the same the V3 above, but at a lower baud rate.
+	- Baud Rate: 115200 bps
+	
+HSFL XQ FSW V3-Low Baud
+	This version is for the XQ (military-grade) Zynq chip. This chip is found on the flight hardware boards. This has the same source code as the HSFL XC FSW V3 project.
+	- Baud Rate: 115200 bps
+	
+HSFL XQ FSW V3-High Baud
+	This version is for the XQ (military-grade) Zynq chip. This chip is found on the flight hardware boards. This has the same source code as the HSFL XC FSW V3 project.
+	- Baud Rate: 921600 bps
+	

@@ -84,3 +84,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 5.50 Some changes were made to accomodate the HSFL FSW for this update. Those changes are temporary to allow them to exercise things like DAQ and other commands without having an analog board connected to handle IIC stuff. The FSBL and FSBL_BSP were re-introduced for this update so that I could create the BOOT files for the upcoming HSFL test. A new set of boot files has been produced and placed in a zip file in the BOOT_Files folder under Neutron-1 XC FSW V3. The procedure to program is the same as before.
 
 - Version 5.51 This version has new BOOT files for the HSFL FSW. They have the High Voltage and I2C code for the module temperatue sensor commented out. This will allow for the code to be tested and run without the need for an analog board to be attached. The newest BOOT files are set at the lower baud rate of 115200. 
+
+- Version 5.52 This version has new BOOT files for the HSFL FSW. These BOOT files are specifically for the XQ chip set. Also added the HSFL Run commands document and an updated Telemetry dictionary.
