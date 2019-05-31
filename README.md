@@ -88,3 +88,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 5.52 This version has new BOOT files for the HSFL FSW. These BOOT files are specifically for the XQ chip set. Also added the HSFL Run commands document and an updated Telemetry dictionary.
 
 - Version 6.00 This version is the beginning of release 3 of the Mini-NS FSW. This version allows data acquisition runs to be made and to transfer the data product files after the run. There is a difference in the XC and XQ versions of this software due to a difference in hardware. Without an I2C connection, the XC version cannot report the analog board temperature, nor can it set the HV pots. The XQ board can, as it is assumed to have the I2C connection. 
+
+- Version 6.01 The version 3 FSW XC BOOT files are added with this update. The baud rate is 921600.
