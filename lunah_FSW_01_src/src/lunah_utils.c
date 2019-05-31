@@ -7,18 +7,18 @@
 
 #include "lunah_utils.h"
 
-static XTime LocalTime = 0;
-static XTime TempTime = 0;
+static XTime LocalTime;
+static XTime TempTime;
 static XTime LocalTimeStart;
-static XTime LocalTimeCurrent = 0;
+static XTime LocalTimeCurrent;
 
 //may still need these if we want to 'get' the temp at some point
 //also, need to verify that we are getting the correct temp
 static int analog_board_temp = 25;
 static int digital_board_temp = 1;
 static int modu_board_temp = 25;
-static int iNeutronTotal = 0;
-static int check_temp_sensor = 0;
+static int iNeutronTotal;
+static int check_temp_sensor;
 
 /*
  * Initalize LocalTimeStart at startup
@@ -121,7 +121,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	i2c_Send_Buffer[0] = 0x0;
 	i2c_Send_Buffer[1] = 0x0;
 	int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
-//	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
+	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
 //	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, on module near thermistor on TEC
 
 	switch(check_temp_sensor){
@@ -131,6 +131,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		{
 //			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
+
 //			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
 //			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
 //			a = i2c_Recv_Buffer[0]<< 5;
@@ -144,7 +145,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 //				b = b / 16;
 //			}
 			b = 23;
-			analog_board_temp = b;
+//			analog_board_temp = b;
 		}
 		break;
 	case 1:	//digital board
@@ -543,10 +544,12 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	int file_TX_group_flags = 0;
 	int file_TX_sequence_count = 0;
 	int file_TX_apid = 0;
+	int file_TX_file_pointer_location = 0;
 	int m_loop_var = 1;					//0 = false; 1 = true
 	int bytes_to_read = 0;				//number of bytes to read from data file to put into packet data bytes
 	unsigned int bytes_written;
 	unsigned int bytes_read = 0;
+	unsigned int file_TX_2DH_oor_values[5] = {};
 	char *ptr_file_TX_filename;
 	char log_file[] = "MNSCMDLOG.txt";
 	char config_file[] = "MNSCONF.bin";
@@ -557,8 +560,9 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	DATA_FILE_HEADER_TYPE data_file_header = {};
 	DATA_FILE_SECONDARY_HEADER_TYPE data_file_2ndy_header = {};
 	CONFIG_STRUCT_TYPE config_file_header = {};
+	DATA_FILE_FOOTER_TYPE data_file_footer = {};
 	FIL TXFile;				//file object
-	FILINFO fno;			//file info structure
+//	FILINFO fno;			//file info structure
 	FRESULT f_res = FR_OK;	//SD card status variable type
 
 	//find the folder/file that was requested
@@ -636,14 +640,15 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	if(bytes_written == 0)
 		status = 1;
 
+	//TESTING 5-23-2019 //commented out this f_stat block
 	//check that the folder/file we just wrote exists in the file system
 	//check first so that we don't just open a blank new file; there are no protections for that
-	f_res = f_stat(file_TX_path, &fno);
-	if(f_res == FR_NO_FILE)
-	{
-		//couldn't find the folder
-		status = 1;	//folder DNE
-	}
+//	f_res = f_stat(file_TX_path, &fno);
+//	if(f_res == FR_NO_FILE)
+//	{
+//		//couldn't find the folder
+//		status = 1;	//folder DNE
+//	}
 
 	if(status == 0)
 	{
@@ -675,7 +680,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 				if(f_res != FR_OK)
 				{
 					//TODO: can do a check that the eventID bytes are correct here so we know that it's a good read?
-					// could use this as a verifcation, but maybe it's too much
+					// could use this as a verification, but maybe it's too much
 					status = 2;
 				}
 				else
@@ -700,6 +705,56 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		}
 		//no header information in the log file //need to assign the
 	}
+	//deal with footers on the files, if they exist	//TESTING 5-22-2019
+	if(status == 0)
+	{
+		//get the location of the file pointer so we can reset it there when we are done
+		file_TX_file_pointer_location = TXFile.fptr;
+		if(file_type == DATA_TYPE_EVT)
+		{
+			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_EVT);	//goes to the end minus the footer size
+			if(f_res != FR_OK)
+				status = 2;
+			else
+			{
+				f_res = f_read(&TXFile, &data_file_footer, sizeof(data_file_footer), &bytes_read);	//read in 188 bytes, up to the real time
+				if(f_res != FR_OK || bytes_read != sizeof(data_file_footer))
+					status = 2;
+			}
+			//then subtract the footer bytes from the total file size //do this even though the read may have failed
+			file_TX_size -= sizeof(data_file_footer);
+		}
+		else if(file_type == DATA_TYPE_CPS)
+		{
+			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_CPS);	//goes to the end minus the footer size
+			if(f_res != FR_OK)
+				status = 2;
+			else
+			{
+				f_res = f_read(&TXFile, &data_file_footer, sizeof(data_file_footer), &bytes_read);	//read in 188 bytes, up to the real time
+				if(f_res != FR_OK || bytes_read != sizeof(data_file_footer))
+					status = 2;
+			}
+			//then subtract the footer bytes from the total file size //do this even though the read may have failed
+			file_TX_size -= sizeof(data_file_footer);
+		}
+		else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
+		{
+			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_2DH);	//goes to the end minus the footer size
+			if(f_res != FR_OK)
+				status = 2;
+			else
+			{
+				f_res = f_read(&TXFile, &file_TX_2DH_oor_values, sizeof(unsigned int) * 5, &bytes_read);	//read in 188 bytes, up to the real time
+				if(f_res != FR_OK || bytes_read != (sizeof(unsigned int) * 5))
+					status = 2;
+			}
+			//then subtract the footer bytes from the total file size //do this even though the read may have failed
+			file_TX_size -= sizeof(unsigned int) * 5;
+		}
+		//reset the file pointer to where it was when we began
+		f_res = f_lseek(&TXFile, file_TX_file_pointer_location);
+	}	//TESTING 5-22-2019
 
 	//compile the RMD data header (different based on file type)
 	if(status == 0)
@@ -730,6 +785,13 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		{
 			memcpy(&(packet_array[69]), &data_file_2ndy_header.RealTime, sizeof(data_file_2ndy_header.RealTime));
 			memcpy(&(packet_array[77]), &data_file_2ndy_header.FirstEventTime, sizeof(data_file_2ndy_header.FirstEventTime));
+		}
+		else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )	//TESTING 5-22-2019
+		{
+			memcpy(&(packet_array[69]), &file_TX_2DH_oor_values[0], sizeof(unsigned int));
+			memcpy(&(packet_array[73]), &file_TX_2DH_oor_values[1], sizeof(unsigned int));
+			memcpy(&(packet_array[77]), &file_TX_2DH_oor_values[2], sizeof(unsigned int));
+			memcpy(&(packet_array[81]), &file_TX_2DH_oor_values[3], sizeof(unsigned int));
 		}
 	}
 	if(status != 0)
@@ -768,7 +830,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		case DATA_TYPE_2DH_3:
 			/* Falls through to case 2DH_4 */
 		case DATA_TYPE_2DH_4:
-			file_TX_data_bytes_size = DATA_BYTES_2DH;
+			file_TX_data_bytes_size = DATA_BYTES_2DH - 1;	//Subtract one byte, there is an additional field (PMT ID) added to the packet
 			file_TX_packet_size = PKT_SIZE_2DH;
 			file_TX_packet_header_size = PKT_HEADER_2DH;
 			file_TX_apid = 0x88;
@@ -791,6 +853,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			break;
 		}
 
+		//check to see if we should add padding, and what the group flags should be
 		if(file_TX_size > file_TX_data_bytes_size)
 		{
 			bytes_to_read = file_TX_data_bytes_size;
@@ -809,21 +872,32 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			else
 				file_TX_group_flags = 2;	//last packet
 		}
-		//have to match up APIDs (real value) with the APID codes in lunah defines
 
 		PutCCSDSHeader(packet_array, data_file_header.FileTypeAPID, file_TX_group_flags, file_TX_sequence_count, file_TX_packet_size);
-		//read in the data bytes
+
 		f_res = f_read(&TXFile, &(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), bytes_to_read, &bytes_read);
 		if(f_res != FR_OK)
 			status = 2;
 		else
-			file_TX_size -= bytes_to_read; //TODO: do we want to subtract this number or bytes_read the actual numbers of bytes read?
+			file_TX_size -= bytes_read;	//set to bytes_read 5-21
+
 		//add padding bytes, if necessary
 		if(file_TX_add_padding == 1)
 		{
-			memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + bytes_read]), file_TX_apid, file_TX_packet_size - bytes_read);
+			memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + bytes_read]), file_TX_apid, file_TX_data_bytes_size - bytes_read);
 			file_TX_add_padding = 0;	//reset
 		}
+
+		//for 2DH packets, add the PMT ID to the end of the data bytes //should always put this at 10+75+1950 = byte 2035	//TESTING 5-22-2019
+		if(file_type == DATA_TYPE_2DH_1)
+			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x01;
+		else if(file_type == DATA_TYPE_2DH_2)
+			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x02;
+		else if(file_type == DATA_TYPE_2DH_3)
+			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x04;
+		else if(file_type == DATA_TYPE_2DH_4)
+			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x08;
+
 		//calculate the checksums for the packet
 		CalculateChecksums(packet_array);
 
@@ -837,7 +911,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			sent += bytes_sent;
 		}
 
-		//check if there are multiple packets/files to send (EVT)
+		//check if there are multiple packets to send
 		switch(file_TX_group_flags)
 		{
 		case 0:	//intermediate packet

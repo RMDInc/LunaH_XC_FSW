@@ -240,15 +240,22 @@ int SetFileName( int ID_number, int run_number, int set_number )
 int DoesFileExist( void )
 {
 	int status = CMD_SUCCESS;
-	FILINFO fno;		//file info structure
-	FRESULT ffs_res;	//FAT file system return type
+//	FILINFO fno;		//file info structure			//TEST 05-16
+//	FRESULT ffs_res;	//FAT file system return type	//TEST 05-16
 
+	//TEST 05-16
+	//just use f_open if we want to check folders?
+/*
 	//check the SD card for the folder, then the files:
 	ffs_res = f_stat(current_run_folder, &fno);
 	if(ffs_res == FR_NO_FILE)
 		status = CMD_FAILURE;
 	else if(ffs_res == FR_NO_PATH)
 		status = CMD_FAILURE;
+	else						//TEST 05-16
+		status = CMD_SUCCESS;	//TEST 05-16
+*/
+
 //	else if(ffs_res == FR_INVALID_NAME)
 //		status = CMD_ERROR;
 //	else
@@ -510,6 +517,17 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	ResetEVTsBuffer();
 	ResetEVTsIterator();
 
+//	//TESTING 5-28-2019
+//	//create file to save the raw integers to
+//	FIL m_raw_data_file;
+//	f_res = f_open(&m_raw_data_file, "raw_data.bin", FA_OPEN_ALWAYS|FA_READ|FA_WRITE);
+//
+//	f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
+//	if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
+//		status = CMD_FAILURE;
+//
+//	//TESTING 5-28-2019
+
 	//TODO: remove this when the ellipse cuts are implemented
 	CPSSetCuts();
 
@@ -574,6 +592,19 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				}
 				status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 				buff_num = 0;
+
+//				//TESTING 5-28-2019
+//				f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
+//				if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
+//					status = CMD_FAILURE;
+//
+//				f_res = f_sync(&m_raw_data_file);
+//				if(f_res != FR_OK)
+//				{
+//					//TODO: error check
+//					xil_printf("8 error syncing DAQ\n");
+//				}
+//				//TESTING 5-28-2019
 
 				//check the file size and see if we need to change files
 				if(m_EVT_file.fsize >= SIZE_1_MIB)
@@ -764,18 +795,25 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	}//END OF WHILE DONE != 1
 
 	//here is where we should transfer the CPS, 2DH files?
-	status_SOH = Save2DHToSD( 1 );
+	status_SOH = Save2DHToSD( PMT_ID_0 );
 	if(status_SOH != CMD_SUCCESS)
 		xil_printf("9 save sd 1 DAQ\n");
-	status_SOH = Save2DHToSD( 2 );
+	status_SOH = Save2DHToSD( PMT_ID_1 );
 	if(status_SOH != CMD_SUCCESS)
 		xil_printf("10 save sd 2 DAQ\n");
-	status_SOH = Save2DHToSD( 3 );
+	status_SOH = Save2DHToSD( PMT_ID_2 );
 	if(status_SOH != CMD_SUCCESS)
 		xil_printf("11 save sd 3 DAQ\n");
-	status_SOH = Save2DHToSD( 4 );
+	status_SOH = Save2DHToSD( PMT_ID_3 );
 	if(status_SOH != CMD_SUCCESS)
 		xil_printf("12 save sd 4 DAQ\n");
+
+//	//TESTING 5-28-2019
+//
+//	f_close(&m_raw_data_file);
+//
+//	//TESTING 5-28-2019
+
 
 	//cleanup operations
 	//2DH files are closed by that module

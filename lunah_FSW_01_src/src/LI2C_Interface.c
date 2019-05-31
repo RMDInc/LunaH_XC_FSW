@@ -7,6 +7,18 @@
 
 #include "LI2C_Interface.h"
 
+static XTime i2c_time;
+static XTime i2c_time_start;
+static XTime i2c_time_current;
+
+/*
+ * Initalize LocalTimeStart at startup
+ */
+void I2C_InitStartTime(void)
+{
+	XTime_GetTime(&i2c_time_start);	//get the time
+}
+
 int IicPsInit(XIicPs * Iic, u16 DeviceId)
 {
 	XIicPs_Config *Config;
@@ -46,7 +58,7 @@ int IicPsInit(XIicPs * Iic, u16 DeviceId)
 * This function sends data and expects to receive data from slave as modular
 * of 64.
 *
-* This function uses interrupt-driven mode of the device.
+* This function uses the polled mode of the device.
 *
 * @param	DeviceId is the Device ID of the IicPs Device and is the
 *		XPAR_<IICPS_instance>_DEVICE_ID value from xparameters.h
@@ -89,11 +101,10 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 	XIicPs_SetSClk(Iic, IIC_SCLK_RATE);
 
 	/*
-	 * Send the buffer using the IIC and ignore the number of bytes sent
-	 * as the return value since we are using it in interrupt mode.
+	 * Send the buffer using the IIC.
 	 */
 
-	 XIicPs_MasterSend(Iic, ptr_Send_Buffer, TEST_BUFFER_SIZE, *iI2C_slave_addr);
+	iStatus = XIicPs_MasterSendPolled(Iic, ptr_Send_Buffer, TEST_BUFFER_SIZE, *iI2C_slave_addr);
 
 	/*
 	 * Wait until bus is idle to start another transfer.
@@ -107,6 +118,16 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 		// be busy. Thus, hanging the system.
 
 		//need to set something to report failure if we time out
+		if(iStatus == XST_FAILURE)
+			break;
+
+		//I2C time out is set to 3 seconds //5-31-2019
+		XTime_GetTime(&i2c_time_current);
+		if(((i2c_time_current - i2c_time_start)/COUNTS_PER_SECOND) >= (i2c_time +  3))
+		{
+			i2c_time = (i2c_time_current - i2c_time_start)/COUNTS_PER_SECOND;
+			break;
+		}
 	}
 
 	return XST_SUCCESS;

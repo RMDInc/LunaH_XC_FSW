@@ -31,8 +31,8 @@
 ******************************************************************************/
 
 /*
- * Mini-NS Flight Software, Version 5.43
- * Graham Stoddard, 4/17/2019
+ * Mini-NS Flight Software, Version 5.53
+ * Graham Stoddard, 5/31/2019
  *
  * 02-25-2019
  * Added a compiler option "m" to allow us to include math.h to be linked in so we
@@ -45,7 +45,6 @@
 int main()
 {
 	int status = 0;			//local status variable for reporting SUCCESS/FAILURE
-
 	int valid_data = 0;		//local test variable for WF
 	int array_index = 0;
 	int dram_addr = 0;
@@ -102,11 +101,11 @@ int main()
 		xil_printf("fix the Iic device 1\r\n");
 	} */
 
-	//*******************Receive and Process Packets **********************//
-	Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, 0);	//baseline integration time	//subtract 38 from each int
-	Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, 35);	//short
-	Xil_Out32 (XPAR_AXI_GPIO_2_BASEADDR, 131);	//long
-	Xil_Out32 (XPAR_AXI_GPIO_3_BASEADDR, 1513);	//full
+	//******************* Set parameters in the FPGA **********************//
+	Xil_Out32 (XPAR_AXI_GPIO_0_BASEADDR, 38);	//baseline integration time	//subtract 38 from each int
+	Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, 73);	//short
+	Xil_Out32 (XPAR_AXI_GPIO_2_BASEADDR, 169);	//long
+	Xil_Out32 (XPAR_AXI_GPIO_3_BASEADDR, 1551);	//full
 	Xil_Out32 (XPAR_AXI_GPIO_4_BASEADDR, 0);	//TEC stuff, 0 turns things off
 	Xil_Out32 (XPAR_AXI_GPIO_5_BASEADDR, 0);	//TEC stuff
 	Xil_Out32 (XPAR_AXI_GPIO_6_BASEADDR, 0);	//enable the system, allows data
@@ -215,7 +214,7 @@ int main()
 			menusel = 99999;
 			menusel = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
 
-			if ( menusel >= -1 && menusel <= 15 )	//let all input in, including errors, so we can report them
+			if ( menusel >= -1 && menusel <= 15 )	//let all input in, including errors, so we can report them //we are not handling break, end, start, overflow by keeping this to 15...
 			{
 				//we found a valid LUNAH command or input was bad (-1)
 				//log the command issued, unless it is an error
@@ -259,13 +258,16 @@ int main()
 				++DAQ_run_number;	//initialized to 0, the first run will increment to 1
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
-				status = DoesFileExist();
-				if(status == CMD_ERROR)
-				{
-					//handle a non-success/failure return
-					//this means we don't have access to something
-					//TODO: handle return
-				}
+
+//				status = DoesFileExist();	//TEST 05-16
+				status = CMD_FAILURE;		//TEST 05-16
+
+//				if(status == CMD_ERROR)		//TEST 05-16 (commented)
+//				{
+//					//handle a non-success/failure return
+//					//this means we don't have access to something
+//					//TODO: handle return
+//				}
 				//returns FALSE if file does NOT exist
 				//returns TRUE if file does exist
 				//we need the file to be unique, so FALSE is a positive result,
@@ -512,10 +514,8 @@ int main()
 				status = 1;	//failed to get data type
 				break;
 			}
-			if(status == 0)
-				reportSuccess(Uart_PS, 0);
-			else
-				reportFailure(Uart_PS);
+			if(status != 0)					//TEST 5/14/2019
+				reportFailure(Uart_PS);		//TEST 5/14/2019
 			break;
 		case DEL_CMD:
 			//delete a file from the SD card

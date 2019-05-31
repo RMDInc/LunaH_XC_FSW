@@ -48,7 +48,7 @@ typedef struct {
 	unsigned char n_with_PSD_MSB;
 	unsigned char n_with_PSD_LSB;
 	unsigned char n_wide_cut_MSB;
-	unsigned char n_wide_cut_LSBB;
+	unsigned char n_wide_cut_LSB;
 	unsigned char n_with_no_PSD_MSB;
 	unsigned char n_with_no_PSD_LSB;
 	unsigned char high_energy_events_MSB;

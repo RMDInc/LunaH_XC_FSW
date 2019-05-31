@@ -48,6 +48,12 @@
 #define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes)
 #define DP_HEADER_SIZE		16384	//we put blank space past the header so we always write on a cluster boundary
 
+//PMT ID Values
+//These values are the decimal interpretations of a binary, active low signal (ie. 14=1110 -> PMT_ID_0)
+#define	PMT_ID_0		14
+#define	PMT_ID_1		13
+#define	PMT_ID_2		11
+#define	PMT_ID_3		7
 
 // Command definitions
 #define DAQ_CMD			0
@@ -118,7 +124,7 @@
 #define PKT_HEADER_EVT	71
 #define PKT_HEADER_WAV	71
 #define PKT_HEADER_CPS	71
-#define PKT_HEADER_2DH	75	//TODO fix this, we are double counting the 2DH out-of-range values
+#define PKT_HEADER_2DH	75
 #define PKT_HEADER_LOG	1
 #define PKT_HEADER_CFG	1
 
@@ -126,7 +132,7 @@
 #define DATA_BYTES_EVT	1952
 #define DATA_BYTES_WAV	1950
 #define DATA_BYTES_CPS	1946
-#define DATA_BYTES_2DH	1967	//TODO fix this, we are double counting the 2DH out-of-range values
+#define DATA_BYTES_2DH	1951
 #define DATA_BYTES_LOG	1963
 #define DATA_BYTES_CFG	187
 
@@ -137,6 +143,14 @@
 #define PKT_SIZE_2DH	2029
 #define PKT_SIZE_LOG	2029	//TODO: define this
 #define PKT_SIZE_CFG	191
+
+//MNS DATA FILE FOOTER SIZES //The main data products have a footer in the file	//current 5-22-2019
+#define FILE_FOOT_EVT	32
+#define FILE_FOOT_WAV	0
+#define FILE_FOOT_CPS	32
+#define FILE_FOOT_2DH	20
+#define FILE_FOOT_LOG	0
+#define	FILE_FOOT_CFG	0
 
 //DAQ FINAL STATE
 #define DAQ_BREAK		0

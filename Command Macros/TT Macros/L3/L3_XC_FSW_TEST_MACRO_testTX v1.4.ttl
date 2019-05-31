@@ -33,3 +33,15 @@ logclose
 
 flushrecv
 end
+
+//EDIT 05-17-2019
+
+MNS_DAQ_0_31
+
+MNS_START_0_2345_1
+
+MNS_TX_0_8_31_1_0_0
+
+MNS_TX_0_7_31_1_0_0
+
+MNS_TX_0_5_31_1_0_0

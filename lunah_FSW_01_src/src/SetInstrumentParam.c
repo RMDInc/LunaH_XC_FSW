@@ -601,7 +601,7 @@ int ApplyDAQConfig( XIicPs * Iic )
 	if(status == CMD_SUCCESS)
 		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
 //	if(status == CMD_SUCCESS)
-//		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
+//		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);	//COMMENT FOR XC
 //	if(status == CMD_SUCCESS)
 //		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
 //	if(status == CMD_SUCCESS)

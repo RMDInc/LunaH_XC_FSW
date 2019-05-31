@@ -20,3 +20,16 @@ Release Notes for the Mini-NS Flight Software
 	The system performs a more robust setup when powered on, including checking 
 	for a configuration file. This version has no Data Acquisition and does not 
 	have full support for all of the hardware available to the Mini-NS. 
+
+- Level 3 FSW - 
+- This release allows data acquisition runs, as well as transfer of the data product files after the run. 
+	This version accepts the following new commands:
+	+ MNS_DAQ
+	+ MNS_TX
+	+ MNS_START
+	+ MNS_END
+	+ MNS_BREAK
+NOTE: There is a difference in the XC and XQ versions of this software due to a difference in hardware.
+	Without an I2C connection, the XC version cannot report the analog board temperature, nor can it 
+	set the HV pots. The XQ board can, as it is assumed to have the I2C connection. 
+	

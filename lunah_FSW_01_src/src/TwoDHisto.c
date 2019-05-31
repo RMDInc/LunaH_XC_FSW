@@ -27,6 +27,7 @@ static unsigned short m_2DH_pmt4[TWODH_X_BINS][TWODH_Y_BINS];
  *
  * @param	(integer)the histogram to get the address of. There are 4 2DHs, one
  * 				for each of the PMT IDs.
+ * 				Values should be the macro PMT_ID_#'s from lunah_defines (ie. PMT_ID_1, etc)
  *
  * @return	( integer)CMD_SUCCESS/CMD_FAILURE
  */
@@ -42,27 +43,17 @@ int Save2DHToSD( int pmt_ID )
 
 	unsigned short (*m_2DH_holder)[TWODH_X_BINS][TWODH_Y_BINS];	//pointer to 2D array
 
-//	m_2DH_holder = &m_2DH_pmt1;
-
 	switch(pmt_ID)
 	{
-	case 1:
-		m_2DH_holder = &m_2DH_pmt1;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_1 );
+	case PMT_ID_3:
+		m_2DH_holder = &m_2DH_pmt4;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_4 );
 		if(filename_pointer == NULL)
-			xil_printf("3 return filename pointer 2dh\n");
+			xil_printf("6 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
-	case 2:
-		m_2DH_holder = &m_2DH_pmt2;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_2 );
-		if(filename_pointer == NULL)
-			xil_printf("4 return filename pointer 2dh\n");
-		else
-			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
-		break;
-	case 3:
+	case PMT_ID_2:
 		m_2DH_holder = &m_2DH_pmt3;
 		filename_pointer = GetFileName( DATA_TYPE_2DH_3 );
 		if(filename_pointer == NULL)
@@ -70,11 +61,19 @@ int Save2DHToSD( int pmt_ID )
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
-	case 4:
-		m_2DH_holder = &m_2DH_pmt4;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_4 );
+	case PMT_ID_1:
+		m_2DH_holder = &m_2DH_pmt2;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_2 );
 		if(filename_pointer == NULL)
-			xil_printf("6 return filename pointer 2dh\n");
+			xil_printf("4 return filename pointer 2dh\n");
+		else
+			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
+		break;
+	case PMT_ID_0:
+		m_2DH_holder = &m_2DH_pmt1;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_1 );
+		if(filename_pointer == NULL)
+			xil_printf("3 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
@@ -134,6 +133,7 @@ int Save2DHToSD( int pmt_ID )
  * @param	The calculated energy of the event
  * @param	The calculated PSD ratio of the event
  * @param	The PMT ID from the event
+ * 			Values should be the macro PMT_ID_#'s from lunah_defines (ie. PMT_ID_1, etc)
  *
  * @return	SUCCESS/FAILURE
  */
@@ -171,17 +171,17 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 					//value is good
 					switch(pmt_ID)
 					{
-					case 1:
-						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
+					case PMT_ID_3:
+						m_2DH_pmt4[m_x_bin_number][m_y_bin_number]++;
 						break;
-					case 2:
-						m_2DH_pmt2[m_x_bin_number][m_y_bin_number]++;
-						break;
-					case 4:
+					case PMT_ID_2:
 						m_2DH_pmt3[m_x_bin_number][m_y_bin_number]++;
 						break;
-					case 8:
-						m_2DH_pmt4[m_x_bin_number][m_y_bin_number]++;
+					case PMT_ID_1:
+						m_2DH_pmt2[m_x_bin_number][m_y_bin_number]++;
+						break;
+					case PMT_ID_0:
+						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
 						break;
 					default:
 						//don't record non-singleton hits in a 2DH

@@ -85,18 +85,6 @@ int ProcessData( unsigned int * data_raw )
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE event_holder = evtEmptyStruct;
 
-	unsigned int val1 = 0;	//TEST
-	unsigned int val2 = 0;	//TEST
-	unsigned int val3 = 0;	//TEST
-	unsigned int val4 = 0;	//TEST
-	unsigned int val5 = 0;	//TEST
-	unsigned int val6 = 0;	//TEST
-	unsigned int val7 = 0;	//TEST
-	unsigned int val8 = 0;	//TEST
-	unsigned int val9 = 0;	//TEST
-	unsigned int val10 = 0;	//TEST
-
-
 	//get the integration times
 	m_baseline_int = (double)GetBaselineInt();
 	m_short_int = (double)GetShortInt();
@@ -113,11 +101,6 @@ int ProcessData( unsigned int * data_raw )
 	while(iter < DATA_BUFFER_SIZE)
 	{
 		event_holder = evtEmptyStruct;	//reset event structure
-
-		val1 = data_raw[iter];	//TEST
-		val2 = data_raw[iter+1];	//TEST
-		val3 = data_raw[iter+8];	//TEST
-		val4 = data_raw[iter+9];	//TEST
 
 		switch(data_raw[iter])
 		{
@@ -157,17 +140,17 @@ int ProcessData( unsigned int * data_raw )
 							m_pmt_ID_holder = data_raw[iter+3] & 0x0F;
 							switch(m_pmt_ID_holder)
 							{
-							case 1:
-								event_holder.field1 |= 0x00; //PMT 0
+							case PMT_ID_3:
+								event_holder.field1 |= 0xC0; //PMT 3
 								break;
-							case 2:
-								event_holder.field1 |= 0x40; //PMT 1
-								break;
-							case 4:
+							case PMT_ID_2:
 								event_holder.field1 |= 0x80; //PMT 2
 								break;
-							case 8:
-								event_holder.field1 |= 0xC0; //PMT 3
+							case PMT_ID_1:
+								event_holder.field1 |= 0x40; //PMT 1
+								break;
+							case PMT_ID_0:
+								event_holder.field1 |= 0x00; //PMT 0
 								break;
 							default:
 								//invalid event
@@ -251,18 +234,6 @@ int ProcessData( unsigned int * data_raw )
 			}
 			if( data_raw[iter + 1] == 2147594759 && data_raw[iter + 9] == 111111)
 			{
-
-				val1 = data_raw[iter];		//TEST
-				val2 = data_raw[iter+1];	//TEST
-				val3 = data_raw[iter+2];	//TEST
-				val4 = data_raw[iter+3];	//TEST
-				val5 = data_raw[iter+4];	//TEST
-				val6 = data_raw[iter+5];	//TEST
-				val7 = data_raw[iter+6];	//TEST
-				val8 = data_raw[iter+7];	//TEST
-				val9 = data_raw[iter+8];	//TEST
-				val10 = data_raw[iter+9];	//TEST
-
 				cpsSetFirstEventTime(data_raw[iter + 2]);
 				m_first_event_time_FPGA = data_raw[iter + 2];
 
