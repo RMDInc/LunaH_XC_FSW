@@ -92,3 +92,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 6.01 The version 3 FSW XC BOOT files are added with this update. The baud rate is 921600.
 
 - Version 6.02 The version 3 FSW XQ BOOT files are added with this update. The baud rate is 115200.
+
+- Version 6.03 The version 3 FSW XC BOOT files are updated. The baud rate is 921600.

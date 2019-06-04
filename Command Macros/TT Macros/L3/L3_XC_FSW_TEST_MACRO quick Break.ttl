@@ -1,7 +1,0 @@
-flushrecv
-
-setdebug 3
-
-sendln 'MNS_TX_0_8_94_1_0_0'
-
-sendln 'MNS_BREAK_0'

@@ -581,7 +581,7 @@ int main()
 			//set the PMT bias voltage for one or more PMTs
 			//intParam1 = PMT ID
 			//intParam2 = Bias Voltage (taps)
-//			status = SetHighVoltage(&Iic, GetIntParam(1), GetIntParam(2));
+			status = SetHighVoltage(&Iic, GetIntParam(1), GetIntParam(2));
 			//Determine SUCCESS or FAILURE
 			if(status)
 				reportSuccess(Uart_PS, 0);

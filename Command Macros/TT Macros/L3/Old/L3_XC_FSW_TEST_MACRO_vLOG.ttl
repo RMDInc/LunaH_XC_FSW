@@ -1,0 +1,18 @@
+setdebug 0
+; open the log file
+fileopen file 'C:\Users\gstoddard\Desktop\SOH_test_1.bin' 0
+; enter synchronous mode
+setsync 1
+result=1
+
+while result=1
+  ; clear the recv
+  flushrecv
+  ; receive one line
+  recvln
+  ; write it to the log file
+  filewriteln file inputstr
+endwhile
+
+; enter asynchronous mode
+setsync 0
