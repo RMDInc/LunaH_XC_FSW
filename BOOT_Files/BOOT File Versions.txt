@@ -41,3 +41,6 @@ Mini-NS XC FSW V3 patch 07
 	- XC chip
 	- Baud Rate: 921600 bps
 	
+Mini-NS XQ FSW V3 patch 07
+	- XQ chip
+	- Baud Rate: 115200 bps
