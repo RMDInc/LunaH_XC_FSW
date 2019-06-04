@@ -96,3 +96,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 6.03 The version 3 FSW XC BOOT files are updated. The baud rate is 921600.
 
 - Version 6.04 The version 3 FSW XQ BOOT files are updated. The baud rate is 115200. The HSFL Run Commands document has been updated. A new folder, Analysis Scripts, has been uploaded. This folder will contain the executables for parsing the data product files and output packets from the Mini-NS. A brief readme is included. For now, just the Raw File Processor is provided, it will read the raw data product files from the SD card after a data acquisition run. 
+
+- Version 6.05 The baud rate for all boot files moving forward, including these ones, will be implemented at 921600 bps. This update cleans up the BOOT files folder and adds the XQ BOOT files at the higher baud rate.
