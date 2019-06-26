@@ -12,6 +12,8 @@
 
 #define MNS_DETECTOR_NUM	0
 
+//#define PRODUCE_RAW_DATA	0
+
 #define NS_TO_SAMPLES		4		//conversion factor number of nanoseconds per sample
 #define INTEG_TIME_START	200
 #define LOG_FILE_BUFF_SIZE	120
@@ -34,7 +36,7 @@
 #define SIZEOF_HEADER_TIMES	14
 #define TWODH_X_BINS		260
 #define	TWODH_Y_BINS		30
-#define TWODH_ENERGY_MAX	500000	//1000000
+#define TWODH_ENERGY_MAX	1000000
 #define TWODH_PSD_MAX		2.0
 #define RMD_CHECKSUM_SIZE	2
 #define SYNC_MARKER			892270675	//0x35 2E F8 53
@@ -49,11 +51,11 @@
 #define DP_HEADER_SIZE		16384	//we put blank space past the header so we always write on a cluster boundary
 
 //PMT ID Values
-//These values are the decimal interpretations of a binary, active low signal (ie. 14=1110 -> PMT_ID_0)
-#define	PMT_ID_0		14
-#define	PMT_ID_1		13
-#define	PMT_ID_2		11
-#define	PMT_ID_3		7
+//These values are the decimal interpretations of a binary, active high signal (ie. 4=0100 -> PMT_ID_3)
+#define	PMT_ID_0		1
+#define	PMT_ID_1		2
+#define	PMT_ID_2		4
+#define	PMT_ID_3		8
 
 // Command definitions
 #define DAQ_CMD			0

@@ -31,7 +31,7 @@ int IncNeutronTotal(int increment);
 int GetDigiTemp( void );
 int GetAnlgTemp( void );
 int GetModuTemp( void );
-int CheckForSOH(XIicPs * Iic, XUartPs Uart_PS);
+void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS);
 int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type);
 void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, int sequence_count, int length);
 int reportSuccess(XUartPs Uart_PS, int report_filename);

@@ -34,7 +34,6 @@
 #include "lunah_utils.h"
 #include "LogFileControl.h"
 #include "DataAcquisition.h"
-#include "LNumDigits.h"
 
 //Global Interrupt Control Variables
 //These need to be global for interrupts to be handled appropriately within the system

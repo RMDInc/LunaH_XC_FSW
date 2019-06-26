@@ -240,13 +240,11 @@ int SetFileName( int ID_number, int run_number, int set_number )
 int DoesFileExist( void )
 {
 	int status = CMD_SUCCESS;
-//	FILINFO fno;		//file info structure			//TEST 05-16
-//	FRESULT ffs_res;	//FAT file system return type	//TEST 05-16
+	FILINFO fno;		//file info structure			//TESTING 6-14-19
+	FRESULT ffs_res;	//FAT file system return type	//TESTING 6-14-19
 
-	//TEST 05-16
-	//just use f_open if we want to check folders?
-/*
-	//check the SD card for the folder, then the files:
+	//TESTING 6-14-19
+	//check the SD card for the folder
 	ffs_res = f_stat(current_run_folder, &fno);
 	if(ffs_res == FR_NO_FILE)
 		status = CMD_FAILURE;
@@ -254,7 +252,7 @@ int DoesFileExist( void )
 		status = CMD_FAILURE;
 	else						//TEST 05-16
 		status = CMD_SUCCESS;	//TEST 05-16
-*/
+
 
 //	else if(ffs_res == FR_INVALID_NAME)
 //		status = CMD_ERROR;
@@ -491,22 +489,22 @@ void ClearBRAMBuffers( void )
 int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_out )
 {
 	//initialize variables
-	int done = 0;				//local status variable for keeping track of progress within loops
-	int status = CMD_SUCCESS;	//monitors the status of how we break out of DAQ
+	int done = 0;					//local status variable for keeping track of progress within loops
+	int status = CMD_SUCCESS;		//monitors the status of how we break out of DAQ
 	int status_SOH = CMD_SUCCESS;	//local status variable
-	int poll_val = 0;			//local polling status variable
-	int valid_data = 0;			//goes high/low if there is valid data within the FPGA buffers
-	int buff_num = 0;			//keep track of which buffer we are writing
-	int m_buffers_written = 0;	//keep track of how many buffers are written, but not synced
-	int array_index = 0;		//the index of our array which will hold data
-	int dram_addr;				//the address in the DRAM we are reading from
-	int dram_base = 0xA000000;	//where the buffer starts	//167,772,160
-	int dram_ceiling = 0xA004000;	//where it ends			//167,788,544
+	int poll_val = 0;				//local polling status variable
+	int valid_data = 0;				//goes high/low if there is valid data within the FPGA buffers
+	int buff_num = 0;				//keep track of which buffer we are writing
+	int m_buffers_written = 0;		//keep track of how many buffers are written, but not synced
+	int array_index = 0;			//the index of our array which will hold data
+	int dram_addr;					//the address in the DRAM we are reading from
+	int dram_base = 0xA000000;		//where the buffer starts	//167,772,160
+	int dram_ceiling = 0xA004000;	//where it ends				//167,788,544
 	int m_run_time = time_out * 60;	//multiply minutes by 60 to get seconds
-	int m_write_header = 1;		//write a file header the first time we use a file
-	XTime m_run_start;			//timing variable
-	XTime m_run_current_time;	//timing variable
-	XTime_GetTime(&m_run_start);//record the "start" time to base a time out on
+	int m_write_header = 1;			//write a file header the first time we use a file
+	XTime m_run_start; 				//timing variable
+	XTime_GetTime(&m_run_start);	//record the "start" time to base a time out on
+	XTime m_run_current_time;		//timing variable
 	char m_write_blank_space_buff[16384] = "";
 	unsigned int bytes_written = 0;
 	FRESULT f_res = FR_OK;
@@ -517,16 +515,17 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	ResetEVTsBuffer();
 	ResetEVTsIterator();
 
-//	//TESTING 5-28-2019
-//	//create file to save the raw integers to
-//	FIL m_raw_data_file;
-//	f_res = f_open(&m_raw_data_file, "raw_data.bin", FA_OPEN_ALWAYS|FA_READ|FA_WRITE);
-//
-//	f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
-//	if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
-//		status = CMD_FAILURE;
-//
-//	//TESTING 5-28-2019
+	//TESTING 6-13-2019
+	//create file to save the raw integers to
+#ifdef PRODUCE_RAW_DATA
+	FIL m_raw_data_file;
+	f_res = f_open(&m_raw_data_file, "raw_data.bin", FA_OPEN_ALWAYS|FA_READ|FA_WRITE);
+
+	f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
+	if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
+		status = CMD_FAILURE;
+#endif
+	//TESTING 6-13-2019
 
 	//TODO: remove this when the ellipse cuts are implemented
 	CPSSetCuts();
@@ -551,60 +550,34 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 			array_index = 0;
 			dram_addr = dram_base;
-			switch(buff_num)
+
+			while(dram_addr < dram_ceiling) //Does this need to be non-inclusive? Can we include the dram_ceiling? //TRYING THIS 2/26/19 GJS
 			{
-			case 0:
-				while(dram_addr < dram_ceiling) //Does this need to be non-inclusive? Can we include the dram_ceiling? //TRYING THIS 2/26/19 GJS
-				{
-					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
-					dram_addr += 4;
-					array_index++;
-				}
-				status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
-				buff_num++;
-				break;
-			case 1:
-				while(dram_addr < dram_ceiling)
-				{
-					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
-					dram_addr += 4;
-					array_index++;
-				}
-				status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
-				buff_num++;
-				break;
-			case 2:
-				while(dram_addr < dram_ceiling)
-				{
-					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
-					dram_addr += 4;
-					array_index++;
-				}
-				status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
-				buff_num++;
-				break;
-			case 3:
-				while(dram_addr < dram_ceiling)
-				{
-					data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
-					dram_addr += 4;
-					array_index++;
-				}
-				status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
+				data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
+				dram_addr += 4;
+				array_index++;
+			}
+			status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
+			buff_num++;
+
+			if(buff_num == 3)
+			{
 				buff_num = 0;
 
-//				//TESTING 5-28-2019
-//				f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
-//				if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
-//					status = CMD_FAILURE;
-//
-//				f_res = f_sync(&m_raw_data_file);
-//				if(f_res != FR_OK)
-//				{
-//					//TODO: error check
-//					xil_printf("8 error syncing DAQ\n");
-//				}
-//				//TESTING 5-28-2019
+				//TESTING 6-13-2019
+#ifdef PRODUCE_RAW_DATA
+				f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
+				if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
+					status = CMD_FAILURE;
+
+				f_res = f_sync(&m_raw_data_file);
+				if(f_res != FR_OK)
+				{
+					//TODO: error check
+					xil_printf("8 error syncing DAQ\n");
+				}
+#endif
+				//TESTING 6-13-2019
 
 				//check the file size and see if we need to change files
 				if(m_EVT_file.fsize >= SIZE_1_MIB)
@@ -720,14 +693,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 				ResetEVTsBuffer();
 				ResetEVTsIterator();
-				break;
-			default:
-				//TODO: fill in the default behavior when we don't get the right buff_num
-				//maybe try and figure out what buffer this should be?
-				// could be worth trying to figure out what went wrong with buff_num and fix that
-				//otherwise maybe just throw out everything and start over (zero out most stuff)
-				// this could maybe get us back to a "good" state, or at least a known one?
-				break;
 			}
 			valid_data = 0;	//reset
 
@@ -808,12 +773,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	if(status_SOH != CMD_SUCCESS)
 		xil_printf("12 save sd 4 DAQ\n");
 
-//	//TESTING 5-28-2019
-//
-//	f_close(&m_raw_data_file);
-//
-//	//TESTING 5-28-2019
-
+	//TESTING 6-13-2019
+#ifdef PRODUCE_RAW_DATA
+	f_close(&m_raw_data_file);
+#endif
+	//TESTING 6-13-2019
 
 	//cleanup operations
 	//2DH files are closed by that module
