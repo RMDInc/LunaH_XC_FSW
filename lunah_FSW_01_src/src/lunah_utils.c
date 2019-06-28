@@ -13,13 +13,13 @@ static XTime TempTime;	//unchanged
 static XTime t_start;	//was LocalTimeStart
 static XTime t_current;	//was LocalTimeCurrent
 
-//may still need these if we want to 'get' the temp at some point
-//also, need to verify that we are getting the correct temp
 static int analog_board_temp = 25;
 static int digital_board_temp = 1;
 static int modu_board_temp = 25;
 static int iNeutronTotal;
 static int check_temp_sensor;
+
+static unsigned char mode_byte;
 
 /*
  * Initialize t_start and t_elapsed at startup
@@ -85,6 +85,16 @@ int GetAnlgTemp( void )
 int GetModuTemp( void )
 {
 	return modu_board_temp;
+}
+
+/*
+ * Setter function for the mode byte
+ *
+ * @param:
+ */
+void SetModeByte( unsigned char mode )
+{
+	mode_byte = mode;
 }
 
 /*
@@ -239,7 +249,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		report_buff[33] = (unsigned char)(local_time_holder >> 8);
 		report_buff[34] = (unsigned char)(local_time_holder);
 		report_buff[35] = TAB_CHAR_CODE;
-		report_buff[36] = MODE_STANDBY;		//this currently only prints that the detector is in standby mode //GJS 5/9/2019
+		report_buff[36] = mode_byte; //MODE_STANDBY;		//this currently only prints that the detector is in standby mode //GJS 5/9/2019
 		report_buff[37] = NEWLINE_CHAR_CODE;
 
 		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);

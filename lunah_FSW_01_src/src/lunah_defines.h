@@ -85,10 +85,12 @@
 #define CMD_ERROR		2	//
 
 //Mode Byte Values
-#define MODE_STANDBY	17
-#define MODE_LOAD		34
-#define MODE_TRANSFER	51
-#define MODE_DAQ		68
+#define MODE_STANDBY	17	//0x11
+#define MODE_LOAD		34	//0x22
+#define MODE_TRANSFER	51	//0x33
+#define MODE_PRE_DAQ	68	//0x44
+#define MODE_DAQ		85	//0x55
+#define MODE_DAQ_WF		102	//0x66
 
 //APID Packet Types
 #define APID_CMD_SUCC	0

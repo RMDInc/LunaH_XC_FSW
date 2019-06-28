@@ -38,6 +38,13 @@
  * Added a compiler option "m" to allow us to include math.h to be linked in so we
  *  may use the floor() function. If this can be worked around, I think we should. - GJS
  *
+ * 05-24-2019
+ * Stopped compiler optimization when creating the 'Release' versions of the program.
+ * I believe that choosing -O0 (rather than -O2) has helped us to run through DAQ
+ * and TX more smoothly. I don't know why the optimization is a problem, but we can
+ * run better without it. Since we don't need to optimize anything to run on the
+ * system, I won't use it. - GJS
+ *
  */
 
 #include "main.h"
@@ -106,14 +113,14 @@ int main()
 	Xil_Out32 (XPAR_AXI_GPIO_1_BASEADDR, 73);	//short
 	Xil_Out32 (XPAR_AXI_GPIO_2_BASEADDR, 169);	//long
 	Xil_Out32 (XPAR_AXI_GPIO_3_BASEADDR, 1551);	//full
-	Xil_Out32 (XPAR_AXI_GPIO_4_BASEADDR, 0);	//TEC stuff, 0 turns things off
-	Xil_Out32 (XPAR_AXI_GPIO_5_BASEADDR, 0);	//TEC stuff
-	Xil_Out32 (XPAR_AXI_GPIO_6_BASEADDR, 0);	//enable the system, allows data
-	Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to sensor head
+//	Xil_Out32 (XPAR_AXI_GPIO_4_BASEADDR, 0);	//TEC stuff, 0 turns things off	//deprecated, we don't have a TEC anymore
+//	Xil_Out32 (XPAR_AXI_GPIO_5_BASEADDR, 0);	//TEC stuff
+	Xil_Out32 (XPAR_AXI_GPIO_6_BASEADDR, 0);	//disable the system, allows data
+	Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to sensor head
 	Xil_Out32 (XPAR_AXI_GPIO_10_BASEADDR, 8500);	//threshold, max of 2^14 (16384)
 	Xil_Out32 (XPAR_AXI_GPIO_16_BASEADDR, 16384);	//master-slave frame size
 	Xil_Out32 (XPAR_AXI_GPIO_17_BASEADDR, 1);	//master-slave enable
-	Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//capture module enable
+	Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//capture module disable
 
 	//*******************Setup the UART **********************//
 	status = 0;
@@ -187,15 +194,15 @@ int main()
 	InitConfig();
 
 	// *********** Initialize Local Variables ****************//
-	//start timing
-	InitStartTime();
+	InitStartTime();			//start timing
+	SetModeByte(MODE_STANDBY);	//set the mode byte to standby
 
 	// Initialize buffers
 	char RecvBuffer[100] = "";	//user input buffer
 	int done = 0;				//local status variable for keeping track of progress within loops
 	int DAQ_run_number = 0;		//run number value for file names, tracks the number of runs per POR
 	int	menusel = 99999;		//case select variable for polling
-	FIL *cpsDataFile;
+	FIL *cpsDataFile;			//create FIL pointers to use later
 	FIL *evtDataFile;
 	// ******************* APPLICATION LOOP *******************//
 
@@ -234,9 +241,7 @@ int main()
 			reportFailure(Uart_PS);
 			break;
 		case DAQ_CMD:
-			//set processed data mode
-			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);
-			//turn on the system (not the ADC)
+			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 4);	//set processed data mode
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 			//set all the configuration parameters
 			status = ApplyDAQConfig(&Iic);
@@ -248,6 +253,7 @@ int main()
 			done = 0;	//not done yet
 			CPSInit();	//reset neutron counts for the run
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
+			SetModeByte(MODE_PRE_DAQ);	//set the mode byte in SOH
 			/* Create the file names we will use for this run:
 			 * Check if the filename given is unique
 			 * if the filename is unique, then we will go through these functions once
@@ -377,6 +383,7 @@ int main()
 
 			ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to //TEST
 
+			SetModeByte(MODE_STANDBY);
 			break;
 		case WF_CMD:
 			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
@@ -388,7 +395,6 @@ int main()
 				reportFailure(Uart_PS);	//report failure
 				break;
 			}
-//			Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, 3);	//get TRG waveforms
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 
@@ -402,6 +408,7 @@ int main()
 
 
 			memset(wf_data, '\0', sizeof(unsigned int)*DATA_BUFFER_SIZE);
+			SetModeByte(MODE_DAQ_WF);
 			ClearBRAMBuffers();
 			while(done != 1)
 			{
@@ -445,9 +452,10 @@ int main()
 					done = 1;
 			}
 			f_close(&WFData);
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//enable ADC
-			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//enable 5V to analog board
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to analog board
 			reportSuccess(Uart_PS, 0);
+			SetModeByte(MODE_STANDBY);
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
@@ -463,14 +471,12 @@ int main()
 			break;
 		case DISABLE_ACT_CMD:
 			//disable the components
-//			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable 3.3V
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 0);		//disable 5v to Analog board
 			//No SW check on success/failure
 			reportSuccess(Uart_PS, 0);
 			break;
 		case ENABLE_ACT_CMD:
 			//enable the active components
-//			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			Xil_Out32(XPAR_AXI_GPIO_7_BASEADDR, 1);		//enable 5V to analog board
 			//No SW check on success/failure
 			reportSuccess(Uart_PS, 0);

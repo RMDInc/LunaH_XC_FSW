@@ -515,6 +515,8 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	ResetEVTsBuffer();
 	ResetEVTsIterator();
 
+	SetModeByte(MODE_DAQ);
+
 	//TESTING 6-13-2019
 	//create file to save the raw integers to
 #ifdef PRODUCE_RAW_DATA
