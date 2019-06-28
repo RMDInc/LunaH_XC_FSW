@@ -64,9 +64,10 @@ typedef struct {
 void CPSSetCuts( void );
 void CPSInit( void );
 void cpsSetFirstEventTime( unsigned int time );
-void cpsSetRecordedTime( unsigned int m_recorded_time );
+unsigned int cpsGetFirstEventTime( void );
 unsigned int cpsGetCurrentTime( void );
 float convertToSeconds( unsigned int time );
+unsigned int convertToCycles( float time );
 bool cpsCheckTime( unsigned int time );
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void );
 int CPSUpdateTallies(double energy, double psd);

@@ -10,7 +10,7 @@
 //File-Scope Variables
 static unsigned int first_FPGA_time;				//the first FPGA time we register for the run //sync with REAL TIME
 static unsigned int m_previous_1sec_interval_time;	//the previous 1 second interval "start" time
-static unsigned int m_current_1sec_interval_time;	//the current 1 second interval "start" time
+static float m_num_intervals_elapsed;				//how many intervals have elapsed during the current run (effectively one/sec)
 static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 second of counts)
 static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
 static unsigned short m_neutrons_ellipse1;		//neutrons with PSD
@@ -73,7 +73,6 @@ void CPSInit( void )
 {
 	first_FPGA_time = 0;
 	m_previous_1sec_interval_time = 0;
-	m_current_1sec_interval_time = 0;
 	cpsEvent = cpsEmptyStruct;
 	m_neutrons_ellipse1 = 0;
 	m_neutrons_ellipse2 = 0;
@@ -89,15 +88,14 @@ void cpsSetFirstEventTime( unsigned int time )
 	return;
 }
 
-void cpsSetRecordedTime( unsigned int m_recorded_time )
+unsigned int cpsGetFirstEventTime( void )
 {
-	m_current_1sec_interval_time = m_recorded_time;
-	return;
+	return first_FPGA_time;
 }
 
 unsigned int cpsGetCurrentTime( void )
 {
-	return m_current_1sec_interval_time;
+	return (convertToSeconds(first_FPGA_time) + m_num_intervals_elapsed);
 }
 
 /*
@@ -109,29 +107,61 @@ unsigned int cpsGetCurrentTime( void )
  */
 float convertToSeconds( unsigned int time )
 {
-	return (time * (float)0.000262144);
+	return ((float)time * 0.000262144);
+}
+
+/*
+ * Helper function to convert the number of elapsed 1s intervals into clock cycles.
+ * This function converts from seconds -> clock cycles, then drops off any remainder
+ *  by casting to unsigned int.
+ *
+ * @param	the floating point time to convert
+ *
+ * @return	the converted number of cycles
+ */
+unsigned int convertToCycles( float time )
+{
+	return (unsigned int)(time / 0.000262144);
 }
 
 /*
  * Helper function to compare the time of the event which was just read in
  *  to the time which defined the start of our last 1 second interval.
+ * This will get called every time we get a full buffer and there is valid
+ *  data within the buffer. When that happens, this will compare the time
+ *  from the event to the current 1 second interval to see if the event falls
+ *  within that time frame. If it does, move on and add the counts to the interval.
+ *  If it does not fall within the interval, record that CPS event and go to
+ *  the next one. Continue this process until the time falls within an interval.
  *
  * @param	The FPGA time from the event
  *
- * @return	TRUE if we are past 1 second in the interval, FALSE if not
+ * @return	TRUE if we need to record the CPS event, FALSE if not
+ * 			A return value of TRUE will call this function again.
  */
 bool cpsCheckTime( unsigned int time )
 {
 	bool mybool = FALSE;
 
-	if (convertToSeconds(time) >= (convertToSeconds(m_current_1sec_interval_time) + 1.0))
+	//for this function, we define the 1 second intervals for the entire run off
+	// of the first event time that comes in from the FPGA
+	//thus, if the event is within the interval defined by first_evt_time -> first_evt_time + 1.0
+	// then it should be included with that CPS event
+	//otherwise, report that 1 second interval and move to the next interval,
+	// then check if the event goes into that interval
+	//repeat this process until an interval is found
+	//Intervals with 0 events in them are still valid
+	if(convertToSeconds(time) >= (convertToSeconds(first_FPGA_time) + m_num_intervals_elapsed))
 	{
+		//this means that it does not fall within the current 1s interval
+		//record the start time of this interval
+		m_previous_1sec_interval_time = first_FPGA_time + convertToCycles(m_num_intervals_elapsed);
+		//increase the number of intervals elapsed
+		m_num_intervals_elapsed++;
 		mybool = TRUE;
-		m_previous_1sec_interval_time = m_current_1sec_interval_time;
-		m_current_1sec_interval_time = time;
 	}
 	else
-		mybool = FALSE;
+		mybool = FALSE;	//still within the current interval
 
 	return mybool;
 }

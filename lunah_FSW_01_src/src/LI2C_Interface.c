@@ -88,12 +88,6 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 	iStatus = XIicPs_CfgInitialize(Iic, Config, Config->BaseAddress);
 	if (iStatus != XST_SUCCESS)
 		iStatus = XST_FAILURE;
-	/*
-	 * Perform a self-test to ensure that the hardware was built correctly.
-	 */
-	iStatus = XIicPs_SelfTest(Iic);
-	if (iStatus != XST_SUCCESS)
-		iStatus = XST_FAILURE;
 
 	/*
 	 * Set the IIC serial clock rate.
@@ -103,7 +97,7 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 	/*
 	 * Send the buffer using the IIC.
 	 */
-
+	//Still trying out using Send Polled, the previous versions used master Send (the interrupt driven version)
 	iStatus = XIicPs_MasterSendPolled(Iic, ptr_Send_Buffer, TEST_BUFFER_SIZE, *iI2C_slave_addr);
 
 	/*
@@ -118,16 +112,16 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 		// be busy. Thus, hanging the system.
 
 		//need to set something to report failure if we time out
-		if(iStatus == XST_FAILURE)
-			break;
-
-		//I2C time out is set to 3 seconds //5-31-2019
-		XTime_GetTime(&i2c_time_current);
-		if(((i2c_time_current - i2c_time_start)/COUNTS_PER_SECOND) >= (i2c_time +  3))
-		{
-			i2c_time = (i2c_time_current - i2c_time_start)/COUNTS_PER_SECOND;
-			break;
-		}
+//		if(iStatus == XST_FAILURE)
+//			break;
+//
+//		//I2C time out is set to 3 seconds //5-31-2019	//this did not work 6-26-19
+//		XTime_GetTime(&i2c_time_current);
+//		if(((i2c_time_current - i2c_time_start)/COUNTS_PER_SECOND) >= (i2c_time +  3))
+//		{
+//			i2c_time = (i2c_time_current - i2c_time_start)/COUNTS_PER_SECOND;
+//			break;
+//		}
 	}
 
 	return XST_SUCCESS;

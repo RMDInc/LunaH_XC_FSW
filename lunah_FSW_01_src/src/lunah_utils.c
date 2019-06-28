@@ -7,10 +7,11 @@
 
 #include "lunah_utils.h"
 
-static XTime LocalTime;
-static XTime TempTime;
-static XTime LocalTimeStart;
-static XTime LocalTimeCurrent;
+static XTime t_elapsed;	//was LocalTime
+static XTime t_next_interval;	//added to take the place of t_elapsed
+static XTime TempTime;	//unchanged
+static XTime t_start;	//was LocalTimeStart
+static XTime t_current;	//was LocalTimeCurrent
 
 //may still need these if we want to 'get' the temp at some point
 //also, need to verify that we are getting the correct temp
@@ -21,25 +22,28 @@ static int iNeutronTotal;
 static int check_temp_sensor;
 
 /*
- * Initalize LocalTimeStart at startup
+ * Initialize t_start and t_elapsed at startup
  */
 void InitStartTime(void)
 {
-	XTime_GetTime(&LocalTimeStart);	//get the time
+	XTime_GetTime(&t_start);	//get the time
+	t_next_interval = 0;
 }
-
+/*
+ * Report the elapsed time for the run
+ */
 XTime GetLocalTime(void)
 {
-	XTime_GetTime(&LocalTimeCurrent);
-	LocalTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND;
-	return(LocalTime);
+	XTime_GetTime(&t_current);
+	t_elapsed = (t_current - t_start)/COUNTS_PER_SECOND;
+	return t_elapsed;
 }
 
 XTime GetTempTime(void)
 {
-	XTime_GetTime(&LocalTimeCurrent);
-	TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND;
-	return(TempTime);
+	XTime_GetTime(&t_current);
+	TempTime = (t_current - t_start)/COUNTS_PER_SECOND;
+	return TempTime;
 }
 
 /*
@@ -47,7 +51,7 @@ XTime GetTempTime(void)
  */
 int GetNeutronTotal(void)
 {
-	return(iNeutronTotal);
+	return iNeutronTotal;
 }
 
 int PutNeutronTotal(int total)
@@ -86,19 +90,25 @@ int GetModuTemp( void )
 /*
  *  CheckForSOH
  *      Check if time to send SOH and if it is send it.
+ *
+ *	Using a new algorithm for this starting 6-21-19
+ *		Trying to not have the time intervals lag as the run progresses.
+ *		This method keeps the intervals at 1 second past the start time consistently.
+ *		This method also handles not checking this function for more than 1 second.
  */
-int CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
+void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 {
-//  int iNeutronTotal;
-
-	XTime_GetTime(&LocalTimeCurrent);
-	if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (LocalTime +  1))
+	XTime_GetTime(&t_current);
+	t_elapsed = (t_current - t_start)/COUNTS_PER_SECOND;
+	if(t_elapsed >= t_next_interval)
 	{
-//		iNeutronTotal = GetNeutronTotal();
-		LocalTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND;
-		report_SOH(Iic, LocalTime, iNeutronTotal, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
+		while(t_elapsed >= t_next_interval)
+		{
+			t_next_interval++;
+		}
+		report_SOH(Iic, t_elapsed, iNeutronTotal, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
 	}
-	return LocalTime;
+	return;
 }
 
 
@@ -126,33 +136,33 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 
 	switch(check_temp_sensor){
 	case 0:	//analog board
-		XTime_GetTime(&LocalTimeCurrent);
-		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		XTime_GetTime(&t_current);
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
-//			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
+			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
 
-//			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
-//			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//			{
-//				b = (b - 8192) / 16;
-//			}
-//			else
-//			{
-//				b = b / 16;
-//			}
-			b = 23;
-//			analog_board_temp = b;
+			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+			a = i2c_Recv_Buffer[0]<< 5;
+			b = a | i2c_Recv_Buffer[1] >> 3;
+			if(i2c_Recv_Buffer[0] >= 128)
+			{
+				b = (b - 8192) / 16;
+			}
+			else
+			{
+				b = b / 16;
+			}
+//			b = 23;
+			analog_board_temp = b;
 		}
 		break;
 	case 1:	//digital board
-		XTime_GetTime(&LocalTimeCurrent);
-		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		XTime_GetTime(&t_current);
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
-			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
+			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
 
 			IicPsMasterSend(Iic, IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR2);
@@ -171,10 +181,10 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		}
 		break;
 	case 2:	//module sensor
-		XTime_GetTime(&LocalTimeCurrent);
-		if(((LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		XTime_GetTime(&t_current);
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
 		{
-			TempTime = (LocalTimeCurrent - LocalTimeStart)/COUNTS_PER_SECOND; //temp time is reset
+			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
 			modu_board_temp += 1;
 		}
@@ -562,7 +572,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	CONFIG_STRUCT_TYPE config_file_header = {};
 	DATA_FILE_FOOTER_TYPE data_file_footer = {};
 	FIL TXFile;				//file object
-//	FILINFO fno;			//file info structure
+	FILINFO fno;			//file info structure
 	FRESULT f_res = FR_OK;	//SD card status variable type
 
 	//find the folder/file that was requested
@@ -640,15 +650,15 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	if(bytes_written == 0)
 		status = 1;
 
-	//TESTING 5-23-2019 //commented out this f_stat block
+	//TESTING 6-14-19
 	//check that the folder/file we just wrote exists in the file system
 	//check first so that we don't just open a blank new file; there are no protections for that
-//	f_res = f_stat(file_TX_path, &fno);
-//	if(f_res == FR_NO_FILE)
-//	{
-//		//couldn't find the folder
-//		status = 1;	//folder DNE
-//	}
+	f_res = f_stat(file_TX_path, &fno);
+	if(f_res == FR_NO_FILE)
+	{
+		//couldn't find the folder
+		status = 1;	//folder DNE
+	}
 
 	if(status == 0)
 	{
@@ -692,7 +702,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 				if(f_res != FR_OK)
 					status = 2;
 				else
-					file_TX_size -= (DP_HEADER_SIZE - sizeof(data_file_header) - sizeof(data_file_2ndy_header));
+					file_TX_size -= (DP_HEADER_SIZE - sizeof(data_file_header) - sizeof(data_file_2ndy_header));	//this is correct 6-13-2019 //at this point, we have already subtracted the header and 2ndy, don't subtract them again
 			}
 		}
 		else if(file_type == DATA_TYPE_CFG)	//the config file is just one config header

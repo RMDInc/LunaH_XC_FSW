@@ -98,3 +98,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 6.04 The version 3 FSW XQ BOOT files are updated. The baud rate is 115200. The HSFL Run Commands document has been updated. A new folder, Analysis Scripts, has been uploaded. This folder will contain the executables for parsing the data product files and output packets from the Mini-NS. A brief readme is included. For now, just the Raw File Processor is provided, it will read the raw data product files from the SD card after a data acquisition run. 
 
 - Version 6.05 The baud rate for all boot files moving forward, including these ones, will be implemented at 921600 bps. This update cleans up the BOOT files folder and adds the XQ BOOT files at the higher baud rate.
+
+- Version 6.06 Updated a number of files with minor changes and uncomments to allow the system to run with the analog board in preparation for the analog boards to be built and shipped to ASU. No functional changes; added an ifdef block for creating a raw_data file during a DAQ run. 

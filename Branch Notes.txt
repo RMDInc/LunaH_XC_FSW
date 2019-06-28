@@ -1,0 +1,7 @@
+These notes are to document the work that is done on the various branches used in development.
+
+Branch - fix_SOH_timing_bug
+	+ the SOH timing bug was fixed by using fixed intervals when checking if it's time to report SOH
+		- previously, the time was able to "slip" as we progressed through the run
+	+ the CPS reporting bug should be fixed. Again i'm using fixed intervals from the start time to determine if we need to save a CPS event. Previously, the time intervals we would report counts for would "slip" as the run progressed because we were using the times from the FPGA to determine the next interval, rather than using fixed intervals from the start time. 
+	+ it is not possible to handle very low event rates. The only time that CPS is recorded is when the buffer is full and we are processing it. If the buffer does not fill, we will never see any events and nothing will be reported. 
