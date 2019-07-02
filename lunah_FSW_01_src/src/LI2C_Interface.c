@@ -7,9 +7,10 @@
 
 #include "LI2C_Interface.h"
 
-static XTime i2c_time;
+//commented these timers because we aren't using them
+//static XTime i2c_time;
 static XTime i2c_time_start;
-static XTime i2c_time_current;
+//static XTime i2c_time_current;
 
 /*
  * Initalize LocalTimeStart at startup

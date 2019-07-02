@@ -15,16 +15,6 @@
 #include "SetInstrumentParam.h"	//access to box cuts struct
 
 #define CPS_EVENT_SIZE	14
-//TODO: remove these values and code up the elliptical neutron cuts
-//The wide cuts are the normal cuts but expanded by 20%
-#define CPS_ECUT_LOW	50000
-#define CPS_ECUT_HIGH	200000
-#define CPS_PCUT_LOW	0.6
-#define CPS_PCUT_HIGH	0.95
-#define CPS_ECUT_WIDE_LOW	CPS_ECUT_LOW * 1.2
-#define CPS_ECUT_WIDE_HIGH	CPS_ECUT_HIGH * 1.2
-#define CPS_PCUT_WIDE_LOW	CPS_PCUT_LOW * 1.2
-#define CPS_PCUT_WIDE_HIGH	CPS_PCUT_HIGH * 1.2
 
 /*
  * This is the CPS event structure and has the follow data fields:
@@ -66,9 +56,11 @@ void CPSInit( void );
 void cpsSetFirstEventTime( unsigned int time );
 unsigned int cpsGetFirstEventTime( void );
 unsigned int cpsGetCurrentTime( void );
+void cpsInitStartTime(void);
 float convertToSeconds( unsigned int time );
 unsigned int convertToCycles( float time );
 bool cpsCheckTime( unsigned int time );
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void );
-int CPSUpdateTallies(double energy, double psd);
+int CPSUpdateTallies(double energy, double psd, int pmt_id);
+
 #endif /* SRC_CPSDATAPRODUCT_H_ */

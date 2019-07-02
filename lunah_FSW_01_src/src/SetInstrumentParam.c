@@ -18,15 +18,6 @@ static int m_short_integration_samples;
 static int m_long_integration_samples;
 static int m_full_integration_samples;
 
-//Box neutron cut parameters (these must be updated each time the system power cycles, they are not tracked)
-//TODO: remove these when moving to the ellipse cuts
-static CPS_BOX_CUTS_STRUCT_TYPE cps_box_cuts;
-
-CPS_BOX_CUTS_STRUCT_TYPE * GetCPSCutVals( void )
-{
-	return &cps_box_cuts;
-}
-
 /* This can be called for two different reasons:
  *  1.) When there is no config file on the SD card, this holds the default (hard coded)
  *  system parameters which are to be used until changed by the user.
@@ -55,38 +46,38 @@ void CreateDefaultConfig( void )
 		.HighVoltageValue[1]=11,
 		.HighVoltageValue[2]=11,
 		.HighVoltageValue[3]=11,
+		.ScaleFactorEnergy_0_1=1.0,
+		.ScaleFactorEnergy_0_2=1.0,
 		.ScaleFactorEnergy_1_1=1.0,
 		.ScaleFactorEnergy_1_2=1.0,
 		.ScaleFactorEnergy_2_1=1.0,
 		.ScaleFactorEnergy_2_2=1.0,
 		.ScaleFactorEnergy_3_1=1.0,
 		.ScaleFactorEnergy_3_2=1.0,
-		.ScaleFactorEnergy_4_1=1.0,
-		.ScaleFactorEnergy_4_2=1.0,
+		.ScaleFactorPSD_0_1=1.0,
+		.ScaleFactorPSD_0_2=1.0,
 		.ScaleFactorPSD_1_1=1.0,
 		.ScaleFactorPSD_1_2=1.0,
 		.ScaleFactorPSD_2_1=1.0,
 		.ScaleFactorPSD_2_2=1.0,
 		.ScaleFactorPSD_3_1=1.0,
 		.ScaleFactorPSD_3_2=1.0,
-		.ScaleFactorPSD_4_1=1.0,
-		.ScaleFactorPSD_4_2=1.0,
+		.OffsetEnergy_0_1=0.0,
+		.OffsetEnergy_0_2=0.0,
 		.OffsetEnergy_1_1=0.0,
 		.OffsetEnergy_1_2=0.0,
 		.OffsetEnergy_2_1=0.0,
 		.OffsetEnergy_2_2=0.0,
 		.OffsetEnergy_3_1=0.0,
 		.OffsetEnergy_3_2=0.0,
-		.OffsetEnergy_4_1=0.0,
-		.OffsetEnergy_4_2=0.0,
+		.OffsetPSD_0_1=0.0,
+		.OffsetPSD_0_2=0.0,
 		.OffsetPSD_1_1=0.0,
 		.OffsetPSD_1_2=0.0,
 		.OffsetPSD_2_1=0.0,
 		.OffsetPSD_2_2=0.0,
 		.OffsetPSD_3_1=0.0,
-		.OffsetPSD_3_2=0.0,
-		.OffsetPSD_4_1=0.0,
-		.OffsetPSD_4_2=0.0
+		.OffsetPSD_3_2=0.0
 	};
 
 	return;
@@ -294,7 +285,7 @@ int SetEnergyCalParam(float Slope, float Intercept)
  *  around (offsetE/P) in the E-P space or scale the size of the ellipses larger or smaller (scaleE/P).
  *
  * @param moduleID	Assigns the cut values to a specific CLYC module
- * 					Valid input range: 1 - 4
+ * 					Valid input range: 0 - 3
  * @param ellipseNum	Assigns the cut values to a specific ellipse for the module chosen
  * 						Valid input range: 1, 2
  * @param scaleE/scaleP	Scale the size of the ellipse being used to cut neutrons in the data
@@ -324,27 +315,22 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 
 	switch(moduleID)
 	{
-	case 0: //BOX CUTS //TODO: remove this case when updating to ellipse cuts
+	case 0: //module 0
 		switch(ellipseNum)
 		{
-		case 0:
-			cps_box_cuts.ecut_low = scaleE;
-			cps_box_cuts.ecut_high = scaleP;
-			cps_box_cuts.pcut_low = offsetE;
-			cps_box_cuts.pcut_high = offsetP;
-			//set variable to indicate that we should use these values and not the defined ones
-			cps_box_cuts.set_cuts = 1;
-			break;
 		case 1:
-			cps_box_cuts.ecut_wide_low = scaleE;
-			cps_box_cuts.ecut_wide_high = scaleP;
-			cps_box_cuts.pcut_wide_low = offsetE;
-			cps_box_cuts.pcut_wide_high = offsetP;
-			//set variable to indicate that we should use these values and not the defined ones
-			cps_box_cuts.set_cuts = 1;
+			ConfigBuff.ScaleFactorEnergy_0_1 = scaleE;
+			ConfigBuff.ScaleFactorPSD_0_1 = scaleP;
+			ConfigBuff.OffsetEnergy_0_1 = offsetE;
+			ConfigBuff.OffsetPSD_0_1 = offsetP;
+			break;
+		case 2:
+			ConfigBuff.ScaleFactorEnergy_0_2 = scaleE;
+			ConfigBuff.ScaleFactorPSD_0_2 = scaleP;
+			ConfigBuff.OffsetEnergy_0_2 = offsetE;
+			ConfigBuff.OffsetPSD_0_2 = offsetP;
 			break;
 		default:
-			cps_box_cuts.set_cuts = 0;
 			status = CMD_FAILURE;
 			break;
 		}
@@ -409,25 +395,6 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 			break;
 		}
 		break;
-	case 4:	//module 4
-		switch(ellipseNum)
-		{
-		case 1:
-			ConfigBuff.ScaleFactorEnergy_4_1 = scaleE;
-			ConfigBuff.ScaleFactorPSD_4_1 = scaleP;
-			ConfigBuff.OffsetEnergy_4_1 = offsetE;
-			ConfigBuff.OffsetPSD_4_1 = offsetP;
-			break;
-		case 2:
-			ConfigBuff.ScaleFactorEnergy_4_2 = scaleE;
-			ConfigBuff.ScaleFactorPSD_4_2 = scaleP;
-			ConfigBuff.OffsetEnergy_4_2 = offsetE;
-			ConfigBuff.OffsetPSD_4_2 = offsetP;
-			break;
-		default:
-			status = CMD_FAILURE;
-			break;
-		}
 	default: //bad value for the module ID, just use the defaults
 		//just leave the cuts, no change
 		status = CMD_FAILURE;
@@ -610,6 +577,10 @@ int ApplyDAQConfig( XIicPs * Iic )
 		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts
 	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(0, 1, ConfigBuff.ScaleFactorEnergy_0_1, ConfigBuff.ScaleFactorPSD_0_1, ConfigBuff.OffsetEnergy_0_1, ConfigBuff.OffsetPSD_0_1);
+	if(status == CMD_SUCCESS)
+		status = SetNeutronCutGates(0, 2, ConfigBuff.ScaleFactorEnergy_0_2, ConfigBuff.ScaleFactorPSD_0_2, ConfigBuff.OffsetEnergy_0_2, ConfigBuff.OffsetPSD_0_2);
+	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(1, 1, ConfigBuff.ScaleFactorEnergy_1_1, ConfigBuff.ScaleFactorPSD_1_1, ConfigBuff.OffsetEnergy_1_1, ConfigBuff.OffsetPSD_1_1);
 	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(1, 2, ConfigBuff.ScaleFactorEnergy_1_2, ConfigBuff.ScaleFactorPSD_1_2, ConfigBuff.OffsetEnergy_1_2, ConfigBuff.OffsetPSD_1_2);
@@ -621,10 +592,6 @@ int ApplyDAQConfig( XIicPs * Iic )
 		status = SetNeutronCutGates(3, 1, ConfigBuff.ScaleFactorEnergy_3_1, ConfigBuff.ScaleFactorPSD_3_1, ConfigBuff.OffsetEnergy_3_1, ConfigBuff.OffsetPSD_3_1);
 	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(3, 2, ConfigBuff.ScaleFactorEnergy_3_2, ConfigBuff.ScaleFactorPSD_3_2, ConfigBuff.OffsetEnergy_3_2, ConfigBuff.OffsetPSD_3_2);
-	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(4, 1, ConfigBuff.ScaleFactorEnergy_4_1, ConfigBuff.ScaleFactorPSD_4_1, ConfigBuff.OffsetEnergy_4_1, ConfigBuff.OffsetPSD_4_1);
-	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(4, 2, ConfigBuff.ScaleFactorEnergy_4_2, ConfigBuff.ScaleFactorPSD_4_2, ConfigBuff.OffsetEnergy_4_2, ConfigBuff.OffsetPSD_4_2);
 
 	//TODO: error check
 

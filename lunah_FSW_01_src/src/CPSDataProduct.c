@@ -13,54 +13,40 @@ static unsigned int m_previous_1sec_interval_time;	//the previous 1 second inter
 static float m_num_intervals_elapsed;				//how many intervals have elapsed during the current run (effectively one/sec)
 static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 second of counts)
 static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
-static unsigned short m_neutrons_ellipse1;		//neutrons with PSD
-static unsigned short m_neutrons_ellipse2;		//neutrons wide cut
-static unsigned short m_neutrons_with_PSD;		//neutrons with PSD for CPS tallies
-static unsigned short m_neutrons_wide_cut;		//neutrons within the second cut box
+static unsigned short m_neutrons_ellipse1;			//neutrons with PSD
+static unsigned short m_neutrons_ellipse2;			//neutrons wide cut
+static unsigned short m_neutrons_with_PSD;			//neutrons with PSD for CPS tallies
+static unsigned short m_neutrons_wide_cut;			//neutrons within the second cut box
 static unsigned short m_neutrons_no_PSD;			//all events within an energy range, no PSD cut applied
-static unsigned short m_events_over_threshold;	//count all events which trigger the system
+static unsigned short m_events_over_threshold;		//count all events which trigger the system
 
-static CPS_BOX_CUTS_STRUCT_TYPE m_cps_box_cuts;
+static XTime cps_t_elapsed;	//was LocalTime
+static XTime cps_t_next_interval;	//added to take the place of t_elapsed
+static XTime cps_t_start;	//was LocalTimeStart
+static XTime cps_t_current;	//was LocalTimeCurrent
 
-//Functions
-//TODO: remove this function once the ellipse cuts are implemented
-void CPSSetCuts( void )
-{
-	//if the set cuts value is 0, then grab defaults, otherwise user-defined values are in the struct
-	m_cps_box_cuts = *GetCPSCutVals();
-	if(m_cps_box_cuts.set_cuts == 0)
-	{
-		m_cps_box_cuts.ecut_low = CPS_ECUT_LOW;
-		m_cps_box_cuts.ecut_high = CPS_ECUT_HIGH;
-		m_cps_box_cuts.pcut_low = CPS_PCUT_LOW;
-		m_cps_box_cuts.pcut_high = CPS_PCUT_HIGH;
-		m_cps_box_cuts.ecut_wide_low = CPS_ECUT_WIDE_LOW;
-		m_cps_box_cuts.ecut_wide_high = CPS_ECUT_WIDE_HIGH;
-		m_cps_box_cuts.pcut_wide_low = CPS_PCUT_WIDE_LOW;
-		m_cps_box_cuts.pcut_wide_high = CPS_PCUT_WIDE_HIGH;
-	}
-	else if(m_cps_box_cuts.set_cuts == 1)
-	{
-		//check that none of the params are 0, if half of the cuts (normal or wide) are not set, just take the percentage
-		if(m_cps_box_cuts.ecut_low && m_cps_box_cuts.ecut_high && m_cps_box_cuts.pcut_low && m_cps_box_cuts.pcut_high)
-		{
-			m_cps_box_cuts.ecut_low = m_cps_box_cuts.ecut_wide_low * 0.8;
-			m_cps_box_cuts.ecut_high = m_cps_box_cuts.ecut_wide_high * 0.8;
-			m_cps_box_cuts.pcut_low = m_cps_box_cuts.pcut_wide_low * 0.8;
-			m_cps_box_cuts.pcut_high = m_cps_box_cuts.pcut_wide_high * 0.8;
-		}
-		else if(m_cps_box_cuts.ecut_wide_low && m_cps_box_cuts.ecut_wide_high && m_cps_box_cuts.pcut_wide_low && m_cps_box_cuts.pcut_wide_high)
-		{
-			m_cps_box_cuts.ecut_wide_low = m_cps_box_cuts.ecut_low * 1.2;
-			m_cps_box_cuts.ecut_wide_high = m_cps_box_cuts.ecut_high * 1.2;
-			m_cps_box_cuts.pcut_wide_low = m_cps_box_cuts.pcut_low * 1.2;
-			m_cps_box_cuts.pcut_wide_high = m_cps_box_cuts.pcut_high * 1.2;
-		}
-	}
+static unsigned int m_current_module_temp;
 
-	return;
-}
+static double a_rad_1[4];		//semi-major axis
+static double b_rad_1[4];		//semi-minor axis
+static double mean_psd_1[4];	//Y center of the ellipse
+static double mean_nrg_1[4];	//X center of the ellipse
+static double a_rad_2[4];
+static double b_rad_2[4];
+static double mean_psd_2[4];
+static double mean_nrg_2[4];
 
+//Temperature Correction Value Arrays
+//2-D arrays example: my_array[row][column];
+static double MinNRG_C0[2][4] = {{ 107.88,  105.47,   102.23,   104.80   }, {  89.283,   102.45,   93.524,  99.865   }};
+static double MinNRG_C1[2][4] = {{   2.4292,  2.1978,   2.2977,   2.7017 }, {   1.6472,   1.9591,   2.8101,  2.1276  }};
+static double MaxNRG_C0[2][4] = {{ 143.60,  140.30,   142.51,   149.89   }, { 134.67,   140.69,   147.52,  148.08    }};
+static double MaxNRG_C1[2][4] = {{   2.9196,  2.1951,   2.8573,   3.5465 }, {   2.1884,   2.4109,   3.7654,  2.7265  }};
+static double MinPSD_C0[2][4] = {{   0.10948, 0.13519,  0.10577,  0.15994}, {   0.19321,  0.11577,  0.11185,  0.11321}};
+static double MinPSD_C1[2][4] = {{   0.00127, 9.41e-5,  0.00135,  6.56e-4}, {   5.65e-4,  0.00103,  0.00141,  0.00118}};
+static double MaxPSD_C0[2][4] = {{   0.3599,  0.3627,   0.3593,   0.3764 }, {   0.4187,   0.34404,  0.3564,  0.3567  }};
+static double MaxPSD_C1[2][4] = {{  -0.0022, -0.00355, -0.00255, -0.00391}, {  -0.00406, -0.00185, -0.00300, -0.00197}};
+static double MaxPSD_C2[2][4] = {{   4.49e-5, 7.62e-5,  5.24e-5,  8.57e-5}, {   1.06e-4,  3.86e-5,  6.92e-5,  3.53e-5}};
 
 /*
  * Reset the counts per second data product counters and event structures for the run.
@@ -96,6 +82,15 @@ unsigned int cpsGetFirstEventTime( void )
 unsigned int cpsGetCurrentTime( void )
 {
 	return (convertToSeconds(first_FPGA_time) + m_num_intervals_elapsed);
+}
+
+/*
+ * Initialize cps_t_start and cps_t_elapsed at startup
+ */
+void cpsInitStartTime(void)
+{
+	XTime_GetTime(&cps_t_start);	//get the time
+	cps_t_next_interval = 0;
 }
 
 /*
@@ -199,8 +194,22 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
  *  to the static neutron totals in this module and adds to them after running the input energy and psd
  *  value through the neutron cut values.
  * The neutron cut values are set and changed via the MNS_NGATES command.
+ * This function gets the values from the temperature sensors every 10s and uses those temperatures
+ *  to move the cutting ellipses around within the run. This way, we can maintain good data
+ *  acquisition during a run when the temperature is not guaranteed to be constant.
  *
- * NB: The NGATES command is currently (4/12/2019) not parametrized for the neutron cuts this function
+ * This approach moves away from the previously defined "box" cuts. The values and ranges from using
+ *  that approach will be removed once this method is implemented and tested.
+ *
+ * The first time that this function is visited, the neutron cuts will be calculated, then once every 10s
+ *  the module temperature will be re-measured and the cuts will be re-calculated.
+ *
+ * This function is going to use the current temperature of the module temperature sensor to calculate
+ *  the neutron cuts. This should give us a good enough approximation of what the correct temperature is.
+ *  In the next iteration, it would be good to utilize an array of the temperatures from the module
+ *  temperature sensor. This way we can use the temperature which is from the actual time the data was taken.
+ *
+ * NB: The NGATES command is currently (4/12/2019) not parameterized for the neutron cuts this function
  * 		cares about. This function is currently utilizing the old/simple neutron Box cutting. The wide
  * 		cut box is currently hard-coded to be 20% larger in each dimension than the first cuts.
  *
@@ -213,65 +222,113 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
  *
  * @return	(int) returns a 1 if there was a hit in the regular or wide neutron cut boxes, returns 0 otherwise
  */
-int CPSUpdateTallies(double energy, double psd)
+int CPSUpdateTallies(double energy, double psd, int pmt_id)
 {
+	int iter = 0;
 	int m_neutron_detected = 0;
-	//Will eventually need to include the SetInstrumentParams.h so we can access the configuration buffer
-	//is the event greater than 10 MeV?
+	int model_id_num = 0;
+	double MaxNRG = 0;
+	double MinNRG = 0;
+	double MaxPSD = 0;
+	double MinPSD = 0;
+	//check the temperature if it has been ~10s
+	XTime_GetTime(&cps_t_current);
+	cps_t_elapsed = (cps_t_current - cps_t_start)/COUNTS_PER_SECOND;
+	if(cps_t_elapsed >= cps_t_next_interval)
+	{
+		while(cps_t_elapsed >= cps_t_next_interval)
+		{
+			cps_t_next_interval += 10;
+		}
+		m_current_module_temp = GetModuTemp();
+
+		//Calculate the values for the cuts to used
+		//This is based on the temperature, which is the driver for where the cuts should be.
+		//The other driver is the module number, as each module has different cuts.
+		//basic equation:
+		// E   = table_val0 + table_val1*temp^1
+		// PSD = table_val0 + table_val1*temp^1 + table_val2*temp^2
+		//calculate the ellipse parameters
+		for(iter = 0; iter < 4; iter++)
+		{
+			MinNRG = MinNRG_C0[MNS_DETECTOR_NUM][iter] + MinNRG_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp;
+			MaxNRG = MaxNRG_C0[MNS_DETECTOR_NUM][iter] + MaxNRG_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp;
+			MinPSD = MinPSD_C0[MNS_DETECTOR_NUM][iter] + MinPSD_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp;
+			MaxPSD = MaxPSD_C0[MNS_DETECTOR_NUM][iter] + MaxPSD_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp + MaxPSD_C2[MNS_DETECTOR_NUM][iter]*m_current_module_temp*m_current_module_temp;
+
+			MinNRG *= 0.8;	//random extra scaling
+			MaxNRG *= 1.2;
+			//calculate the parameters
+			//will need to modify these parameters with the scale factor & offset values from setIntstrumentParams
+			a_rad_1[iter] =	 (MaxNRG - MinNRG) / 2.0;	// a, semi-major axis
+			b_rad_1[iter] =	 (MaxPSD - MinPSD) / 2.0;	// b, semi-minor axis
+			mean_nrg_1[iter] = (MaxNRG + MinNRG) / 2.0;	// X center
+			mean_psd_1[iter] = (MaxPSD + MinPSD) / 2.0;	// Y center
+
+			//find the values for the larger ellipse (if we're doing a statically larger ellipse ~20% or something)
+			//find the values for: mean_psd_2, mean_nrg_2, brad_2, arad_2
+			a_rad_2[iter] =	 (MaxNRG - MinNRG) / 2.0;
+			b_rad_2[iter] =	 (MaxPSD - MinPSD) / 2.0;
+			mean_psd_2[iter] = (MaxNRG + MinNRG) / 2.0;
+			mean_nrg_2[iter] = (MaxPSD + MinPSD) / 2.0;
+		}
+	}
+	//compare energy, psd values to the cuts //tally if inside, otherwise no tally
+	///////////
+	//NOTE: if the pmt ID number is not a single hit, then we won't add it to the tallies
+	///////////
+	if(pmt_id == PMT_ID_0 || pmt_id == PMT_ID_1 || pmt_id == PMT_ID_2 || pmt_id == PMT_ID_3)
+	{
+		switch(pmt_id)
+		{
+		case PMT_ID_0:
+			model_id_num = 0;
+			break;
+		case PMT_ID_1:
+			model_id_num = 1;
+			break;
+		case PMT_ID_2:
+			model_id_num = 2;
+			break;
+		case PMT_ID_3:
+			model_id_num = 3;
+			break;
+		}
+
+		if(	(psd - mean_psd_1[model_id_num]) <  b_rad_1[model_id_num] / a_rad_1[model_id_num] * sqrt( a_rad_1[model_id_num] * a_rad_1[model_id_num] - (energy - mean_nrg_1[model_id_num]) * (energy - mean_nrg_1[model_id_num])) &&
+			(psd - mean_psd_1[model_id_num]) > -b_rad_1[model_id_num] / a_rad_1[model_id_num] * sqrt( a_rad_1[model_id_num] * a_rad_1[model_id_num] - (energy - mean_nrg_1[model_id_num]) * (energy - mean_nrg_1[model_id_num])))
+		{
+			m_neutrons_ellipse1++;
+			cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_ellipse1 >> 8);
+			cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_ellipse1);
+			m_neutron_detected = 1;
+		}
+		//now calculate the second ellipse and take those cuts:
+		if(	(psd - mean_psd_2[model_id_num]) <  b_rad_2[model_id_num] / a_rad_2[model_id_num] * sqrt( a_rad_2[model_id_num] * a_rad_2[model_id_num] - (energy - mean_nrg_2[model_id_num]) * (energy - mean_nrg_2[model_id_num])) &&
+			(psd - mean_psd_2[model_id_num]) > -b_rad_2[model_id_num] / a_rad_2[model_id_num] * sqrt( a_rad_2[model_id_num] * a_rad_2[model_id_num] - (energy - mean_nrg_2[model_id_num]) * (energy - mean_nrg_2[model_id_num])))
+		{
+			m_neutrons_ellipse2++;
+			cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
+			cpsEvent.n_wide_cut_LSB = (unsigned char)(m_neutrons_ellipse2);
+			m_neutron_detected = 1;
+		}
+		//does the event fit into the no PSD cut?
+		if(energy >= MinNRG)
+		{
+			if(energy <= MaxNRG)
+			{
+				m_neutrons_no_PSD++;
+				cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
+				cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
+			}
+		}
+	}
+	//also collect the values for neutrons with no PSD and events greater than 10 MeV
 	if(energy > TWODH_ENERGY_MAX)	//this will eventually be something like ConfigBuff.parameter
 	{
 		m_events_over_threshold++;
 		cpsEvent.high_energy_events_MSB = (unsigned char)(m_events_over_threshold >> 8);
 		cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
-	}
-
-	//does the event fit into the no PSD cut?
-	if(energy >= m_cps_box_cuts.ecut_low)
-	{
-		if(energy <= m_cps_box_cuts.ecut_high)
-		{
-			m_neutrons_no_PSD++;
-			cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
-			cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
-		}
-	}
-
-	//check for neutrons in the primary cuts
-	if(energy >= m_cps_box_cuts.ecut_low)
-	{
-		if(energy <= m_cps_box_cuts.ecut_high)
-		{
-			if(psd >= m_cps_box_cuts.pcut_low)
-			{
-				if(psd <= m_cps_box_cuts.pcut_high)
-				{
-					m_neutrons_with_PSD++;
-					cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_with_PSD >> 8);
-					cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_with_PSD);
-					m_neutron_detected = 1;
-				}
-			}
-		}
-	}
-
-	//check for neutrons in the secondary cuts
-	//this number should be larger than the neutrons w/psd cut because these cuts are wider, but
-	//will still catch all the neutrons from above
-	if(energy >= m_cps_box_cuts.ecut_wide_low)
-	{
-		if(energy <= m_cps_box_cuts.ecut_wide_high)
-		{
-			if(psd >= m_cps_box_cuts.pcut_wide_low)
-			{
-				if(psd <= m_cps_box_cuts.pcut_wide_high)
-				{
-					m_neutrons_wide_cut++;
-					cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_wide_cut >> 8);
-					cpsEvent.n_wide_cut_LSB = (unsigned char)(m_neutrons_wide_cut);
-					m_neutron_detected = 1;
-				}
-			}
-		}
 	}
 
 	return m_neutron_detected;

@@ -143,17 +143,17 @@ int ProcessData( unsigned int * data_raw )
 							m_pmt_ID_holder = data_raw[iter+3] & 0x0F;
 							switch(m_pmt_ID_holder)
 							{
-							case PMT_ID_3:
-								event_holder.field1 |= 0xC0; //PMT 3
-								break;
-							case PMT_ID_2:
-								event_holder.field1 |= 0x80; //PMT 2
+							case PMT_ID_0:
+								event_holder.field1 |= 0x00; //PMT 0
 								break;
 							case PMT_ID_1:
 								event_holder.field1 |= 0x40; //PMT 1
 								break;
-							case PMT_ID_0:
-								event_holder.field1 |= 0x00; //PMT 0
+							case PMT_ID_2:
+								event_holder.field1 |= 0x80; //PMT 2
+								break;
+							case PMT_ID_3:
+								event_holder.field1 |= 0xC0; //PMT 3
 								break;
 							default:
 								//invalid event
@@ -211,7 +211,7 @@ int ProcessData( unsigned int * data_raw )
 							iter += 8;
 							m_events_processed++;
 
-							m_neutron_detected = CPSUpdateTallies(energy, psd);
+							m_neutron_detected = CPSUpdateTallies(energy, psd, m_pmt_ID_holder);
 							IncNeutronTotal(m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
 						}
 						else

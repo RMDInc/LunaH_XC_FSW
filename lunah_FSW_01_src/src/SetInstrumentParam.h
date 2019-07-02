@@ -21,19 +21,6 @@
 
 //TODO: remove when we implement ellipse cuts
 #include "CPSDataProduct.h"
-//TODO: remove this struct when moving to the ellipse cuts
-typedef struct {
-	int set_cuts;
-	double ecut_low;
-	double ecut_high;
-	double pcut_low;
-	double pcut_high;
-	double ecut_wide_low;
-	double ecut_wide_high;
-	double pcut_wide_low;
-	double pcut_wide_high;
-}CPS_BOX_CUTS_STRUCT_TYPE;
-
 
 /*
  * Mini-NS Configuration Parameter Structure
@@ -60,38 +47,38 @@ typedef struct {
 	int IntegrationLong;
 	int IntegrationFull;
 	int HighVoltageValue[4];
+	float ScaleFactorEnergy_0_1;
+	float ScaleFactorEnergy_0_2;
 	float ScaleFactorEnergy_1_1;
 	float ScaleFactorEnergy_1_2;
 	float ScaleFactorEnergy_2_1;
 	float ScaleFactorEnergy_2_2;
 	float ScaleFactorEnergy_3_1;
 	float ScaleFactorEnergy_3_2;
-	float ScaleFactorEnergy_4_1;
-	float ScaleFactorEnergy_4_2;
+	float ScaleFactorPSD_0_1;
+	float ScaleFactorPSD_0_2;
 	float ScaleFactorPSD_1_1;
 	float ScaleFactorPSD_1_2;
 	float ScaleFactorPSD_2_1;
 	float ScaleFactorPSD_2_2;
 	float ScaleFactorPSD_3_1;
 	float ScaleFactorPSD_3_2;
-	float ScaleFactorPSD_4_1;
-	float ScaleFactorPSD_4_2;
+	float OffsetEnergy_0_1;
+	float OffsetEnergy_0_2;
 	float OffsetEnergy_1_1;
 	float OffsetEnergy_1_2;
 	float OffsetEnergy_2_1;
 	float OffsetEnergy_2_2;
 	float OffsetEnergy_3_1;
 	float OffsetEnergy_3_2;
-	float OffsetEnergy_4_1;
-	float OffsetEnergy_4_2;
+	float OffsetPSD_0_1;
+	float OffsetPSD_0_2;
 	float OffsetPSD_1_1;
 	float OffsetPSD_1_2;
 	float OffsetPSD_2_1;
 	float OffsetPSD_2_2;
 	float OffsetPSD_3_1;
 	float OffsetPSD_3_2;
-	float OffsetPSD_4_1;
-	float OffsetPSD_4_2;
 } CONFIG_STRUCT_TYPE;
 
 /*
@@ -162,10 +149,6 @@ typedef struct{
 }DATA_FILE_FOOTER_TYPE;	//just make a regular struct and don't worry about the padding bytes
 
 // prototypes
-
-//TODO: remove this function when we move to ellipse cuts
-CPS_BOX_CUTS_STRUCT_TYPE * GetCPSCutVals( void );
-
 void CreateDefaultConfig( void );
 CONFIG_STRUCT_TYPE * GetConfigBuffer( void );
 int GetBaselineInt( void );

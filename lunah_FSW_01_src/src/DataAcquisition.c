@@ -529,9 +529,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 #endif
 	//TESTING 6-13-2019
 
-	//TODO: remove this when the ellipse cuts are implemented
-	CPSSetCuts();
-
 	while(done != 1)
 	{
 		valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);
