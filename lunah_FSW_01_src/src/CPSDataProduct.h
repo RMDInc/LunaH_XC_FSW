@@ -63,6 +63,7 @@ typedef struct {
 //Function Prototypes
 void CPSSetCuts( void );
 void CPSInit( void );
+void CPSResetCounts( void );
 void cpsSetFirstEventTime( unsigned int time );
 unsigned int cpsGetFirstEventTime( void );
 unsigned int cpsGetCurrentTime( void );
