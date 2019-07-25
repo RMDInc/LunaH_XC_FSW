@@ -1,4 +1,4 @@
-10/18/2018 - Version 2.1/2.2 is the previous iteration of this code and has been used to implement the code which Lee has been contributing. He has worked on many issues within the code including general organization, the configuration file creation, data parsing, modularization of the code into header+source files, and work on the SOH.
+- Version 2.1/2.2 is the previous iteration of this code and has been used to implement the code which Lee has been contributing. He has worked on many issues within the code including general organization, the configuration file creation, data parsing, modularization of the code into header+source files, and work on the SOH.
 
 - Version 3.0 is level one of the code functionality. We have stripped away interaction in favor of basic function in order to do basic integration with the ASU flat-sat. This code will run initialization processes, then begin looping and report SOH data packets at a rate of 1 Hz. Anything further has been removed for this version. Upcoming iterations will re-integrate interaction.
 	
@@ -99,4 +99,6 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 
 - Version 6.05 The baud rate for all boot files moving forward, including these ones, will be implemented at 921600 bps. This update cleans up the BOOT files folder and adds the XQ BOOT files at the higher baud rate.
 
-- Version 6.06 Updated a number of files with minor changes and uncomments to allow the system to run with the analog board in preparation for the analog boards to be built and shipped to ASU. No functional changes; added an ifdef block for creating a raw_data file during a DAQ run. 
+- Version 6.06 Updated a number of files with minor changes and uncommented some code to allow the system to run with the analog board in preparation for the analog boards to be built and shipped to ASU. No functional changes; added an ifdef block for creating a raw_data file during a DAQ run. 
+
+- Version 6.1 Merged in branch with the fix for the SOH timing bug. I also brought this change into the CPS data product time management. How we keep track of neutron counts has been changed, SOH reports cumulative counts, CPS reports per-second counts. Fixed the f_stat bug which caused hangs when requesting MNS_TX and sometimes MNS_DAQ. The mode byte has been added to all SOH packets, see the ICD, Telemetry Dictionary for info. 

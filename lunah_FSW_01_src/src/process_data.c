@@ -119,7 +119,7 @@ int ProcessData( unsigned int * data_raw )
 						if((data_raw[iter+4] < data_raw[iter+5]) && (data_raw[iter+5] < data_raw[iter+6]) && (data_raw[iter+6] < data_raw[iter+7]))
 						{
 							valid_event = TRUE;
-							//if the first event time has not been recorded, then set one
+							//if the first event time has not been recorded, then set one //this allows us to function without a false event
 							if(cpsGetFirstEventTime() == 0)
 								cpsSetFirstEventTime(data_raw[iter+1]);
 							//loop recording the CPS events until we don't need to
@@ -137,6 +137,8 @@ int ProcessData( unsigned int * data_raw )
 									//TODO:handle error with writing
 									xil_printf("error writing 5\n");
 								}
+								//reset the neutron counts for the CPS data product
+								CPSResetCounts();
 							}
 
 							event_holder.field0 = 0xFF;	//event ID is 0xFF

@@ -1,0 +1,73 @@
+; don't show the macro window
+show -1
+;setecho 0
+; hide TT
+showtt 0
+
+flushrecv
+
+logopen 'C:\Users\irdlab\Desktop\L3-2_XQ_FSW_checkout_03.bin' 1 0
+
+setdebug 3
+
+messagebox "Press OK to set system parameters." "Detector 0"
+
+;put in the correct parameters for a DAQ run
+sendln 'MNS_TRG_0_8850'
+pause 2
+sendln 'MNS_INT_0_-52_88_472_6000'
+pause 2
+sendln 'MNS_ENABLE_ACT_0'
+pause 2
+sendln 'MNS_HV_0_1_255'
+pause 2
+sendln 'MNS_HV_0_2_255'
+pause 2
+sendln 'MNS_ECAL_0_1.0_0.0'
+pause 2
+sendln 'MNS_NGATES_0_0_0_20000_600000_0.05_0.4'
+pause 2
+sendln 'MNS_NGATES_0_0_1_16000_720000_0.04_0.48'
+pause 2
+
+messagebox "Press OK to move to Pre-Data Acquisition state." "Detector 0"
+
+sendln 'MNS_DAQ_0_10'
+pause 1
+
+messagebox "Press OK to move to Start Data Acquisition." "Detector 0"
+
+sendln 'MNS_START_0_123456_1'
+pause 60
+
+messagebox "Wait one minute to collect data, then press OK." "Detector 0"
+messagebox "Press OK to transfer CPS file." "Detector 0"
+
+pause 1
+sendln 'MNS_TX_0_5_10_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer EVT file." "Detector 0"
+
+pause 1
+sendln 'MNS_TX_0_7_10_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer 2DH file for PMT 0." "Detector 0"
+
+pause 1
+sendln 'MNS_TX_0_8_10_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer 2DH file for PMT 1." "Detector 0"
+
+pause 1
+sendln 'MNS_TX_0_11_10_1_0_0'
+pause 1
+ 
+messagebox "Press OK when the transfer has finished." "Detector 0"
+setdebug 0
+logclose
+
+flushrecv
+end

@@ -251,6 +251,7 @@ int main()
 			}
 			//prepare the status variables
 			done = 0;	//not done yet
+			PutNeutronTotal(0);	//set the SOH neutron count reports back to 0 for the run
 			CPSInit();	//reset neutron counts for the run
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
 			SetModeByte(MODE_PRE_DAQ);	//set the mode byte in SOH
