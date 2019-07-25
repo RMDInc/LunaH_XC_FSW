@@ -241,9 +241,12 @@ int DoesFileExist( void )
 {
 	int status = CMD_SUCCESS;
 	FILINFO fno;		//file info structure			//TESTING 6-14-19
+	//Initialize the FILINFO struct with something //If using LFN, then we need to init these values, otherwise we don't
+	TCHAR LFName[256];
+	fno.lfname = LFName;
+	fno.lfsize = sizeof(LFName);
 	FRESULT ffs_res;	//FAT file system return type	//TESTING 6-14-19
 
-	//TESTING 6-14-19
 	//check the SD card for the folder
 	ffs_res = f_stat(current_run_folder, &fno);
 	if(ffs_res == FR_NO_FILE)

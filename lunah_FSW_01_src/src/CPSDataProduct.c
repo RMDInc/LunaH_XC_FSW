@@ -86,7 +86,11 @@ void CPSInit( void )
 
 void CPSResetCounts( void )
 {
-	cpsEvent.n_with_PSD_MSB = 0;
+	m_neutrons_with_PSD = 0;	//reset the values from processing
+	m_neutrons_wide_cut = 0;
+	m_neutrons_no_PSD = 0;
+	m_events_over_threshold = 0;
+	cpsEvent.n_with_PSD_MSB = 0;//reset values in the struct we report
 	cpsEvent.n_with_PSD_LSB = 0;
 	cpsEvent.n_wide_cut_MSB = 0;
 	cpsEvent.n_wide_cut_LSB = 0;

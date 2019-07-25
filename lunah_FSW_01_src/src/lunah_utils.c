@@ -567,6 +567,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	int file_TX_file_pointer_location = 0;
 	int m_loop_var = 1;					//0 = false; 1 = true
 	int bytes_to_read = 0;				//number of bytes to read from data file to put into packet data bytes
+	unsigned int m_send_wait_count = 0;
 	unsigned int bytes_written;
 	unsigned int bytes_read = 0;
 	unsigned int file_TX_2DH_oor_values[5] = {};
@@ -583,6 +584,10 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	DATA_FILE_FOOTER_TYPE data_file_footer = {};
 	FIL TXFile;				//file object
 	FILINFO fno;			//file info structure
+	//Initialize the FILINFO struct with something //If using LFN, then we need to init these values, otherwise we don't
+	TCHAR LFName[256];
+	fno.lfname = LFName;
+	fno.lfsize = sizeof(LFName);
 	FRESULT f_res = FR_OK;	//SD card status variable type
 
 	//find the folder/file that was requested
@@ -660,7 +665,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	if(bytes_written == 0)
 		status = 1;
 
-	//TESTING 6-14-19
 	//check that the folder/file we just wrote exists in the file system
 	//check first so that we don't just open a blank new file; there are no protections for that
 	f_res = f_stat(file_TX_path, &fno);
@@ -930,6 +934,18 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			bytes_sent = XUartPs_Send(&Uart_PS, &(packet_array[sent]), file_TX_packet_size - sent);
 			sent += bytes_sent;
 		}
+
+		//TESTING 7-24-2019
+		m_send_wait_count = 0;
+		while(XUartPs_IsSending(&Uart_PS) == TRUE)
+		{
+			//wait here
+			m_send_wait_count++;
+			//we can't wait forever, so make an arbitrary break condition
+			if(m_send_wait_count >= 1048576)
+				break;
+		}
+		//TESTING 7-24-2019
 
 		//check if there are multiple packets to send
 		switch(file_TX_group_flags)
