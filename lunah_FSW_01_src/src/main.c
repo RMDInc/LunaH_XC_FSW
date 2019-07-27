@@ -266,15 +266,13 @@ int main()
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
 
-//				status = DoesFileExist();	//TEST 05-16
-				status = CMD_FAILURE;		//TEST 05-16
-
-//				if(status == CMD_ERROR)		//TEST 05-16 (commented)
-//				{
-//					//handle a non-success/failure return
-//					//this means we don't have access to something
-//					//TODO: handle return
-//				}
+				status = DoesFileExist();	//TEST 7-26
+				if(status == CMD_ERROR)		//TEST 7-26
+				{
+					//handle a non-success/failure return
+					//this means we don't have access to something
+					//TODO: handle return
+				}
 				//returns FALSE if file does NOT exist
 				//returns TRUE if file does exist
 				//we need the file to be unique, so FALSE is a positive result,

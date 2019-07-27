@@ -249,7 +249,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		report_buff[33] = (unsigned char)(local_time_holder >> 8);
 		report_buff[34] = (unsigned char)(local_time_holder);
 		report_buff[35] = TAB_CHAR_CODE;
-		report_buff[36] = mode_byte; //MODE_STANDBY;		//this currently only prints that the detector is in standby mode //GJS 5/9/2019
+		report_buff[36] = mode_byte;
 		report_buff[37] = NEWLINE_CHAR_CODE;
 
 		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);
@@ -785,16 +785,17 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	{
 		//for EVT file type
 		//fill in the RMD header	//these are shared header values for CPS, 2DH, EVT, WAV, CFG //only LOG doesn't have this
-		f_holder = data_file_header.configBuff.ScaleFactorEnergy_1_1;	memcpy(&(packet_array[11]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ScaleFactorEnergy_1_2;	memcpy(&(packet_array[15]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ScaleFactorPSD_1_1;		memcpy(&(packet_array[19]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ScaleFactorPSD_1_2;		memcpy(&(packet_array[23]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetEnergy_1_1;		memcpy(&(packet_array[27]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetEnergy_1_2;		memcpy(&(packet_array[31]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetPSD_1_1;			memcpy(&(packet_array[35]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetPSD_1_2;			memcpy(&(packet_array[39]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ECalSlope;				memcpy(&(packet_array[43]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ECalIntercept;			memcpy(&(packet_array[47]), &f_holder, sizeof(float));
+		//for the scale factors and offsets, just use the values for Module 0, we can iterate this for other packets, if it's desired
+		f_holder = data_file_header.configBuff.SF_E[0];			memcpy(&(packet_array[11]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.SF_E[1];			memcpy(&(packet_array[15]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.SF_PSD[0];		memcpy(&(packet_array[19]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.SF_PSD[1];		memcpy(&(packet_array[23]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.Off_E[0];		memcpy(&(packet_array[27]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.Off_E[1];		memcpy(&(packet_array[31]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.Off_PSD[0];		memcpy(&(packet_array[35]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.Off_PSD[1];		memcpy(&(packet_array[39]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.ECalSlope;		memcpy(&(packet_array[43]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.ECalIntercept;	memcpy(&(packet_array[47]), &f_holder, sizeof(float));
 		s_holder = (unsigned short)data_file_header.configBuff.TriggerThreshold;	memcpy(&(packet_array[51]), &s_holder, sizeof(s_holder));
 		s_holder = (unsigned short)data_file_header.configBuff.IntegrationBaseline;	memcpy(&(packet_array[53]), &s_holder, sizeof(s_holder));
 		s_holder = (unsigned short)data_file_header.configBuff.IntegrationShort;	memcpy(&(packet_array[55]), &s_holder, sizeof(s_holder));

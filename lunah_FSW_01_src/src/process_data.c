@@ -145,29 +145,31 @@ int ProcessData( unsigned int * data_raw )
 							m_pmt_ID_holder = data_raw[iter+3] & 0x0F;
 							switch(m_pmt_ID_holder)
 							{
+							case NO_HIT_PATTERN:
+								event_holder.field1 |= 0x00; //No hit pattern detected
+								//do we want to keep processing this event? If there is no hit ID coming through, is it just noise?
+								break;
 							case PMT_ID_0:
-								event_holder.field1 |= 0x00; //PMT 0
+								event_holder.field1 |= 0x10; //PMT 0
 								break;
 							case PMT_ID_1:
-								event_holder.field1 |= 0x40; //PMT 1
+								event_holder.field1 |= 0x20; //PMT 1
 								break;
 							case PMT_ID_2:
-								event_holder.field1 |= 0x80; //PMT 2
+								event_holder.field1 |= 0x40; //PMT 2
 								break;
 							case PMT_ID_3:
-								event_holder.field1 |= 0xC0; //PMT 3
+								event_holder.field1 |= 0x80; //PMT 3
 								break;
 							default:
-								//invalid event
+								//invalid event or Multi-Hit event
 								//TODO: Handle bad/multiple hit IDs
-								//with only 2 bits, we have no way to report this...
-								//maybe take a bit or two from the Event ID?
-								event_holder.field1 |= 0x00; //PMT 0 for now
+								event_holder.field1 |= (m_pmt_ID_holder << 4); //or the bits to get the full hit pattern
 								break;
 							}
 							m_total_events_holder = data_raw[iter+2] & 0xFFF;	//mask the upper bits we don't care about
-							event_holder.field1 |= (unsigned char)(m_total_events_holder >> 6);
-							event_holder.field2 |= (unsigned char)(m_total_events_holder << 2);
+							event_holder.field1 |= (unsigned char)(m_total_events_holder >> 8);
+							event_holder.field2 |= (unsigned char)(m_total_events_holder);
 
 							si = 0.0;	li = 0.0;	fi = 0.0;	psd = 0.0;	energy = 0.0;
 							bl4 = bl3; bl3 = bl2; bl2 = bl1;
@@ -200,9 +202,10 @@ int ProcessData( unsigned int * data_raw )
 							}
 							m_x_bin_number = Get2DHArrayIndexX();
 							m_y_bin_number = Get2DHArrayIndexY();
-							event_holder.field2 |= (unsigned char)((m_x_bin_number >> 8) & 0x03);
-							event_holder.field3 |= (unsigned char)(m_x_bin_number);
+							event_holder.field3 |= (unsigned char)(m_x_bin_number >> 1);
+							event_holder.field4 |= (unsigned char)((m_x_bin_number & 0x01) << 7);
 							event_holder.field4 |= (unsigned char)(m_y_bin_number << 2);
+							//TODO: Finish updating the data product fields here
 							m_FPGA_time_holder = data_raw[iter+1] & 0x03FFFFFF;	//mask the upper bits so we don't overwrite anything
 							event_holder.field4 |= (unsigned char)((m_FPGA_time_holder >> 24) & 0x03);
 							event_holder.field5 = (unsigned char)(m_FPGA_time_holder >> 16);

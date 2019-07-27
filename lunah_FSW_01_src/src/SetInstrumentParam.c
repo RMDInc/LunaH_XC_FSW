@@ -46,38 +46,38 @@ void CreateDefaultConfig( void )
 		.HighVoltageValue[1]=11,
 		.HighVoltageValue[2]=11,
 		.HighVoltageValue[3]=11,
-		.ScaleFactorEnergy_0_1=1.0,
-		.ScaleFactorEnergy_0_2=1.0,
-		.ScaleFactorEnergy_1_1=1.0,
-		.ScaleFactorEnergy_1_2=1.0,
-		.ScaleFactorEnergy_2_1=1.0,
-		.ScaleFactorEnergy_2_2=1.0,
-		.ScaleFactorEnergy_3_1=1.0,
-		.ScaleFactorEnergy_3_2=1.0,
-		.ScaleFactorPSD_0_1=1.0,
-		.ScaleFactorPSD_0_2=1.0,
-		.ScaleFactorPSD_1_1=1.0,
-		.ScaleFactorPSD_1_2=1.0,
-		.ScaleFactorPSD_2_1=1.0,
-		.ScaleFactorPSD_2_2=1.0,
-		.ScaleFactorPSD_3_1=1.0,
-		.ScaleFactorPSD_3_2=1.0,
-		.OffsetEnergy_0_1=0.0,
-		.OffsetEnergy_0_2=0.0,
-		.OffsetEnergy_1_1=0.0,
-		.OffsetEnergy_1_2=0.0,
-		.OffsetEnergy_2_1=0.0,
-		.OffsetEnergy_2_2=0.0,
-		.OffsetEnergy_3_1=0.0,
-		.OffsetEnergy_3_2=0.0,
-		.OffsetPSD_0_1=0.0,
-		.OffsetPSD_0_2=0.0,
-		.OffsetPSD_1_1=0.0,
-		.OffsetPSD_1_2=0.0,
-		.OffsetPSD_2_1=0.0,
-		.OffsetPSD_2_2=0.0,
-		.OffsetPSD_3_1=0.0,
-		.OffsetPSD_3_2=0.0
+		.SF_E[0] = 1.0,
+		.SF_E[1] = 1.0,
+		.SF_E[2] = 1.0,
+		.SF_E[3] = 1.0,
+		.SF_E[4] = 1.0,
+		.SF_E[5] = 1.0,
+		.SF_E[6] = 1.0,
+		.SF_E[7] = 1.0,
+		.SF_PSD[0] = 1.0,
+		.SF_PSD[1] = 1.0,
+		.SF_PSD[2] = 1.0,
+		.SF_PSD[3] = 1.0,
+		.SF_PSD[4] = 1.0,
+		.SF_PSD[5] = 1.0,
+		.SF_PSD[6] = 1.0,
+		.SF_PSD[7] = 1.0,
+		.Off_E[0] = 0.0,
+		.Off_E[1] = 0.0,
+		.Off_E[2] = 0.0,
+		.Off_E[3] = 0.0,
+		.Off_E[4] = 0.0,
+		.Off_E[5] = 0.0,
+		.Off_E[6] = 0.0,
+		.Off_E[7] = 0.0,
+		.Off_PSD[0] = 0.0,
+		.Off_PSD[1] = 0.0,
+		.Off_PSD[2] = 0.0,
+		.Off_PSD[3] = 0.0,
+		.Off_PSD[4] = 0.0,
+		.Off_PSD[5] = 0.0,
+		.Off_PSD[6] = 0.0,
+		.Off_PSD[7] = 0.0
 	};
 
 	return;
@@ -318,17 +318,17 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 	case 0: //module 0
 		switch(ellipseNum)
 		{
-		case 1:
-			ConfigBuff.ScaleFactorEnergy_0_1 = scaleE;
-			ConfigBuff.ScaleFactorPSD_0_1 = scaleP;
-			ConfigBuff.OffsetEnergy_0_1 = offsetE;
-			ConfigBuff.OffsetPSD_0_1 = offsetP;
+		case 0:
+			ConfigBuff.SF_E[0] = scaleE;
+			ConfigBuff.SF_PSD[0] = scaleP;
+			ConfigBuff.Off_E[0] = offsetE;
+			ConfigBuff.Off_PSD[0] = offsetP;
 			break;
-		case 2:
-			ConfigBuff.ScaleFactorEnergy_0_2 = scaleE;
-			ConfigBuff.ScaleFactorPSD_0_2 = scaleP;
-			ConfigBuff.OffsetEnergy_0_2 = offsetE;
-			ConfigBuff.OffsetPSD_0_2 = offsetP;
+		case 1:
+			ConfigBuff.SF_E[1] = scaleE;
+			ConfigBuff.SF_PSD[1] = scaleP;
+			ConfigBuff.Off_E[1] = offsetE;
+			ConfigBuff.Off_PSD[1] = offsetP;
 			break;
 		default:
 			status = CMD_FAILURE;
@@ -338,17 +338,17 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 	case 1:	//module 1
 		switch(ellipseNum)
 		{
-		case 1:
-			ConfigBuff.ScaleFactorEnergy_1_1 = scaleE;
-			ConfigBuff.ScaleFactorPSD_1_1 = scaleP;
-			ConfigBuff.OffsetEnergy_1_1 = offsetE;
-			ConfigBuff.OffsetPSD_1_1 = offsetP;
+		case 0:
+			ConfigBuff.SF_E[2] = scaleE;
+			ConfigBuff.SF_PSD[2] = scaleP;
+			ConfigBuff.Off_E[2] = offsetE;
+			ConfigBuff.Off_PSD[2] = offsetP;
 			break;
-		case 2:
-			ConfigBuff.ScaleFactorEnergy_1_2 = scaleE;
-			ConfigBuff.ScaleFactorPSD_1_2 = scaleP;
-			ConfigBuff.OffsetEnergy_1_2 = offsetE;
-			ConfigBuff.OffsetPSD_1_2 = offsetP;
+		case 1:
+			ConfigBuff.SF_E[3] = scaleE;
+			ConfigBuff.SF_PSD[3] = scaleP;
+			ConfigBuff.Off_E[3] = offsetE;
+			ConfigBuff.Off_PSD[3] = offsetP;
 			break;
 		default:
 			status = CMD_FAILURE;
@@ -358,17 +358,17 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 	case 2:	//module 2
 		switch(ellipseNum)
 		{
-		case 1:
-			ConfigBuff.ScaleFactorEnergy_2_1 = scaleE;
-			ConfigBuff.ScaleFactorPSD_2_1 = scaleP;
-			ConfigBuff.OffsetEnergy_2_1 = offsetE;
-			ConfigBuff.OffsetPSD_2_1 = offsetP;
+		case 0:
+			ConfigBuff.SF_E[4] = scaleE;
+			ConfigBuff.SF_PSD[4] = scaleP;
+			ConfigBuff.Off_E[4] = offsetE;
+			ConfigBuff.Off_PSD[4] = offsetP;
 			break;
-		case 2:
-			ConfigBuff.ScaleFactorEnergy_2_2 = scaleE;
-			ConfigBuff.ScaleFactorPSD_2_2 = scaleP;
-			ConfigBuff.OffsetEnergy_2_2 = offsetE;
-			ConfigBuff.OffsetPSD_2_2 = offsetP;
+		case 1:
+			ConfigBuff.SF_E[5] = scaleE;
+			ConfigBuff.SF_PSD[5] = scaleP;
+			ConfigBuff.Off_E[5] = offsetE;
+			ConfigBuff.Off_PSD[5] = offsetP;
 			break;
 		default:
 			status = CMD_FAILURE;
@@ -378,17 +378,17 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 	case 3:	//module 3
 		switch(ellipseNum)
 		{
-		case 1:
-			ConfigBuff.ScaleFactorEnergy_3_1 = scaleE;
-			ConfigBuff.ScaleFactorPSD_3_1 = scaleP;
-			ConfigBuff.OffsetEnergy_3_1 = offsetE;
-			ConfigBuff.OffsetPSD_3_1 = offsetP;
+		case 0:
+			ConfigBuff.SF_E[6] = scaleE;
+			ConfigBuff.SF_PSD[6] = scaleP;
+			ConfigBuff.Off_E[6] = offsetE;
+			ConfigBuff.Off_PSD[6] = offsetP;
 			break;
-		case 2:
-			ConfigBuff.ScaleFactorEnergy_3_2 = scaleE;
-			ConfigBuff.ScaleFactorPSD_3_2 = scaleP;
-			ConfigBuff.OffsetEnergy_3_2 = offsetE;
-			ConfigBuff.OffsetPSD_3_2 = offsetP;
+		case 1:
+			ConfigBuff.SF_E[7] = scaleE;
+			ConfigBuff.SF_PSD[7] = scaleP;
+			ConfigBuff.Off_E[7] = offsetE;
+			ConfigBuff.Off_PSD[7] = offsetP;
 			break;
 		default:
 			status = CMD_FAILURE;
@@ -408,10 +408,12 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 
 /*
  * Set High Voltage  (note: connections to pot 2 and pot 3 are reversed - handled in the function)
- * ***********************this swap may need to be reversed, as the electronics (boards) may have been replaced!!!***********************
+ *
+ * As of 7/25/2019 this swap is not going to be fixed for the Mini-NS code.
+ *
  * 		Syntax: SetHighVoltage(PMTID, Value)
- * 			PMTID = (Integer) PMT ID, 1 - 4, 5 to choose all tubes
- * 			Value = (Integer) high voltage to set, 0 - 256 (not linearly mapped to volts)
+ * 			PMTID = (Integer) PMT ID, 0 - 3, 4 to choose all tubes
+ * 			Value = (Integer) high voltage to set, 0 - 255 (not linearly mapped to volts)
  * 		Description: Set the bias voltage on any PMT in the array. The PMTs may be set individually or as a group.
  *			Latency: TBD
  *			Return: command SUCCESS (0) or command FAILURE (1)
@@ -426,52 +428,56 @@ int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
 	int status = 0;
 	int iterator = 0;
 
-	// Fix swap of pot 2 and 3 connections if PmtId == 2 make it 3 and if PmtId ==3 make it 2
-	if(PmtId & 0x2)
+	// Fix swap of pot 2 and 3 connections if PmtId == 1 make it 2 and if PmtId == 2 make it 1
+	if(PmtId == 1)
 	{
-		PmtId ^= 1;
+		PmtId = 2;
+	}
+	else if(PmtId == 2)
+	{
+		PmtId = 1;
 	}
 
 	//check the PMT ID is ok
-	if((PmtId > 0) && (PmtId <= 5))
+	if((PmtId > -1) && (PmtId <= 4))
 	{
 		//check tap value is an acceptable number
 		if((Value >= 0) && (Value <= 255))
 		{
 			//We just want to do a single tube
-			if(PmtId != 5)
+			if(PmtId != 4)
 			{
 				//create the send buffer
-				i2c_Send_Buffer[0] = cntrl | (PmtId - 1);
+				i2c_Send_Buffer[0] = cntrl | PmtId;
 				i2c_Send_Buffer[1] = Value;
 				//send the command to the HV
 				RetVal = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
 				if(RetVal == XST_SUCCESS)
 				{
 					// write to config file
-					ConfigBuff.HighVoltageValue[PmtId-1] = Value;
+					ConfigBuff.HighVoltageValue[PmtId] = Value;
 					SaveConfig();
 					status = CMD_SUCCESS;
 				}
 				else
 					status = CMD_FAILURE;
 			}
-			else if(PmtId == 5)
+			else if(PmtId == 4)
 			{
 				//do the above code for each PMT
-				for(iterator = 1; iterator < 5; iterator++)
+				for(iterator = 0; iterator < 4; iterator++)
 				{
 					//cycle over PmtId 0, 1, 2, 3 to set the voltage on each PMT
 					PmtId = iterator;
 					//create the send buffer
-					i2c_Send_Buffer[0] = cntrl | (PmtId - 1);
+					i2c_Send_Buffer[0] = cntrl | PmtId;
 					i2c_Send_Buffer[1] = Value;
 					//send the command to the HV
 					RetVal = IicPsMasterSend(Iic, IIC_DEVICE_ID_0 ,i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR1);
 					if(RetVal == XST_SUCCESS)
 					{
 						// write to config file
-						ConfigBuff.HighVoltageValue[PmtId-1] = Value;
+						ConfigBuff.HighVoltageValue[PmtId] = Value;
 						SaveConfig();
 						status = CMD_SUCCESS;
 					}
@@ -522,8 +528,11 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 			//we can worry about error checking later on in the FSW process
 			//read back the values from the FPGA //They should be equal to the values we set
 			if(Xil_In32(XPAR_AXI_GPIO_0_BASEADDR) == (Baseline+52)/4)
+			{
 				if(Xil_In32(XPAR_AXI_GPIO_1_BASEADDR) == (Short+52)/4)
+				{
 					if(Xil_In32(XPAR_AXI_GPIO_2_BASEADDR) == (Long+52)/4)
+					{
 						if(Xil_In32(XPAR_AXI_GPIO_3_BASEADDR) == (Full+52)/4)
 						{
 							ConfigBuff.IntegrationBaseline = Baseline;
@@ -539,10 +548,13 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 						}
 						else
 							status = CMD_FAILURE;
+					}
 					else
 						status = CMD_FAILURE;
+				}
 				else
 					status = CMD_FAILURE;
+			}
 			else
 				status = CMD_FAILURE;
 
@@ -568,7 +580,7 @@ int ApplyDAQConfig( XIicPs * Iic )
 	if(status == CMD_SUCCESS)
 		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);	//COMMENT FOR XC
+		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
 	if(status == CMD_SUCCESS)
 		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
 	if(status == CMD_SUCCESS)
@@ -577,21 +589,21 @@ int ApplyDAQConfig( XIicPs * Iic )
 		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(0, 1, ConfigBuff.ScaleFactorEnergy_0_1, ConfigBuff.ScaleFactorPSD_0_1, ConfigBuff.OffsetEnergy_0_1, ConfigBuff.OffsetPSD_0_1);
+		status = SetNeutronCutGates(0, 1, ConfigBuff.SF_E[0], ConfigBuff.SF_PSD[0], ConfigBuff.Off_E[0], ConfigBuff.Off_PSD[0]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(0, 2, ConfigBuff.ScaleFactorEnergy_0_2, ConfigBuff.ScaleFactorPSD_0_2, ConfigBuff.OffsetEnergy_0_2, ConfigBuff.OffsetPSD_0_2);
+		status = SetNeutronCutGates(0, 2, ConfigBuff.SF_E[1], ConfigBuff.SF_PSD[1], ConfigBuff.Off_E[1], ConfigBuff.Off_PSD[1]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(1, 1, ConfigBuff.ScaleFactorEnergy_1_1, ConfigBuff.ScaleFactorPSD_1_1, ConfigBuff.OffsetEnergy_1_1, ConfigBuff.OffsetPSD_1_1);
+		status = SetNeutronCutGates(1, 1, ConfigBuff.SF_E[2], ConfigBuff.SF_PSD[2], ConfigBuff.Off_E[2], ConfigBuff.Off_PSD[2]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(1, 2, ConfigBuff.ScaleFactorEnergy_1_2, ConfigBuff.ScaleFactorPSD_1_2, ConfigBuff.OffsetEnergy_1_2, ConfigBuff.OffsetPSD_1_2);
+		status = SetNeutronCutGates(1, 2, ConfigBuff.SF_E[3], ConfigBuff.SF_PSD[3], ConfigBuff.Off_E[3], ConfigBuff.Off_PSD[3]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(2, 1, ConfigBuff.ScaleFactorEnergy_2_1, ConfigBuff.ScaleFactorPSD_2_1, ConfigBuff.OffsetEnergy_2_1, ConfigBuff.OffsetPSD_2_1);
+		status = SetNeutronCutGates(2, 1, ConfigBuff.SF_E[4], ConfigBuff.SF_PSD[4], ConfigBuff.Off_E[4], ConfigBuff.Off_PSD[4]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(2, 2, ConfigBuff.ScaleFactorEnergy_2_2, ConfigBuff.ScaleFactorPSD_2_2, ConfigBuff.OffsetEnergy_2_2, ConfigBuff.OffsetPSD_2_2);
+		status = SetNeutronCutGates(2, 2, ConfigBuff.SF_E[5], ConfigBuff.SF_PSD[5], ConfigBuff.Off_E[5], ConfigBuff.Off_PSD[5]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(3, 1, ConfigBuff.ScaleFactorEnergy_3_1, ConfigBuff.ScaleFactorPSD_3_1, ConfigBuff.OffsetEnergy_3_1, ConfigBuff.OffsetPSD_3_1);
+		status = SetNeutronCutGates(3, 1, ConfigBuff.SF_E[6], ConfigBuff.SF_PSD[6], ConfigBuff.Off_E[6], ConfigBuff.Off_PSD[6]);
 	if(status == CMD_SUCCESS)
-		status = SetNeutronCutGates(3, 2, ConfigBuff.ScaleFactorEnergy_3_2, ConfigBuff.ScaleFactorPSD_3_2, ConfigBuff.OffsetEnergy_3_2, ConfigBuff.OffsetPSD_3_2);
+		status = SetNeutronCutGates(3, 2, ConfigBuff.SF_E[7], ConfigBuff.SF_PSD[7], ConfigBuff.Off_E[7], ConfigBuff.Off_PSD[7]);
 
 	//TODO: error check
 

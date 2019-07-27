@@ -10,9 +10,7 @@
 
 #include <stdbool.h>
 #include "lunah_utils.h"	//access to module temp
-
-//TODO: remove after implementing ellipse cuts
-#include "SetInstrumentParam.h"	//access to box cuts struct
+#include "SetInstrumentParam.h"	//access to the neutron cuts
 
 #define CPS_EVENT_SIZE	14
 
@@ -62,6 +60,7 @@ float convertToSeconds( unsigned int time );
 unsigned int convertToCycles( float time );
 bool cpsCheckTime( unsigned int time );
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void );
+bool CPSIsWithinEllipse( double energy, double psd, int module_num, int ellipse_num );
 int CPSUpdateTallies(double energy, double psd, int pmt_id);
 
 #endif /* SRC_CPSDATAPRODUCT_H_ */

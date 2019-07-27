@@ -14,10 +14,10 @@ static unsigned int m_oor_right;
 static unsigned int m_oor_below;
 static unsigned int m_oor_above;
 static unsigned int m_valid_multi_hit_event;
+static unsigned short m_2DH_pmt0[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt1[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt2[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt3[TWODH_X_BINS][TWODH_Y_BINS];
-static unsigned short m_2DH_pmt4[TWODH_X_BINS][TWODH_Y_BINS];
 
 /*
  * Helper function to allow external functions to get the address of the 2DHs
@@ -45,35 +45,35 @@ int Save2DHToSD( int pmt_ID )
 
 	switch(pmt_ID)
 	{
-	case PMT_ID_3:
-		m_2DH_holder = &m_2DH_pmt4;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_4 );
+	case PMT_ID_0:
+		m_2DH_holder = &m_2DH_pmt0;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_1 );
 		if(filename_pointer == NULL)
-			xil_printf("6 return filename pointer 2dh\n");
-		else
-			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
-		break;
-	case PMT_ID_2:
-		m_2DH_holder = &m_2DH_pmt3;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_3 );
-		if(filename_pointer == NULL)
-			xil_printf("5 return filename pointer 2dh\n");
+			xil_printf("3 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
 	case PMT_ID_1:
-		m_2DH_holder = &m_2DH_pmt2;
+		m_2DH_holder = &m_2DH_pmt1;
 		filename_pointer = GetFileName( DATA_TYPE_2DH_2 );
 		if(filename_pointer == NULL)
 			xil_printf("4 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
-	case PMT_ID_0:
-		m_2DH_holder = &m_2DH_pmt1;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_1 );
+	case PMT_ID_2:
+		m_2DH_holder = &m_2DH_pmt2;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_3 );
 		if(filename_pointer == NULL)
-			xil_printf("3 return filename pointer 2dh\n");
+			xil_printf("5 return filename pointer 2dh\n");
+		else
+			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
+		break;
+	case PMT_ID_3:
+		m_2DH_holder = &m_2DH_pmt3;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_4 );
+		if(filename_pointer == NULL)
+			xil_printf("6 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
@@ -121,8 +121,9 @@ int Save2DHToSD( int pmt_ID )
 
 /*
  * Takes energy and PSD values from an event and tallies them into 2-D Histograms.
- * This function implements the elliptical neutron cuts to determine if an event
- * was good or not.
+ * This function tallies all events which have a valid PMT ID and are within the bins of the
+ *  histogram. No cuts are applied to these values so that we can get a good idea of how the
+ *  PSD is evolving of the course of a run.
  * The PMT ID is a parameter so that we can tally the appropriate histograms, as
  *  well as tally the total, at the same time and in one function.
  *
@@ -151,12 +152,12 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 	y_bin = m_y_bin_number;
 
 	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
-		m_x_bin_number &= 0x03FF;
+		m_x_bin_number &= 0x01FF;
 	else
 		m_x_bin_number = 0x0103;
 
 	if(0 <= m_y_bin_number && m_y_bin_number < TWODH_Y_BINS)
-		m_y_bin_number &= 0x3F;
+		m_y_bin_number &= 0x1F;
 	else
 		m_y_bin_number = 0x1D;
 
@@ -171,17 +172,17 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 					//value is good
 					switch(pmt_ID)
 					{
-					case PMT_ID_3:
-						m_2DH_pmt4[m_x_bin_number][m_y_bin_number]++;
-						break;
-					case PMT_ID_2:
-						m_2DH_pmt3[m_x_bin_number][m_y_bin_number]++;
+					case PMT_ID_0:
+						m_2DH_pmt0[m_x_bin_number][m_y_bin_number]++;
 						break;
 					case PMT_ID_1:
+						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
+						break;
+					case PMT_ID_2:
 						m_2DH_pmt2[m_x_bin_number][m_y_bin_number]++;
 						break;
-					case PMT_ID_0:
-						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
+					case PMT_ID_3:
+						m_2DH_pmt3[m_x_bin_number][m_y_bin_number]++;
 						break;
 					default:
 						//don't record non-singleton hits in a 2DH
@@ -237,7 +238,7 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 unsigned int Get2DHArrayIndexX( void )
 {
 	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
-		m_x_bin_number &= 0x03FF;
+		m_x_bin_number &= 0x01FF;
 	else
 		m_x_bin_number = 0x0103;
 
@@ -255,7 +256,7 @@ unsigned int Get2DHArrayIndexX( void )
 unsigned int Get2DHArrayIndexY( void )
 {
 	if(0 <= m_y_bin_number && m_y_bin_number < TWODH_Y_BINS)
-		m_y_bin_number &= 0x3F;
+		m_y_bin_number &= 0x1F;
 	else
 		m_y_bin_number = 0x1D;
 

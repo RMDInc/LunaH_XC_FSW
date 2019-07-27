@@ -19,9 +19,6 @@
 #include "lunah_utils.h"
 #include "LI2C_Interface.h"
 
-//TODO: remove when we implement ellipse cuts
-#include "CPSDataProduct.h"
-
 /*
  * Mini-NS Configuration Parameter Structure
  * This is the collection of all of the Mini-NS system parameters.
@@ -47,38 +44,10 @@ typedef struct {
 	int IntegrationLong;
 	int IntegrationFull;
 	int HighVoltageValue[4];
-	float ScaleFactorEnergy_0_1;
-	float ScaleFactorEnergy_0_2;
-	float ScaleFactorEnergy_1_1;
-	float ScaleFactorEnergy_1_2;
-	float ScaleFactorEnergy_2_1;
-	float ScaleFactorEnergy_2_2;
-	float ScaleFactorEnergy_3_1;
-	float ScaleFactorEnergy_3_2;
-	float ScaleFactorPSD_0_1;
-	float ScaleFactorPSD_0_2;
-	float ScaleFactorPSD_1_1;
-	float ScaleFactorPSD_1_2;
-	float ScaleFactorPSD_2_1;
-	float ScaleFactorPSD_2_2;
-	float ScaleFactorPSD_3_1;
-	float ScaleFactorPSD_3_2;
-	float OffsetEnergy_0_1;
-	float OffsetEnergy_0_2;
-	float OffsetEnergy_1_1;
-	float OffsetEnergy_1_2;
-	float OffsetEnergy_2_1;
-	float OffsetEnergy_2_2;
-	float OffsetEnergy_3_1;
-	float OffsetEnergy_3_2;
-	float OffsetPSD_0_1;
-	float OffsetPSD_0_2;
-	float OffsetPSD_1_1;
-	float OffsetPSD_1_2;
-	float OffsetPSD_2_1;
-	float OffsetPSD_2_2;
-	float OffsetPSD_3_1;
-	float OffsetPSD_3_2;
+	float SF_E[8];
+	float SF_PSD[8];
+	float Off_E[8];
+	float Off_PSD[8];
 } CONFIG_STRUCT_TYPE;
 
 /*

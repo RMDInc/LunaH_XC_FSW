@@ -48,6 +48,8 @@ static double MaxPSD_C0[2][4] = {{   0.3599,  0.3627,   0.3593,   0.3764 }, {   
 static double MaxPSD_C1[2][4] = {{  -0.0022, -0.00355, -0.00255, -0.00391}, {  -0.00406, -0.00185, -0.00300, -0.00197}};
 static double MaxPSD_C2[2][4] = {{   4.49e-5, 7.62e-5,  5.24e-5,  8.57e-5}, {   1.06e-4,  3.86e-5,  6.92e-5,  3.53e-5}};
 
+static CONFIG_STRUCT_TYPE m_cfg_buff;	//172 bytes
+
 /*
  * Reset the counts per second data product counters and event structures for the run.
  * Call this function before each DAQ run.
@@ -67,6 +69,9 @@ void CPSInit( void )
 	m_neutrons_wide_cut = 0;
 	m_neutrons_no_PSD = 0;
 	m_events_over_threshold = 0;
+	//get the neutron cuts
+	m_cfg_buff = *GetConfigBuffer();
+
 	return;
 }
 
@@ -201,11 +206,26 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 	return &cpsEvent;
 }
 
+/*
+ * Helper function which takes in the energy, psd, module number, and the ellipse numbers and calculates the
+ *  equations for the ellipses. Then it does the comparison to see if the point (energy, psd) is within the
+ *  bounding ellipses.
+ */
+bool CPSIsWithinEllipse( double energy, double psd, int module_num, int ellipse_num )
+{
+	bool ret = FALSE;
+	float c1 = m_cfg_buff.SF_PSD[ellipse_num] * b_rad_1[module_num] / m_cfg_buff.SF_E[ellipse_num] * a_rad_1[module_num];
+	float c2 = m_cfg_buff.SF_E[ellipse_num] 	* a_rad_1[module_num];
+	float xval = energy - mean_nrg_1[module_num] - m_cfg_buff.Off_E[ellipse_num];
+	float yval = psd	- mean_psd_1[module_num] - m_cfg_buff.Off_PSD[ellipse_num];
 
-//	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD
-//	 * unsigned short m_neutrons_ellipse2;		//neutrons wide cut
-//	 * unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
-//	 * unsigned short m_events_over_threshold;	//count all events which trigger the system
+	if(	yval <  c1 * sqrt( c2 * c2 - xval * xval) && yval > -c1 * sqrt( c2 * c2 - xval * xval))
+		ret = TRUE;
+	else
+		ret = FALSE;
+
+	return ret;
+}
 
 /*
  * Access function to update the tallies that we add each time we process an event. We store the
@@ -226,11 +246,11 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
  * This function is going to use the current temperature of the module temperature sensor to calculate
  *  the neutron cuts. This should give us a good enough approximation of what the correct temperature is.
  *  In the next iteration, it would be good to utilize an array of the temperatures from the module
- *  temperature sensor. This way we can use the temperature which is from the actual time the data was taken.
+ *  temperature sensor. This way we can use the temperature which is from the actual time the data was taken
+ *  and not just the current sensor temperature, which could be more recent than the data was taken in
+ *  a low rate environment.
  *
- * NB: The NGATES command is currently (4/12/2019) not parameterized for the neutron cuts this function
- * 		cares about. This function is currently utilizing the old/simple neutron Box cutting. The wide
- * 		cut box is currently hard-coded to be 20% larger in each dimension than the first cuts.
+ * NB: The wide	cut ellipse is currently hard-coded to be 20% larger in each dimension than the first ellipse.
  *
  * NB: This function has specially defined values in the header for this file. Change those values to
  * 		affect these cuts. Once we implement the elliptical cuts, we'll get rid of those values.
@@ -246,10 +266,12 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 	int iter = 0;
 	int m_neutron_detected = 0;
 	int model_id_num = 0;
-	double MaxNRG = 0;
-	double MinNRG = 0;
-	double MaxPSD = 0;
-	double MinPSD = 0;
+	int ell_1 = 0;	//ellipse 1
+	int ell_2 = 0;	//ellipse 2
+	float MaxNRG = 0;
+	float MinNRG = 0;
+	float MaxPSD = 0;
+	float MinPSD = 0;
 	//check the temperature if it has been ~10s
 	XTime_GetTime(&cps_t_current);
 	cps_t_elapsed = (cps_t_current - cps_t_start)/COUNTS_PER_SECOND;
@@ -257,9 +279,9 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 	{
 		while(cps_t_elapsed >= cps_t_next_interval)
 		{
-			cps_t_next_interval += 10;
+			cps_t_next_interval += 10;	//this value is how long we will wait in between checks on the temperature
 		}
-		m_current_module_temp = GetModuTemp();
+		m_current_module_temp = GetAnlgTemp(); //= GetModuTemp();	//TODO: use the module temp sensor when I attach one...
 
 		//Calculate the values for the cuts to used
 		//This is based on the temperature, which is the driver for where the cuts should be.
@@ -302,20 +324,27 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 		{
 		case PMT_ID_0:
 			model_id_num = 0;
+			ell_1 = 0;
+			ell_2 = 1;
 			break;
 		case PMT_ID_1:
 			model_id_num = 1;
+			ell_1 = 2;
+			ell_2 = 3;
 			break;
 		case PMT_ID_2:
 			model_id_num = 2;
+			ell_1 = 4;
+			ell_2 = 5;
 			break;
 		case PMT_ID_3:
 			model_id_num = 3;
+			ell_1 = 6;
+			ell_2 = 7;
 			break;
 		}
 
-		if(	(psd - mean_psd_1[model_id_num]) <  b_rad_1[model_id_num] / a_rad_1[model_id_num] * sqrt( a_rad_1[model_id_num] * a_rad_1[model_id_num] - (energy - mean_nrg_1[model_id_num]) * (energy - mean_nrg_1[model_id_num])) &&
-			(psd - mean_psd_1[model_id_num]) > -b_rad_1[model_id_num] / a_rad_1[model_id_num] * sqrt( a_rad_1[model_id_num] * a_rad_1[model_id_num] - (energy - mean_nrg_1[model_id_num]) * (energy - mean_nrg_1[model_id_num])))
+		if(CPSIsWithinEllipse(energy, psd, model_id_num, ell_1))
 		{
 			m_neutrons_ellipse1++;
 			cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_ellipse1 >> 8);
@@ -323,8 +352,7 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 			m_neutron_detected = 1;
 		}
 		//now calculate the second ellipse and take those cuts:
-		if(	(psd - mean_psd_2[model_id_num]) <  b_rad_2[model_id_num] / a_rad_2[model_id_num] * sqrt( a_rad_2[model_id_num] * a_rad_2[model_id_num] - (energy - mean_nrg_2[model_id_num]) * (energy - mean_nrg_2[model_id_num])) &&
-			(psd - mean_psd_2[model_id_num]) > -b_rad_2[model_id_num] / a_rad_2[model_id_num] * sqrt( a_rad_2[model_id_num] * a_rad_2[model_id_num] - (energy - mean_nrg_2[model_id_num]) * (energy - mean_nrg_2[model_id_num])))
+		if(CPSIsWithinEllipse(energy, psd, model_id_num, ell_2))
 		{
 			m_neutrons_ellipse2++;
 			cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
@@ -342,7 +370,7 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 			}
 		}
 	}
-	//also collect the values for neutrons with no PSD and events greater than 10 MeV
+	//also collect the values for neutrons with energy greater than 10 MeV
 	if(energy > TWODH_ENERGY_MAX)	//this will eventually be something like ConfigBuff.parameter
 	{
 		m_events_over_threshold++;
