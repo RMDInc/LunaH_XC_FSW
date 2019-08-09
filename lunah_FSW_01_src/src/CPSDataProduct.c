@@ -15,8 +15,6 @@ static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 secon
 static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
 static unsigned short m_neutrons_ellipse1;			//neutrons with PSD
 static unsigned short m_neutrons_ellipse2;			//neutrons wide cut
-static unsigned short m_neutrons_with_PSD;			//neutrons with PSD for CPS tallies
-static unsigned short m_neutrons_wide_cut;			//neutrons within the second cut box
 static unsigned short m_neutrons_no_PSD;			//all events within an energy range, no PSD cut applied
 static unsigned short m_events_over_threshold;		//count all events which trigger the system
 
@@ -38,15 +36,27 @@ static double mean_nrg_2[4];
 
 //Temperature Correction Value Arrays
 //2-D arrays example: my_array[row][column];
-static double MinNRG_C0[2][4] = {{ 107.88,  105.47,   102.23,   104.80   }, {  89.283,   102.45,   93.524,  99.865   }};
-static double MinNRG_C1[2][4] = {{   2.4292,  2.1978,   2.2977,   2.7017 }, {   1.6472,   1.9591,   2.8101,  2.1276  }};
-static double MaxNRG_C0[2][4] = {{ 143.60,  140.30,   142.51,   149.89   }, { 134.67,   140.69,   147.52,  148.08    }};
-static double MaxNRG_C1[2][4] = {{   2.9196,  2.1951,   2.8573,   3.5465 }, {   2.1884,   2.4109,   3.7654,  2.7265  }};
-static double MinPSD_C0[2][4] = {{   0.10948, 0.13519,  0.10577,  0.15994}, {   0.19321,  0.11577,  0.11185,  0.11321}};
-static double MinPSD_C1[2][4] = {{   0.00127, 9.41e-5,  0.00135,  6.56e-4}, {   5.65e-4,  0.00103,  0.00141,  0.00118}};
-static double MaxPSD_C0[2][4] = {{   0.3599,  0.3627,   0.3593,   0.3764 }, {   0.4187,   0.34404,  0.3564,  0.3567  }};
-static double MaxPSD_C1[2][4] = {{  -0.0022, -0.00355, -0.00255, -0.00391}, {  -0.00406, -0.00185, -0.00300, -0.00197}};
-static double MaxPSD_C2[2][4] = {{   4.49e-5, 7.62e-5,  5.24e-5,  8.57e-5}, {   1.06e-4,  3.86e-5,  6.92e-5,  3.53e-5}};
+//static double MinNRG_C0[2][4] = {{ 107.88,  105.47,   102.23,   104.80   }, {  89.283,   102.45,   93.524,  99.865   }};
+//static double MinNRG_C1[2][4] = {{   2.4292,  2.1978,   2.2977,   2.7017 }, {   1.6472,   1.9591,   2.8101,  2.1276  }};
+//static double MaxNRG_C0[2][4] = {{ 143.60,  140.30,   142.51,   149.89   }, { 134.67,   140.69,   147.52,  148.08    }};
+//static double MaxNRG_C1[2][4] = {{   2.9196,  2.1951,   2.8573,   3.5465 }, {   2.1884,   2.4109,   3.7654,  2.7265  }};
+//static double MinPSD_C0[2][4] = {{   0.10948, 0.13519,  0.10577,  0.15994}, {   0.19321,  0.11577,  0.11185,  0.11321}};
+//static double MinPSD_C1[2][4] = {{   0.00127, 9.41e-5,  0.00135,  6.56e-4}, {   5.65e-4,  0.00103,  0.00141,  0.00118}};
+//static double MaxPSD_C0[2][4] = {{   0.3599,  0.3627,   0.3593,   0.3764 }, {   0.4187,   0.34404,  0.3564,  0.3567  }};
+//static double MaxPSD_C1[2][4] = {{  -0.0022, -0.00355, -0.00255, -0.00391}, {  -0.00406, -0.00185, -0.00300, -0.00197}};
+//static double MaxPSD_C2[2][4] = {{   4.49e-5, 7.62e-5,  5.24e-5,  8.57e-5}, {   1.06e-4,  3.86e-5,  6.92e-5,  3.53e-5}};
+
+static double MaxNRG_C0[2][4] = {{ 74.2505,    71.4915,   69.2076,    71.8767	 },	{ 65.8137,   65.0685,   74.4369,   72.193		}};
+static double MaxNRG_C1[2][4] = {{  1.5058,     1.1509,    1.3229,     1.9653	 },	{  0.9933,    1.0444,    1.9796,    1.6021		}};
+static double MinNRG_C0[2][4] = {{ 56.2435,    56.0607,   57.7465,    60.2330	 },	{ 50.1305,   61.0817,   50.5612,   56.3916		}};
+static double MinNRG_C1[2][4] = {{  1.2698,     1.1273,    1.3500,     1.2730	 },	{  0.9699,    1.2233,    1.4270,    0.9165		}};
+static double MaxPSD_C0[2][4] = {{  0.3854,     0.3824,    0.3852,     0.3983	 },	{  0.45176,   0.3738,    0.38288,   0.38172		}};
+static double MaxPSD_C1[2][4] = {{ -0.00166,   -0.0031,   -0.00184,   -0.00383	 },	{ -0.00323,  -0.00146,  -0.00216,  -0.0015		}};
+static double MaxPSD_C2[2][4] = {{  2.4310e-5,  7.8302e-5, 2.76717e-5, 6.9504e-5 },	{  1.2692e-4, 2.1606e-5, 3.7307e-5, 1.9605e-5	}};
+static double MinPSD_C0[2][4] = {{  0.0758,     0.01072,   0.07287,    0.12747	 },	{  0.1505,    0.0779,    0.0803,    0.0794		}};
+static double MinPSD_C1[2][4] = {{  8.1350e-4,  7.5363e-4, 8.0737e-4,  8.58613e-4},	{  1.9752e-4, 6.8099e-4, 8.0976e-4, 7.6241e-4	}};
+static double MinPSD_C2[2][4] = {{  1.7252e-5, -6.0583e-5, 1.3164e-5,  2.53597e-5},	{ -1.7159e-5, 1.5063e-5, 1.1072e-5, 1.5522e-5	}};
+
 
 static CONFIG_STRUCT_TYPE m_cfg_buff;	//172 bytes
 
@@ -65,8 +75,6 @@ void CPSInit( void )
 	cpsEvent = cpsEmptyStruct;
 	m_neutrons_ellipse1 = 0;
 	m_neutrons_ellipse2 = 0;
-	m_neutrons_with_PSD = 0;
-	m_neutrons_wide_cut = 0;
 	m_neutrons_no_PSD = 0;
 	m_events_over_threshold = 0;
 	//get the neutron cuts
@@ -77,8 +85,8 @@ void CPSInit( void )
 
 void CPSResetCounts( void )
 {
-	m_neutrons_with_PSD = 0;	//reset the values from processing
-	m_neutrons_wide_cut = 0;
+	m_neutrons_ellipse1 = 0;	//reset the values from processing
+	m_neutrons_ellipse2 = 0;
 	m_neutrons_no_PSD = 0;
 	m_events_over_threshold = 0;
 	cpsEvent.n_with_PSD_MSB = 0;//reset values in the struct we report
@@ -196,6 +204,14 @@ bool cpsCheckTime( unsigned int time )
  */
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 {
+	cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_ellipse1 >> 8);
+	cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_ellipse1);
+	cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
+	cpsEvent.n_wide_cut_LSB = (unsigned char)(m_neutrons_ellipse2);
+	cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
+	cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
+	cpsEvent.high_energy_events_MSB = (unsigned char)(m_events_over_threshold >> 8);
+	cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
 	cpsEvent.event_id = 0x55;	//use the APID for CPS
 	cpsEvent.time_MSB = (unsigned char)(m_previous_1sec_interval_time >> 24);
 	cpsEvent.time_LSB1 = (unsigned char)(m_previous_1sec_interval_time >> 16);
@@ -294,7 +310,7 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 		{
 			MinNRG = MinNRG_C0[MNS_DETECTOR_NUM][iter] + MinNRG_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp;
 			MaxNRG = MaxNRG_C0[MNS_DETECTOR_NUM][iter] + MaxNRG_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp;
-			MinPSD = MinPSD_C0[MNS_DETECTOR_NUM][iter] + MinPSD_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp;
+			MinPSD = MinPSD_C0[MNS_DETECTOR_NUM][iter] + MinPSD_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp + MinPSD_C2[MNS_DETECTOR_NUM][iter]*m_current_module_temp*m_current_module_temp;
 			MaxPSD = MaxPSD_C0[MNS_DETECTOR_NUM][iter] + MaxPSD_C1[MNS_DETECTOR_NUM][iter]*m_current_module_temp + MaxPSD_C2[MNS_DETECTOR_NUM][iter]*m_current_module_temp*m_current_module_temp;
 
 			MinNRG *= 0.8;	//random extra scaling
@@ -347,16 +363,12 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 		if(CPSIsWithinEllipse(energy, psd, model_id_num, ell_1))
 		{
 			m_neutrons_ellipse1++;
-			cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_ellipse1 >> 8);
-			cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_ellipse1);
 			m_neutron_detected = 1;
 		}
 		//now calculate the second ellipse and take those cuts:
 		if(CPSIsWithinEllipse(energy, psd, model_id_num, ell_2))
 		{
 			m_neutrons_ellipse2++;
-			cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
-			cpsEvent.n_wide_cut_LSB = (unsigned char)(m_neutrons_ellipse2);
 			m_neutron_detected = 1;
 		}
 		//does the event fit into the no PSD cut?
@@ -365,18 +377,12 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 			if(energy <= MaxNRG)
 			{
 				m_neutrons_no_PSD++;
-				cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
-				cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
 			}
 		}
 	}
 	//also collect the values for neutrons with energy greater than 10 MeV
 	if(energy > TWODH_ENERGY_MAX)	//this will eventually be something like ConfigBuff.parameter
-	{
 		m_events_over_threshold++;
-		cpsEvent.high_energy_events_MSB = (unsigned char)(m_events_over_threshold >> 8);
-		cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
-	}
 
 	return m_neutron_detected;
 }
