@@ -13,6 +13,7 @@
 #include <math.h>
 #include "lunah_defines.h"
 #include "DataAcquisition.h"
+#include "RecordFiles.h"
 
 //function prototypes
 int Save2DHToSD( int pmt_ID );

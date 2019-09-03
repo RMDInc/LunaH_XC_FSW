@@ -139,6 +139,7 @@ int ProcessData( unsigned int * data_raw )
 								}
 								//reset the neutron counts for the CPS data product
 								CPSResetCounts();
+								sd_updateFileRecords(GetFileName(DATA_TYPE_CPS), file_size(cpsDataFile));
 							}
 
 							event_holder.field0 = 0xFF;	//event ID is 0xFF

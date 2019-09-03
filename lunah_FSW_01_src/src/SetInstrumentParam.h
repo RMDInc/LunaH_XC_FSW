@@ -18,6 +18,7 @@
 #include "lunah_defines.h"
 #include "lunah_utils.h"
 #include "LI2C_Interface.h"
+#include "RecordFiles.h"
 
 //TODO: remove when we implement ellipse cuts
 #include "CPSDataProduct.h"
@@ -44,12 +45,17 @@ typedef struct {
  *  configuration file, as well as to the current struct holding the parameters.
  * In this fashion, we are able to hold onto any changes that are made. This should
  *  reduce the amount of interaction necessary.
+ * Added the total files/folders values to the config file so that we can
+ *  better keep track of the state of the SD card.
  *
  * See the Mini-NS ICD for a breakdown of these parameters and how to change them.
- * Current ICD version: 9.3.0
+ * Current ICD version: 10.2.0
  *
  * Size = 172 bytes (4/8/19)
  * No padding bytes (4/8/19)
+ *
+ * Size = 180 bytes (9/3/19)
+ * No padding bytes (9/3/19)
  */
 typedef struct {
 	float ECalSlope;
@@ -92,6 +98,8 @@ typedef struct {
 	float OffsetPSD_3_2;
 	float OffsetPSD_4_1;
 	float OffsetPSD_4_2;
+	int TotalFiles;
+	int TotalFolders;
 } CONFIG_STRUCT_TYPE;
 
 /*
@@ -179,6 +187,7 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float ECut1, float ECut2, f
 int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int value);
 int SetIntegrationTime(int Baseline, int Short, int Long, int Full);
 int SetEnergyCalParam(float Slope, float Intercept);
+int RecordSDState( void );
 int ApplyDAQConfig( XIicPs * Iic );
 
 #endif /* SRC_SETINSTRUMENTPARAM_H_ */

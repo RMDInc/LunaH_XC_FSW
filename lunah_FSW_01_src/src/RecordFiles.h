@@ -18,12 +18,21 @@
 #define NUM_FILES_PER_FOLDER	25
 
 typedef struct{
-	char filename[14];
+	char filename[MAX_FILENAME_SIZE];
 	unsigned int total_file_size;
 	unsigned int bytes_transferred;
 }TX_BYTES_FILE_TYPE;
 
 void sd_createTXBytesFile( void );
-void sd_updateTXfile( char * filename, int transfer_byteVal );
+void sd_updateFileRecords( char * filename, int transfer_byteVal );
+void sd_deleteFileRecord( char * filename );
+int sd_totalFoldersIncrement( void );
+int sd_totalFoldersDecrement( void );
+int sd_getTotalFolders( void );
+void sd_setTotalFolders( int num_folders );
+int sd_totalFilesIncrement( void );
+int sd_totalFilesDecrement( void );
+int sd_getTotalFiles( void );
+void sd_setTotalFiles( int num_folders );
 
 #endif /* SRC_RECORDFILES_H_ */

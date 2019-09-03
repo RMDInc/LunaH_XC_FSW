@@ -10,6 +10,9 @@
 //static variables (file scope globals)
 static char m_FILES[MAX_FILENAME_SIZE] = "FILES.bin";
 
+static int sd_total_folders;
+static int sd_total_files;
+
 void sd_createTXBytesFile( void )
 {
 	TX_BYTES_FILE_TYPE tx_records[NUM_FILES_PER_FOLDER] = {};	//6 data product files plus itself
@@ -56,7 +59,7 @@ void sd_createTXBytesFile( void )
 }
 
 //function to
-void sd_updateTXfile( char * filename, int transfer_byteVal )
+void sd_updateFileRecords( char * filename, int transfer_byteVal )
 {
 	//variables
 	FRESULT ffs_res;
@@ -131,5 +134,68 @@ void sd_updateTXfile( char * filename, int transfer_byteVal )
 		xil_printf("error writing updated structs into file\n");
 
 	f_close(&txbytesFIL);
+	return;
+}
+
+/*
+ * Delete a file record from the TX_bytes file. This should be called after the f_unlink function succeeds otherwise
+ *  the file could be left on the SD card, but we would lose track of it.
+ *
+ * @param	(char *) pointer to the filename of the file we want to remove the record for
+ *
+ * @return	N/A
+ */
+void sd_deleteFileRecord( char * filename )
+{
+
+
+	return;
+}
+
+/*
+ * Total folder handling and variable access functions
+ */
+int sd_totalFoldersIncrement( void )
+{
+	return ++sd_total_folders;
+}
+
+int sd_totalFoldersDecrement( void )
+{
+	return --sd_total_folders;
+}
+
+int sd_getTotalFolders( void )
+{
+	return sd_total_folders;
+}
+
+void sd_setTotalFolders( int num_folders )
+{
+	sd_total_folders = num_folders;
+	return;
+}
+
+/*
+ * Total file handling and variable access functions
+ */
+int sd_totalFilesIncrement( void )
+{
+	return ++sd_total_files;
+}
+
+int sd_totalFilesDecrement( void )
+{
+	return --sd_total_files;
+}
+
+int sd_getTotalFiles( void )
+{
+	return sd_total_files;
+}
+
+void sd_setTotalFiles( int num_files )
+{
+	sd_total_files = num_files;
 	return;
 }

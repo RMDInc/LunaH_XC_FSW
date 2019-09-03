@@ -44,49 +44,51 @@ void CreateDefaultConfig( void )
 {
 	//initialize the struct with all default values
 	ConfigBuff = (CONFIG_STRUCT_TYPE){
-		.ECalSlope=1.0,
-		.ECalIntercept=0.0,
-		.TriggerThreshold=9000,
-		.IntegrationBaseline=0,
-		.IntegrationShort=35,
-		.IntegrationLong=131,
-		.IntegrationFull=1531,
-		.HighVoltageValue[0]=11,
-		.HighVoltageValue[1]=11,
-		.HighVoltageValue[2]=11,
-		.HighVoltageValue[3]=11,
-		.ScaleFactorEnergy_1_1=1.0,
-		.ScaleFactorEnergy_1_2=1.0,
-		.ScaleFactorEnergy_2_1=1.0,
-		.ScaleFactorEnergy_2_2=1.0,
-		.ScaleFactorEnergy_3_1=1.0,
-		.ScaleFactorEnergy_3_2=1.0,
-		.ScaleFactorEnergy_4_1=1.0,
-		.ScaleFactorEnergy_4_2=1.0,
-		.ScaleFactorPSD_1_1=1.0,
-		.ScaleFactorPSD_1_2=1.0,
-		.ScaleFactorPSD_2_1=1.0,
-		.ScaleFactorPSD_2_2=1.0,
-		.ScaleFactorPSD_3_1=1.0,
-		.ScaleFactorPSD_3_2=1.0,
-		.ScaleFactorPSD_4_1=1.0,
-		.ScaleFactorPSD_4_2=1.0,
-		.OffsetEnergy_1_1=0.0,
-		.OffsetEnergy_1_2=0.0,
-		.OffsetEnergy_2_1=0.0,
-		.OffsetEnergy_2_2=0.0,
-		.OffsetEnergy_3_1=0.0,
-		.OffsetEnergy_3_2=0.0,
-		.OffsetEnergy_4_1=0.0,
-		.OffsetEnergy_4_2=0.0,
-		.OffsetPSD_1_1=0.0,
-		.OffsetPSD_1_2=0.0,
-		.OffsetPSD_2_1=0.0,
-		.OffsetPSD_2_2=0.0,
-		.OffsetPSD_3_1=0.0,
-		.OffsetPSD_3_2=0.0,
-		.OffsetPSD_4_1=0.0,
-		.OffsetPSD_4_2=0.0
+		.ECalSlope =				1.0,
+		.ECalIntercept =			0.0,
+		.TriggerThreshold =			9000,
+		.IntegrationBaseline =		0,
+		.IntegrationShort =			35,
+		.IntegrationLong =			131,
+		.IntegrationFull =			1531,
+		.HighVoltageValue[0] =		11,
+		.HighVoltageValue[1] =		11,
+		.HighVoltageValue[2] =		11,
+		.HighVoltageValue[3] =		11,
+		.ScaleFactorEnergy_1_1 =	1.0,
+		.ScaleFactorEnergy_1_2 =	1.0,
+		.ScaleFactorEnergy_2_1 =	1.0,
+		.ScaleFactorEnergy_2_2 =	1.0,
+		.ScaleFactorEnergy_3_1 =	1.0,
+		.ScaleFactorEnergy_3_2 =	1.0,
+		.ScaleFactorEnergy_4_1 =	1.0,
+		.ScaleFactorEnergy_4_2 =	1.0,
+		.ScaleFactorPSD_1_1 =		1.0,
+		.ScaleFactorPSD_1_2 =		1.0,
+		.ScaleFactorPSD_2_1 =		1.0,
+		.ScaleFactorPSD_2_2 =		1.0,
+		.ScaleFactorPSD_3_1 =		1.0,
+		.ScaleFactorPSD_3_2 =		1.0,
+		.ScaleFactorPSD_4_1 =		1.0,
+		.ScaleFactorPSD_4_2 =		1.0,
+		.OffsetEnergy_1_1 =			0.0,
+		.OffsetEnergy_1_2 =			0.0,
+		.OffsetEnergy_2_1 =			0.0,
+		.OffsetEnergy_2_2 =			0.0,
+		.OffsetEnergy_3_1 =			0.0,
+		.OffsetEnergy_3_2 =			0.0,
+		.OffsetEnergy_4_1 =			0.0,
+		.OffsetEnergy_4_2 =			0.0,
+		.OffsetPSD_1_1 =			0.0,
+		.OffsetPSD_1_2 =			0.0,
+		.OffsetPSD_2_1 =			0.0,
+		.OffsetPSD_2_2 =			0.0,
+		.OffsetPSD_3_1 =			0.0,
+		.OffsetPSD_3_2 =			0.0,
+		.OffsetPSD_4_1 =			0.0,
+		.OffsetPSD_4_2 =			0.0,
+		.TotalFiles =				0,
+		.TotalFolders =				0
 	};
 
 	return;
@@ -162,6 +164,10 @@ int InitConfig( void )
 		if(fres == FR_OK)
 			fres = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);
 		f_close(&ConfigFile);
+
+		//set the values for the number of files/folders on the SD cards
+		sd_setTotalFiles( ConfigBuff.TotalFiles );
+		sd_setTotalFolders( ConfigBuff.TotalFolders );
 	}
 	else if(fres == FR_NO_FILE)// The config file does not exist, create it
 	{
@@ -170,6 +176,8 @@ int InitConfig( void )
 		if(fres == FR_OK)
 			fres = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
 		f_close(&ConfigFile);
+		//call the function to scan the SD card and count the files/folder and document each folder
+		//TODO: build this function into RecordFiles.c
 	}
 	else
 	{
@@ -590,6 +598,29 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 	return status;
 }
 
+/*
+ * Record the state of the SD card. This function gets the values of the total number of files and folders
+ *  which are recorded by the RecordFiles module.
+ *
+ * @param	none
+ *
+ * @return
+ */
+int RecordSDState( void )
+{
+	int status = 0;
+
+	//get the values from the RecordFiles module
+	ConfigBuff.TotalFiles = sd_getTotalFiles();
+	ConfigBuff.TotalFolders = sd_getTotalFolders();
+	status = SaveConfig();
+	if(status == FR_OK)
+		status = CMD_SUCCESS;
+	else
+		status = CMD_FAILURE;
+
+	return status;
+}
 
 int ApplyDAQConfig( XIicPs * Iic )
 {

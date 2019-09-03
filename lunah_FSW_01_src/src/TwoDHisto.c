@@ -114,7 +114,7 @@ int Save2DHToSD( int pmt_ID )
 	else
 		status = CMD_SUCCESS;
 
-
+	sd_updateFileRecords(filename_buff, file_size(&save2DH));
 	f_close(&save2DH);
 	return status;
 }
