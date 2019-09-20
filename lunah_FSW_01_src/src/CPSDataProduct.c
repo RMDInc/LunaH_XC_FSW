@@ -17,7 +17,7 @@ static unsigned short m_neutrons_ellipse1;		//neutrons with PSD
 static unsigned short m_neutrons_ellipse2;		//neutrons wide cut
 static unsigned short m_neutrons_with_PSD;		//neutrons with PSD for CPS tallies
 static unsigned short m_neutrons_wide_cut;		//neutrons within the second cut box
-static unsigned short m_neutrons_no_PSD;			//all events within an energy range, no PSD cut applied
+static unsigned short m_non_neutron_events;		//all non-neutron events counter
 static unsigned short m_events_over_threshold;	//count all events which trigger the system
 
 static CPS_BOX_CUTS_STRUCT_TYPE m_cps_box_cuts;
@@ -79,7 +79,7 @@ void CPSInit( void )
 	m_neutrons_ellipse2 = 0;
 	m_neutrons_with_PSD = 0;
 	m_neutrons_wide_cut = 0;
-	m_neutrons_no_PSD = 0;
+	m_non_neutron_events = 0;
 	m_events_over_threshold = 0;
 	return;
 }
@@ -88,14 +88,14 @@ void CPSResetCounts( void )
 {
 	m_neutrons_with_PSD = 0;	//reset the values from processing
 	m_neutrons_wide_cut = 0;
-	m_neutrons_no_PSD = 0;
+	m_non_neutron_events = 0;
 	m_events_over_threshold = 0;
 	cpsEvent.n_with_PSD_MSB = 0;//reset values in the struct we report
 	cpsEvent.n_with_PSD_LSB = 0;
 	cpsEvent.n_wide_cut_MSB = 0;
 	cpsEvent.n_wide_cut_LSB = 0;
-	cpsEvent.n_with_no_PSD_MSB = 0;
-	cpsEvent.n_with_no_PSD_LSB = 0;
+	cpsEvent.non_n_events_MSB = 0;
+	cpsEvent.non_n_events_LSB = 0;
 	cpsEvent.high_energy_events_MSB = 0;
 	cpsEvent.high_energy_events_LSB = 0;
 	return;
@@ -209,7 +209,7 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 
 //	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD
 //	 * unsigned short m_neutrons_ellipse2;		//neutrons wide cut
-//	 * unsigned short m_events_noPSD;			//all events within an energy range, no PSD cut applied
+//	 * unsigned short m_non_neutron_events;		//all non-neutron events total
 //	 * unsigned short m_events_over_threshold;	//count all events which trigger the system
 
 /*
@@ -244,17 +244,6 @@ int CPSUpdateTallies(double energy, double psd)
 		cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
 	}
 
-	//does the event fit into the no PSD cut?
-	if(energy >= m_cps_box_cuts.ecut_low)
-	{
-		if(energy <= m_cps_box_cuts.ecut_high)
-		{
-			m_neutrons_no_PSD++;
-			cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
-			cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
-		}
-	}
-
 	//check for neutrons in the primary cuts
 	if(energy >= m_cps_box_cuts.ecut_low)
 	{
@@ -274,8 +263,6 @@ int CPSUpdateTallies(double energy, double psd)
 	}
 
 	//check for neutrons in the secondary cuts
-	//this number should be larger than the neutrons w/psd cut because these cuts are wider, but
-	//will still catch all the neutrons from above
 	if(energy >= m_cps_box_cuts.ecut_wide_low)
 	{
 		if(energy <= m_cps_box_cuts.ecut_wide_high)
@@ -291,6 +278,14 @@ int CPSUpdateTallies(double energy, double psd)
 				}
 			}
 		}
+	}
+
+	//does the event have a non-neutron?
+	if(m_neutron_detected == 0)
+	{
+		m_non_neutron_events++;
+		cpsEvent.non_n_events_MSB = (unsigned char)(m_non_neutron_events >> 8);
+		cpsEvent.non_n_events_LSB = (unsigned char)(m_non_neutron_events);
 	}
 
 	return m_neutron_detected;

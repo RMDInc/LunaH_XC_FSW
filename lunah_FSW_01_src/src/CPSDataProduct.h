@@ -17,10 +17,10 @@
 #define CPS_EVENT_SIZE	14
 //TODO: remove these values and code up the elliptical neutron cuts
 //The wide cuts are the normal cuts but expanded by 20%
-#define CPS_ECUT_LOW	50000
-#define CPS_ECUT_HIGH	200000
-#define CPS_PCUT_LOW	0.6
-#define CPS_PCUT_HIGH	0.95
+#define CPS_ECUT_LOW	288450
+#define CPS_ECUT_HIGH	384600
+#define CPS_PCUT_LOW	0.2
+#define CPS_PCUT_HIGH	0.4
 #define CPS_ECUT_WIDE_LOW	CPS_ECUT_LOW * 1.2
 #define CPS_ECUT_WIDE_HIGH	CPS_ECUT_HIGH * 1.2
 #define CPS_PCUT_WIDE_LOW	CPS_PCUT_LOW * 1.2
@@ -49,8 +49,8 @@ typedef struct {
 	unsigned char n_with_PSD_LSB;
 	unsigned char n_wide_cut_MSB;
 	unsigned char n_wide_cut_LSB;
-	unsigned char n_with_no_PSD_MSB;
-	unsigned char n_with_no_PSD_LSB;
+	unsigned char non_n_events_MSB;
+	unsigned char non_n_events_LSB;
 	unsigned char high_energy_events_MSB;
 	unsigned char high_energy_events_LSB;
 	unsigned char time_MSB;

@@ -151,14 +151,14 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 	y_bin = m_y_bin_number;
 
 	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
-		m_x_bin_number &= 0x03FF;
+		m_x_bin_number &= 0x01FF;
 	else
-		m_x_bin_number = 0x0103;
+		m_x_bin_number = 0x01FF;
 
 	if(0 <= m_y_bin_number && m_y_bin_number < TWODH_Y_BINS)
-		m_y_bin_number &= 0x3F;
+		m_y_bin_number &= 0x1F;	//stay at 5 bits for this version 9/20/2019
 	else
-		m_y_bin_number = 0x1D;
+		m_y_bin_number = 0x1F;	//stay at 5 bits for this version 9/20/2019
 
 	if(0 <= x_bin)
 	{
@@ -237,9 +237,9 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 unsigned int Get2DHArrayIndexX( void )
 {
 	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
-		m_x_bin_number &= 0x03FF;
+		m_x_bin_number &= 0x01FF;
 	else
-		m_x_bin_number = 0x0103;
+		m_x_bin_number = 0x01FF;
 
 	return m_x_bin_number;
 }
@@ -255,9 +255,9 @@ unsigned int Get2DHArrayIndexX( void )
 unsigned int Get2DHArrayIndexY( void )
 {
 	if(0 <= m_y_bin_number && m_y_bin_number < TWODH_Y_BINS)
-		m_y_bin_number &= 0x3F;
+		m_y_bin_number &= 0x1F;
 	else
-		m_y_bin_number = 0x1D;
+		m_y_bin_number = 0x1F;
 
 	return m_y_bin_number;
 }

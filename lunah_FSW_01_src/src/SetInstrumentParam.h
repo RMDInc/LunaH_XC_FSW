@@ -121,9 +121,13 @@ typedef struct{
  *
  * Size = 24 bytes
  * 4 padding bytes at end, noted below (4/8/19)
+ *
+ * Size = 16 bytes??? - need to check this 9/6/2019
+ * Changed this to reflect that we no longer have a 64-bit time from the spacecraft
+ * padding bytes?
  */
 typedef struct{
-	unsigned long long RealTime;
+	unsigned int RealTime;
 	unsigned char EventID1;
 	unsigned char EventID2;
 	unsigned char EventID3;
@@ -133,7 +137,7 @@ typedef struct{
 	unsigned char EventID6;
 	unsigned char EventID7;
 	unsigned char EventID8;
-	//4 padding bytes
+	//4 padding bytes???
 }DATA_FILE_SECONDARY_HEADER_TYPE;	//currently 24 bytes, see p47
 
 /*
@@ -141,14 +145,19 @@ typedef struct{
  *
  * Size = 32 bytes (4/8/19)
  * 8 padding bytes, noted below (4/8/19)
+ *
+ * Size = 20 bytes??? - need to check this 9/6/2019
+ * Changed this to reflect that we no longer have a 64-bit time from the spacecraft
+ * padding bytes?
+ *
  */
 typedef struct{
 	unsigned char eventID1;
 	unsigned char eventID2;
 	unsigned char eventID3;
 	unsigned char eventID4;
-	//4 padding bytes
-	unsigned long long RealTime;
+	//4 padding bytes???
+	unsigned int RealTime;
 	unsigned char eventID5;
 	unsigned char eventID6;
 	unsigned char eventID7;
@@ -158,8 +167,8 @@ typedef struct{
 	unsigned char eventID10;
 	unsigned char eventID11;
 	unsigned char eventID12;
-	//4 padding bytes
-}DATA_FILE_FOOTER_TYPE;	//just make a regular struct and don't worry about the padding bytes
+	//4 padding bytes???
+}DATA_FILE_FOOTER_TYPE;
 
 // prototypes
 
