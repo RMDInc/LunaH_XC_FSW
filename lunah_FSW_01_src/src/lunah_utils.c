@@ -935,18 +935,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			sent += bytes_sent;
 		}
 
-		//TESTING 7-24-2019
-		m_send_wait_count = 0;
-		while(XUartPs_IsSending(&Uart_PS) == TRUE)
-		{
-			//wait here
-			m_send_wait_count++;
-			//we can't wait forever, so make an arbitrary break condition
-			if(m_send_wait_count >= 1048576)
-				break;
-		}
-		//TESTING 7-24-2019
-
 		//check if there are multiple packets to send
 		switch(file_TX_group_flags)
 		{
