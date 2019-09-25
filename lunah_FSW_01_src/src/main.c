@@ -266,9 +266,7 @@ int main()
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
 
-//				status = DoesFileExist();	//TEST 05-16
-				status = CMD_FAILURE;		//TEST 05-16
-
+				status = DoesFileExist();	//TEST 05-16
 //				if(status == CMD_ERROR)		//TEST 05-16 (commented)
 //				{
 //					//handle a non-success/failure return
@@ -521,8 +519,20 @@ int main()
 				status = 1;	//failed to get data type
 				break;
 			}
-			if(status != 0)					//TEST 5/14/2019
-				reportFailure(Uart_PS);		//TEST 5/14/2019
+
+			//need to put some space here to make sure that the UART is done sending before we try and send anything else
+			//how much space do I need? Can I just check to see if the UART is done sending and then leave?
+			while(XUartPs_IsSending(&Uart_PS))
+			{
+				//wait here
+			}
+//			while(XUartPs_IsTransmitEmpty(&Uart_PS))
+//			{
+//				//wait until we are done sending the TX FIFO
+//			}
+
+			if(status != 0)					//TEST
+				reportFailure(Uart_PS);		//TEST
 			break;
 		case DEL_CMD:
 			//delete a file from the SD card
@@ -622,7 +632,7 @@ int main()
 
 		//check to see if it is time to report SOH information, 1 Hz
 		//this may help with functions which take too long during their own loops
-		CheckForSOH(&Iic, Uart_PS);
+//		CheckForSOH(&Iic, Uart_PS);
 	}//END OF OUTER LEVEL 2 TESTING LOOP
 
     return 0;

@@ -567,7 +567,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	int file_TX_file_pointer_location = 0;
 	int m_loop_var = 1;					//0 = false; 1 = true
 	int bytes_to_read = 0;				//number of bytes to read from data file to put into packet data bytes
-	unsigned int m_send_wait_count = 0;
 	unsigned int bytes_written;
 	unsigned int bytes_read = 0;
 	unsigned int file_TX_2DH_oor_values[5] = {};
@@ -934,6 +933,17 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			bytes_sent = XUartPs_Send(&Uart_PS, &(packet_array[sent]), file_TX_packet_size - sent);
 			sent += bytes_sent;
 		}
+
+		//Testing 9/25
+		while(XUartPs_IsSending(&Uart_PS))
+		{
+			//wait here
+		}
+//		while(XUartPs_IsTransmitEmpty(&Uart_PS))
+//		{
+//			//wait until we are done sending the TX FIFO
+//		}
+		//Testing 9/25
 
 		//check if there are multiple packets to send
 		switch(file_TX_group_flags)

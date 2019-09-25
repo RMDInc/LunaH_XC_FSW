@@ -198,7 +198,7 @@ extern "C" {
 #define XUARTPS_MAX_RATE	 921600U
 #define XUARTPS_MIN_RATE	 110U
 
-#define XUARTPS_DFT_BAUDRATE  115200   /* Default baud rate */
+#define XUARTPS_DFT_BAUDRATE  921600U   /* Default baud rate */
 
 /** @name Configuration options
  * @{
