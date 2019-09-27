@@ -17,12 +17,12 @@
 /*
  * This is the CPS event structure and has the follow data fields:
  * 	event ID = 0x55
- * 	n_with_PSD_MSB = neutrons with PSD cuts
- * 	n_with_PSD_LSB
- * 	n_wide_cut_MSB = neutrons with the wide PSD cuts
- * 	n_wide_cut_LSB
- * 	n_with_no_PSD_MSB = neutrons with no PSD cuts, only energy cuts
- * 	n_with_no_PSD_LSB
+ * 	n_ellipse1_MSB = events which are within the first ellipse
+ * 	n_ellipse1_LSB
+ * 	n_ellipse2_MSB = events which are within the second ellipse
+ * 	n_ellipse2_LSB
+ * 	non_n_events_MSB = events which are outside both ellipses are classified as non-neutron events
+ * 	non_n_events_LSB
  * 	high_energy_events_MSB = events with an energy greater than 10 MeV (threshold for energy may change)
  *  high_energy_events_LSB
  *  time_MSB = FPGA time from the beginning of the current 1s interval (extremely important!!!)
@@ -33,10 +33,10 @@
  */
 typedef struct {
 	unsigned char event_id;
-	unsigned char n_with_PSD_MSB;
-	unsigned char n_with_PSD_LSB;
-	unsigned char n_wide_cut_MSB;
-	unsigned char n_wide_cut_LSB;
+	unsigned char n_ellipse1_MSB;
+	unsigned char n_ellipse1_LSB;
+	unsigned char n_ellipse2_MSB;
+	unsigned char n_ellipse2_LSB;
 	unsigned char non_n_events_MSB;
 	unsigned char non_n_events_LSB;
 	unsigned char high_energy_events_MSB;

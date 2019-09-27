@@ -15,7 +15,7 @@ static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 secon
 static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
 static unsigned short m_neutrons_ellipse1;			//neutrons with PSD
 static unsigned short m_neutrons_ellipse2;			//neutrons wide cut
-static unsigned short m_neutrons_no_PSD;			//all events within an energy range, no PSD cut applied
+static unsigned short m_non_neutron_events;			//all non-neutron events
 static unsigned short m_events_over_threshold;		//count all events which trigger the system
 
 static XTime cps_t_elapsed;	//was LocalTime
@@ -75,7 +75,7 @@ void CPSInit( void )
 	cpsEvent = cpsEmptyStruct;
 	m_neutrons_ellipse1 = 0;
 	m_neutrons_ellipse2 = 0;
-	m_neutrons_no_PSD = 0;
+	m_non_neutron_events = 0;
 	m_events_over_threshold = 0;
 	//get the neutron cuts
 	m_cfg_buff = *GetConfigBuffer();
@@ -87,12 +87,12 @@ void CPSResetCounts( void )
 {
 	m_neutrons_ellipse1 = 0;	//reset the values from processing
 	m_neutrons_ellipse2 = 0;
-	m_neutrons_no_PSD = 0;
+	m_non_neutron_events = 0;
 	m_events_over_threshold = 0;
-	cpsEvent.n_with_PSD_MSB = 0;//reset values in the struct we report
-	cpsEvent.n_with_PSD_LSB = 0;
-	cpsEvent.n_wide_cut_MSB = 0;
-	cpsEvent.n_wide_cut_LSB = 0;
+	cpsEvent.n_ellipse1_MSB = 0;//reset values in the struct we report
+	cpsEvent.n_ellipse1_LSB = 0;
+	cpsEvent.n_ellipse2_MSB = 0;
+	cpsEvent.n_ellipse2_LSB = 0;
 	cpsEvent.non_n_events_MSB = 0;
 	cpsEvent.non_n_events_LSB = 0;
 	cpsEvent.high_energy_events_MSB = 0;
@@ -204,12 +204,12 @@ bool cpsCheckTime( unsigned int time )
  */
 CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 {
-	cpsEvent.n_with_PSD_MSB = (unsigned char)(m_neutrons_ellipse1 >> 8);
-	cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_ellipse1);
-	cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
-	cpsEvent.n_wide_cut_LSB = (unsigned char)(m_neutrons_ellipse2);
-	cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8); //will need to modify this to take non-neutron cuts
-	cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
+	cpsEvent.n_ellipse1_MSB = (unsigned char)(m_neutrons_ellipse1 >> 8);
+	cpsEvent.n_ellipse1_LSB = (unsigned char)(m_neutrons_ellipse1);
+	cpsEvent.n_ellipse2_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
+	cpsEvent.n_ellipse2_LSB = (unsigned char)(m_neutrons_ellipse2);
+	cpsEvent.non_n_events_MSB = (unsigned char)(m_non_neutron_events >> 8); //will need to modify this to take non-neutron cuts
+	cpsEvent.non_n_events_LSB = (unsigned char)(m_non_neutron_events);
 	cpsEvent.high_energy_events_MSB = (unsigned char)(m_events_over_threshold >> 8);
 	cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
 	cpsEvent.event_id = 0x55;	//use the APID for CPS
@@ -382,7 +382,7 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 			if(energy <= MaxNRG)
 			{
 				//will need to update this, we are using the non-neutron cut now, not the no PSD cut
-				m_neutrons_no_PSD++;
+				m_non_neutron_events++;
 			}
 		}
 	}
