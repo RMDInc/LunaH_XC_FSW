@@ -30,7 +30,7 @@ static float ffirstVal = 0.0;
 static float fsecondVal = 0.0;
 static float fthirdVal = 0.0;
 static float ffourthVal = 0.0;
-static unsigned long long realTime = 0;
+static unsigned int realTime = 0;	//changed to unsigned int 9-6-2019, spacecraft is only going to provide a 32-bit time
 
 /* Delete a scanned out command from the buffer then shift the buffer over */
 // This function deletes bytes from the beginning of a char buffer then
@@ -554,7 +554,7 @@ float GetFloatParam( int param_num )
 * @return	(long long int) returns the value assigned when the command was scanned
 * 			This is a 64-bit number, so we need a large data type
 */
-unsigned long long GetRealTimeParam( void )
+unsigned int GetRealTimeParam( void )
 {
 	return realTime;
 }

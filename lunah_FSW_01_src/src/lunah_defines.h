@@ -34,9 +34,9 @@
 #define EVENT_BUFFER_SIZE	2048
 #define EVT_DATA_BUFF_SIZE	16384
 #define SIZEOF_HEADER_TIMES	14
-#define TWODH_X_BINS		260
-#define	TWODH_Y_BINS		30
-#define TWODH_ENERGY_MAX	1000000
+#define TWODH_X_BINS		260 //512
+#define	TWODH_Y_BINS		30  //64
+#define TWODH_ENERGY_MAX	1200000	//previously used 1,000,000 but recalculated that this was correct using temp. calib. data
 #define TWODH_PSD_MAX		2.0
 #define RMD_CHECKSUM_SIZE	2
 #define SYNC_MARKER			892270675	//0x35 2E F8 53

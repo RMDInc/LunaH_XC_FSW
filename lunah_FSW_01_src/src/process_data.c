@@ -62,6 +62,7 @@ int ProcessData( unsigned int * data_raw )
 	int m_neutron_detected = 0;
 	unsigned int m_x_bin_number = 0;
 	unsigned int m_y_bin_number = 0;
+	unsigned int m_tagging_bit = 0;
 	unsigned int num_bytes_written = 0;
 	unsigned int m_total_events_holder = 0;
 	unsigned int m_pmt_ID_holder = 0;
@@ -100,6 +101,7 @@ int ProcessData( unsigned int * data_raw )
 	while(iter < DATA_BUFFER_SIZE)
 	{
 		event_holder = evtEmptyStruct;	//reset event structure
+		m_neutron_detected = 0;			//reset the neutron detected value
 
 		switch(data_raw[iter])
 		{
@@ -148,6 +150,7 @@ int ProcessData( unsigned int * data_raw )
 							case NO_HIT_PATTERN:
 								event_holder.field1 |= 0x00; //No hit pattern detected
 								//do we want to keep processing this event? If there is no hit ID coming through, is it just noise?
+								//keep this case for now so we have a reminder to ask about this situation
 								break;
 							case PMT_ID_0:
 								event_holder.field1 |= 0x10; //PMT 0
@@ -164,7 +167,7 @@ int ProcessData( unsigned int * data_raw )
 							default:
 								//invalid event or Multi-Hit event
 								//TODO: Handle bad/multiple hit IDs
-								event_holder.field1 |= (m_pmt_ID_holder << 4); //or the bits to get the full hit pattern
+								event_holder.field1 |= (m_pmt_ID_holder << 4); //OR the bits to get the full hit pattern
 								break;
 							}
 							m_total_events_holder = data_raw[iter+2] & 0xFFF;	//mask the upper bits we don't care about
@@ -193,6 +196,13 @@ int ProcessData( unsigned int * data_raw )
 								m_bad_event++;
 							}
 
+							m_neutron_detected = CPSUpdateTallies(energy, psd);
+							IncNeutronTotal(m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
+							if(m_neutron_detected == 1)
+								m_tagging_bit = 1;
+							else
+								m_tagging_bit = 0;
+
 							//add the energy and PSD tallies to the correct histogram
 							m_ret = Tally2DH(energy, psd, m_pmt_ID_holder);
 							if(m_ret == CMD_FAILURE)
@@ -204,10 +214,9 @@ int ProcessData( unsigned int * data_raw )
 							m_y_bin_number = Get2DHArrayIndexY();
 							event_holder.field3 |= (unsigned char)(m_x_bin_number >> 1);
 							event_holder.field4 |= (unsigned char)((m_x_bin_number & 0x01) << 7);
-							event_holder.field4 |= (unsigned char)(m_y_bin_number << 2);
-							//TODO: Finish updating the data product fields here
-							m_FPGA_time_holder = data_raw[iter+1] & 0x03FFFFFF;	//mask the upper bits so we don't overwrite anything
-							event_holder.field4 |= (unsigned char)((m_FPGA_time_holder >> 24) & 0x03);
+							event_holder.field4 |= (unsigned char)(m_y_bin_number << 1);
+							event_holder.field4 |= (unsigned char)(m_tagging_bit);
+							m_FPGA_time_holder = ((data_raw[iter+1] & 0xFFFFFF00) >> 8);	//mask and shift off the bottom 8 bits
 							event_holder.field5 = (unsigned char)(m_FPGA_time_holder >> 16);
 							event_holder.field6 = (unsigned char)(m_FPGA_time_holder >> 8);
 							event_holder.field7 = (unsigned char)(m_FPGA_time_holder);
@@ -215,9 +224,6 @@ int ProcessData( unsigned int * data_raw )
 							evt_iter++;
 							iter += 8;
 							m_events_processed++;
-
-							m_neutron_detected = CPSUpdateTallies(energy, psd, m_pmt_ID_holder);
-							IncNeutronTotal(m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
 						}
 						else
 							valid_event = FALSE;

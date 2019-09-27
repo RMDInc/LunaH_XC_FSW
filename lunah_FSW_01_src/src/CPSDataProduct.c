@@ -93,8 +93,8 @@ void CPSResetCounts( void )
 	cpsEvent.n_with_PSD_LSB = 0;
 	cpsEvent.n_wide_cut_MSB = 0;
 	cpsEvent.n_wide_cut_LSB = 0;
-	cpsEvent.n_with_no_PSD_MSB = 0;
-	cpsEvent.n_with_no_PSD_LSB = 0;
+	cpsEvent.non_n_events_MSB = 0;
+	cpsEvent.non_n_events_LSB = 0;
 	cpsEvent.high_energy_events_MSB = 0;
 	cpsEvent.high_energy_events_LSB = 0;
 	return;
@@ -208,7 +208,7 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 	cpsEvent.n_with_PSD_LSB = (unsigned char)(m_neutrons_ellipse1);
 	cpsEvent.n_wide_cut_MSB = (unsigned char)(m_neutrons_ellipse2 >> 8);
 	cpsEvent.n_wide_cut_LSB = (unsigned char)(m_neutrons_ellipse2);
-	cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8);
+	cpsEvent.n_with_no_PSD_MSB = (unsigned char)(m_neutrons_no_PSD >> 8); //will need to modify this to take non-neutron cuts
 	cpsEvent.n_with_no_PSD_LSB = (unsigned char)(m_neutrons_no_PSD);
 	cpsEvent.high_energy_events_MSB = (unsigned char)(m_events_over_threshold >> 8);
 	cpsEvent.high_energy_events_LSB = (unsigned char)(m_events_over_threshold);
@@ -242,6 +242,10 @@ bool CPSIsWithinEllipse( double energy, double psd, int module_num, int ellipse_
 
 	return ret;
 }
+//	 * unsigned short m_neutrons_ellipse1;		//neutrons with PSD
+//	 * unsigned short m_neutrons_ellipse2;		//neutrons wide cut
+//	 * unsigned short m_non_neutron_events;		//all non-neutron events total
+//	 * unsigned short m_events_over_threshold;	//count all events which trigger the system
 
 /*
  * Access function to update the tallies that we add each time we process an event. We store the
@@ -372,10 +376,12 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 			m_neutron_detected = 1;
 		}
 		//does the event fit into the no PSD cut?
+		//this will change to being the non-neutron cut (essentially, if the event was outside the cuts, increment
 		if(energy >= MinNRG)
 		{
 			if(energy <= MaxNRG)
 			{
+				//will need to update this, we are using the non-neutron cut now, not the no PSD cut
 				m_neutrons_no_PSD++;
 			}
 		}
@@ -383,6 +389,14 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 	//also collect the values for neutrons with energy greater than 10 MeV
 	if(energy > TWODH_ENERGY_MAX)	//this will eventually be something like ConfigBuff.parameter
 		m_events_over_threshold++;
+
+	//does the event have a non-neutron?
+	if(m_neutron_detected == 0)
+	{
+		m_non_neutron_events++;
+		cpsEvent.non_n_events_MSB = (unsigned char)(m_non_neutron_events >> 8);
+		cpsEvent.non_n_events_LSB = (unsigned char)(m_non_neutron_events);
+	}
 
 	return m_neutron_detected;
 }
