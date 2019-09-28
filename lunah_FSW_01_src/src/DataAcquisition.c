@@ -555,7 +555,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 			array_index = 0;
 			dram_addr = dram_base;
-
 			while(dram_addr < dram_ceiling) //Does this need to be non-inclusive? Can we include the dram_ceiling? //TRYING THIS 2/26/19 GJS
 			{
 				data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);

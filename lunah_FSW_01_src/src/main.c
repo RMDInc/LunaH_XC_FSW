@@ -394,10 +394,15 @@ int main()
 				reportFailure(Uart_PS);	//report failure
 				break;
 			}
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
-			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 
+			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 			status = ApplyDAQConfig(&Iic);
+
+			//set WF folder name
+			//check that WF folder is unique, if not increment and check again
+			//change to WF folder
+			//record the WF folder/file name in the LS Files function
+
 			f_res = f_open(&WFData, "wfAA01.bin", FA_WRITE|FA_OPEN_ALWAYS);
 			if(f_res != FR_OK)
 				xil_printf("1 open file fail WF\n");
@@ -405,7 +410,7 @@ int main()
 			if(f_res != FR_OK)
 				xil_printf("2 lseek fail WF\n");
 
-
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			memset(wf_data, '\0', sizeof(unsigned int)*DATA_BUFFER_SIZE);
 			SetModeByte(MODE_DAQ_WF);
 			ClearBRAMBuffers();
@@ -424,9 +429,7 @@ int main()
 					//This check would replace the sleep statement.
 
 					Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
-
 					ClearBRAMBuffers();
-
 					Xil_DCacheInvalidateRange(0xa0000000, 65536);
 
 					array_index = 0;
@@ -445,12 +448,20 @@ int main()
 						xil_printf("3 write fail WF\n");
 				}
 
-				//check for input
+				//check for SOH
 				CheckForSOH(&Iic, Uart_PS);
 				if(numWFs > GetIntParam(2))
 					done = 1;
 			}
 			f_close(&WFData);
+
+			//change directories back to the root directory
+			f_res = f_chdir("0:/");
+			if(f_res != FR_OK)
+			{
+				//TODO: handle change directory fail
+			}
+
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to analog board
 			reportSuccess(Uart_PS, 0);

@@ -372,7 +372,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "START"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llu_%d", &detectorVal, &realTime, &firstVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%u_%d", &detectorVal, &realTime, &firstVal);
 
 					if(ret != 3)	//invalid input
 						commandNum = -1;
@@ -395,7 +395,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "END"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llud", &detectorVal, &realTime);	//check for the _number of the waveform
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%ud", &detectorVal, &realTime);	//check for the _number of the waveform
 
 					if(ret != 2)	//invalid input
 						commandNum = -1;
