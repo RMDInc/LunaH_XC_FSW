@@ -18,7 +18,7 @@
 
 #define TAB_CHAR_CODE			9
 #define NEWLINE_CHAR_CODE		10
-#define SOH_PACKET_LENGTH		31
+#define SOH_PACKET_LENGTH		41
 #define TEMP_PACKET_LENGTH		19
 
 // prototypes
@@ -32,6 +32,10 @@ int GetDigiTemp( void );
 int GetAnlgTemp( void );
 int GetModuTemp( void );
 void SetModeByte( unsigned char mode );
+void SetIDNumber( int id_number );
+void SetRunNumber( int run_number );
+int GetIDNumber( void );
+int GetRunNumber( void );
 void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS);
 int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type);
 void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, int sequence_count, int length);

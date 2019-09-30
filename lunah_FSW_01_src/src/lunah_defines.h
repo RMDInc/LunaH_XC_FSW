@@ -161,4 +161,8 @@
 #define DAQ_TIME_OUT	1
 #define DAQ_END			2
 
+//Mini-NS DMA Addresses to read from
+#define DRAM_BASE		0xA000000u
+#define DRAM_CEILING	0xA004000u
+
 #endif /* SRC_LUNAH_DEFINES_H_ */

@@ -13,13 +13,14 @@ static XTime TempTime;	//unchanged
 static XTime t_start;	//was LocalTimeStart
 static XTime t_current;	//was LocalTimeCurrent
 
-static int analog_board_temp = 25;
-static int digital_board_temp = 1;
-static int modu_board_temp = 25;
+static int analog_board_temp;
+static int digital_board_temp;
+static int modu_board_temp;
 static int iNeutronTotal;
 static int check_temp_sensor;
-
 static unsigned char mode_byte;
+static int soh_id_number;
+static int soh_run_number;
 
 /*
  * Initialize t_start and t_elapsed at startup
@@ -90,11 +91,44 @@ int GetModuTemp( void )
 /*
  * Setter function for the mode byte
  *
- * @param:
+ * @param	the mode that the Mini-NS is in
  */
 void SetModeByte( unsigned char mode )
 {
 	mode_byte = mode;
+}
+
+/*
+ * Setter function for the SOH ID number
+ *
+ * @param	The ID number for the pre-DAQ, DAQ, or WF run
+ */
+void SetIDNumber( int id_number )
+{
+	soh_id_number = id_number;
+}
+
+/*
+ * Setter function for the SOH Run number
+ *
+ * @param	The Run number for the pre-DAQ or DAQ run
+ */
+void SetRunNumber( int run_number )
+{
+	soh_run_number = run_number;
+}
+
+/*
+ * Setter functions for the SOH ID number and Run number
+ */
+int GetIDNumber( void )
+{
+	return soh_id_number;
+}
+
+int GetRunNumber( void )
+{
+	return soh_run_number;
 }
 
 /*
@@ -249,8 +283,18 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		report_buff[33] = (unsigned char)(local_time_holder >> 8);
 		report_buff[34] = (unsigned char)(local_time_holder);
 		report_buff[35] = TAB_CHAR_CODE;
-		report_buff[36] = mode_byte; //MODE_STANDBY;		//this currently only prints that the detector is in standby mode //GJS 5/9/2019
+		report_buff[36] = mode_byte;
 		report_buff[37] = NEWLINE_CHAR_CODE;
+		report_buff[38] = (unsigned char)(soh_id_number >> 24);
+		report_buff[39] = (unsigned char)(soh_id_number >> 16);
+		report_buff[40] = (unsigned char)(soh_id_number >> 8);
+		report_buff[41] = (unsigned char)(soh_id_number);
+		report_buff[42] = NEWLINE_CHAR_CODE;
+		report_buff[43] = (unsigned char)(soh_run_number >> 24);
+		report_buff[44] = (unsigned char)(soh_run_number >> 16);
+		report_buff[45] = (unsigned char)(soh_run_number >> 8);
+		report_buff[46] = (unsigned char)(soh_run_number);
+		report_buff[47] = NEWLINE_CHAR_CODE;
 
 		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
@@ -272,11 +316,13 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 /*
  * Put the appropriate CCSDS header values into the output packet.
  *
- * @param SOH_buff	Pointer to the packet buffer
- *
- * @param length	The length of the packet is equal to the number of bytes in the secondary CCSDS header
- * 					plus the payload data bytes plus the checksums minus one.
- * 					Len = 1 + N + 4 - 1
+ * @param SOH_buff			Pointer to the packet buffer
+ * @param packet_type		The APID for the packet being constructed
+ * @param group_flags		Indicates whether the packet is unsegmented, first, intermediate, or last
+ * @param sequence_count	What the sequence count number is for the packet being constructed
+ * @param length			The length of the packet is equal to the number of bytes in the secondary CCSDS header
+ * 							plus the payload data bytes plus the checksums minus one.
+ * 							Len = 1 + N + 4 - 1
  *
  * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
  * 			the correct number of bytes with the packet.

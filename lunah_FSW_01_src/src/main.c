@@ -52,16 +52,6 @@
 int main()
 {
 	int status = 0;			//local status variable for reporting SUCCESS/FAILURE
-	int valid_data = 0;		//local test variable for WF
-	int array_index = 0;
-	int dram_addr = 0;
-	int dram_base = 0xA000000;
-	int dram_ceiling = 0xA004000;
-	int numWFs = 0;
-	unsigned int numBytesWritten = 0;
-	unsigned int wf_data[DATA_BUFFER_SIZE] = {};
-	FIL WFData;
-	FRESULT f_res = FR_OK;
 
 	init_platform();		//Maybe we dropped out important init functions?
 	ps7_post_config();
@@ -143,6 +133,7 @@ int main()
 	}
 	// *********** Mount SD Card ****************//
 	/* FAT File System Variables */
+	FRESULT f_res = FR_OK;
 	FATFS fatfs[2];
 	int sd_status = 0;
 
@@ -204,6 +195,22 @@ int main()
 	int	menusel = 99999;		//case select variable for polling
 	FIL *cpsDataFile;			//create FIL pointers to use later
 	FIL *evtDataFile;
+	// ******************* WF Data Product Variables *******************//
+	int valid_data = 0;		//local test variable for WF
+	int numWFs = 0;
+	int dram_addr = 0;
+	int array_index = 0;
+	int wf_id_number = 0;
+	unsigned int numBytesWritten = 0;
+	char wf_run_folder[100] = "";
+	unsigned int wf_data[DATA_BUFFER_SIZE] = {};
+	char WF_FILENAME[] = "wf01.bin";
+	FIL WFData;
+	FILINFO fno;		//file info structure
+	TCHAR LFName[256];
+	fno.lfname = LFName;
+	fno.lfsize = sizeof(LFName);
+
 	// ******************* APPLICATION LOOP *******************//
 
 	//This loop will continue forever and the program won't leave it
@@ -254,7 +261,8 @@ int main()
 			PutNeutronTotal(0);	//set the SOH neutron count reports back to 0 for the run
 			CPSInit();	//reset neutron counts for the run
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
-			SetModeByte(MODE_PRE_DAQ);	//set the mode byte in SOH
+			SetModeByte(MODE_PRE_DAQ);
+			SetIDNumber(GetIntParam(1));
 			/* Create the file names we will use for this run:
 			 * Check if the filename given is unique
 			 * if the filename is unique, then we will go through these functions once
@@ -263,6 +271,7 @@ int main()
 			{
 				//only report a packet when the file has been successfully changed and did not exist already?
 				++DAQ_run_number;	//initialized to 0, the first run will increment to 1
+				SetRunNumber(DAQ_run_number);
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
 
@@ -383,9 +392,10 @@ int main()
 			ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to //TEST
 
 			SetModeByte(MODE_STANDBY);
+			SetIDNumber(0);
+			SetRunNumber(0);
 			break;
 		case WF_CMD:
-			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
 			//set processed data mode
 			if(GetIntParam(1) == 0)
 				Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, GetIntParam(1));	//get AA wfs = 0 //TRG wfs = 3
@@ -398,23 +408,47 @@ int main()
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
 			status = ApplyDAQConfig(&Iic);
 
-			//set WF folder name
-			//check that WF folder is unique, if not increment and check again
-			//change to WF folder
-			//record the WF folder/file name in the LS Files function
+			wf_id_number = GetIntParam(3);
+			while(1)
+			{
+				numBytesWritten = snprintf(wf_run_folder, 100, "0:/WF_I%d", wf_id_number);
+				if(numBytesWritten == 0)
+					status = CMD_FAILURE;
+				f_res = f_stat(wf_run_folder, &fno);
+				if(f_res == FR_NO_FILE)
+					break;
+				else if(f_res == FR_NO_PATH)
+					break;
+				else
+					wf_id_number++;
+			}
 
-			f_res = f_open(&WFData, "wfAA01.bin", FA_WRITE|FA_OPEN_ALWAYS);
+			f_res = f_mkdir(wf_run_folder);
 			if(f_res != FR_OK)
-				xil_printf("1 open file fail WF\n");
-			f_res = f_lseek(&WFData, file_size(&WFData));
-			if(f_res != FR_OK)
-				xil_printf("2 lseek fail WF\n");
+			{
+				//TODO: handle folder creation fail
+			}
+			else
+			{
+				f_res = f_chdir(wf_run_folder);
+				if(f_res != FR_OK)
+				{
+					//TODO: handle change directory fail
+				}
+				//don't open the file unless we have changed directory first
+				f_res = f_open(&WFData, WF_FILENAME, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
+				if(f_res != FR_OK)
+					xil_printf("1 open file fail WF\n");
+			}
 
+			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
 			memset(wf_data, '\0', sizeof(unsigned int)*DATA_BUFFER_SIZE);
 			SetModeByte(MODE_DAQ_WF);
+			SetIDNumber(wf_id_number);
+			SetRunNumber(0);
 			ClearBRAMBuffers();
-			while(done != 1)
+			while(numWFs < GetIntParam(2))
 			{
 				valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);
 				if(valid_data == 1)
@@ -433,8 +467,8 @@ int main()
 					Xil_DCacheInvalidateRange(0xa0000000, 65536);
 
 					array_index = 0;
-					dram_addr = dram_base;
-					while(dram_addr < dram_ceiling)
+					dram_addr = DRAM_BASE;
+					while(dram_addr < DRAM_CEILING)
 					{
 						wf_data[array_index] = Xil_In32(dram_addr);
 						dram_addr += 4;
@@ -450,8 +484,6 @@ int main()
 
 				//check for SOH
 				CheckForSOH(&Iic, Uart_PS);
-				if(numWFs > GetIntParam(2))
-					done = 1;
 			}
 			f_close(&WFData);
 
@@ -466,6 +498,8 @@ int main()
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to analog board
 			reportSuccess(Uart_PS, 0);
 			SetModeByte(MODE_STANDBY);
+			SetIDNumber(0);
+			SetRunNumber(0);
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
