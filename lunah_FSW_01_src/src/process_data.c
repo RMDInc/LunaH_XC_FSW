@@ -249,10 +249,10 @@ int ProcessData( unsigned int * data_raw )
 				event_holder.field1 = 0xDD;
 				event_holder.field2 = 0xDD;
 				event_holder.field3 = 0xDD;
-				event_holder.field4 = 0x00 | (data_raw[iter + 2] >> 30);
-				event_holder.field5 = data_raw[iter + 2] >> 22;
-				event_holder.field6 = data_raw[iter + 2] >> 14;
-				event_holder.field7 = data_raw[iter + 2] >> 6;
+				event_holder.field4 = 0xDD;
+				event_holder.field5 = (unsigned char)(data_raw[iter + 2] >> 24);
+				event_holder.field6 = (unsigned char)(data_raw[iter + 2] >> 16);
+				event_holder.field7 = (unsigned char)(data_raw[iter + 2] >> 8);
 
 				event_buffer[evt_iter] = event_holder;
 				evt_iter++;
@@ -278,7 +278,6 @@ int ProcessData( unsigned int * data_raw )
 		if(m_events_processed >= VALID_BUFFER_SIZE)	//we have processed every event in the buffer (max of 512)
 			break;
 		//TODO: fully error check the buffering here
-		//2-15, anything else?
 	}//END OF WHILE
 
 	//TODO: give this return value a meaning

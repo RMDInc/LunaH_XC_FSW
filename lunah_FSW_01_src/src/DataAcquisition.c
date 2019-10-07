@@ -8,17 +8,17 @@
 #include "DataAcquisition.h"
 
 //FILE SCOPE VARIABLES
-static char current_run_folder[100] = "";
-static char current_filename_EVT[100] = "";
-static char current_filename_CPS[100] = "";
-static char current_filename_2DH_1[100] = "";
-static char current_filename_2DH_2[100] = "";
-static char current_filename_2DH_3[100] = "";
-static char current_filename_2DH_4[100] = "";
-static char current_filename_WAV[100] = "";
-static unsigned int daq_run_id_number = 0;
-static unsigned int daq_run_run_number = 0;
-static unsigned int daq_run_set_number = 0;
+static char current_run_folder[100];
+static char current_filename_EVT[100];
+static char current_filename_CPS[100];
+static char current_filename_2DH_1[100];
+static char current_filename_2DH_2[100];
+static char current_filename_2DH_3[100];
+static char current_filename_2DH_4[100];
+static char current_filename_WAV[100];
+static unsigned int daq_run_id_number;
+static unsigned int daq_run_run_number;
+static unsigned int daq_run_set_number;
 
 static FIL m_EVT_file;
 static FIL m_CPS_file;
@@ -28,8 +28,8 @@ static FIL m_2DH_file;
 static unsigned int data_array[DATA_BUFFER_SIZE * 4];
 
 static DATA_FILE_HEADER_TYPE file_header_to_write;	//188 bytes
-static DATA_FILE_SECONDARY_HEADER_TYPE file_secondary_header_to_write;	//24 bytes
-static DATA_FILE_FOOTER_TYPE file_footer_to_write;	//32 bytes
+static DATA_FILE_SECONDARY_HEADER_TYPE file_secondary_header_to_write;	//16 bytes
+static DATA_FILE_FOOTER_TYPE file_footer_to_write;	//20 bytes
 
 /*
  * Getter function to get the folder name for the DAQ run which has been started.
@@ -500,9 +500,8 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	int buff_num = 0;				//keep track of which buffer we are writing
 	int m_buffers_written = 0;		//keep track of how many buffers are written, but not synced
 	int array_index = 0;			//the index of our array which will hold data
-	int dram_addr;					//the address in the DRAM we are reading from
-	int dram_base = 0xA000000;		//where the buffer starts	//167,772,160
-	int dram_ceiling = 0xA004000;	//where it ends				//167,788,544
+	int dram_addr = 0;				//the address in the DRAM we are reading from
+	int dram_base = DRAM_BASE;		//where the buffer starts	//0x0A 00 00 00 = 167,772,160 //0x0A 00 40 00 = 167,788,544 - 167,788,544 = 16384
 	int m_run_time = time_out * 60;	//multiply minutes by 60 to get seconds
 	int m_write_header = 1;			//write a file header the first time we use a file
 	XTime m_run_start; 				//timing variable
@@ -520,8 +519,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 	SetModeByte(MODE_DAQ);
 
-
-	//TESTING 6-13-2019
 	//create file to save the raw integers to
 #ifdef PRODUCE_RAW_DATA
 	FIL m_raw_data_file;
@@ -531,7 +528,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
 		status = CMD_FAILURE;
 #endif
-	//TESTING 6-13-2019
 
 	//TODO: remove this when the ellipse cuts are implemented
 	CPSSetCuts();
@@ -543,7 +539,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		{
 			//init/start MUX to transfer data between integrator modules and the DMA
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
-			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);
+			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, DRAM_BASE);
 			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
 			usleep(54);
 			//TODO: need to check a shared variable within the interrupt handler and this function
@@ -552,11 +548,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
 			ClearBRAMBuffers();
-			Xil_DCacheInvalidateRange(0xa0000000, 65536);
+			Xil_DCacheInvalidateRange(DRAM_BASE, 65536);
 
 			array_index = 0;
 			dram_addr = dram_base;
-			while(dram_addr < dram_ceiling) //Does this need to be non-inclusive? Can we include the dram_ceiling? //TRYING THIS 2/26/19 GJS
+			while(dram_addr < DRAM_CEILING)
 			{
 				data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
 				dram_addr += 4;
@@ -569,7 +565,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			{
 				buff_num = 0;
 
-				//TESTING 6-13-2019
 #ifdef PRODUCE_RAW_DATA
 				f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
 				if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
@@ -582,7 +577,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					xil_printf("8 error syncing DAQ\n");
 				}
 #endif
-				//TESTING 6-13-2019
 
 				//check the file size and see if we need to change files
 				if(m_EVT_file.fsize >= SIZE_1_MIB)

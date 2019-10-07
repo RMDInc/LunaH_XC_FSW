@@ -13,8 +13,8 @@
 #include "LogFileControl.h"
 
 //filenames for the log file
-static char cLogFile0[] = "0:/MNSCMDLOG.txt";	//The name of the log file on SD card 0
-static char cLogFile1[] = "1:/MNSCMDLOG.txt";	//The name of the log file on SD card 1
+static char cLogFile0[] = "0:/MNSLOG.txt";	//The name of the log file on SD card 0
+static char cLogFile1[] = "1:/MNSLOG.txt";	//The name of the log file on SD card 1
 
 /*
  * Initialize the log file on SD0.

@@ -491,9 +491,16 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
  * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
  * 			the correct number of bytes with the packet.
  *
- * TODO: Model this function after the report success function, once it's checked out
- * 		I want this to be able to tell the user where they are, ie. they are in the
- * 		daq loop or some where else, which is why their function is not succeeding.
+ * TODO: Model this function after the report success function which has different modes:
+ * 			For example, the report success function can either send back a filename or not
+ * 			depending on what kind of a success we are acknowledging. This will be useful
+ * 			for the user to know what kind of failure is happening.
+ * 		 Use a second parameter to return a specific error code to the user as the payload
+ * 		 	for this packet. Ie. if the payload bytes for this packet are a 13, then that
+ * 		 	could mean that an f_write function failed. This will be a good way to communicate
+ * 		 	when something specific goes wrong in a function, too as we can provide sub-codes
+ * 		 	like 13.1 which could say this was the first write or 13.5 which is the fifth write
+ * 		 	within the function.
  */
 int reportFailure(XUartPs Uart_PS)
 {
@@ -585,6 +592,10 @@ void CalculateChecksums(unsigned char * packet_array)
  * 								 set number each time.
  *
  * @return	(int) returns the status of the transfer, 0 = good, 1 = file DNE, 2+ = other problems
+ * 					0 = all good
+ * 					1 = file does not exist or other problem
+ * 					2 = other problem
+ * 					3 = file type not recognized
  *
  * NOTES: For this function, the file type is the important parameter because it tells the function how to
  * 			interpret the parameters which are given.
@@ -600,7 +611,8 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	int poll_val = 0;		//local polling status variable
 	int sent = 0;			//bytes sent by UART
 	int bytes_sent = 0;
-	unsigned short s_holder = 0;
+	short s_holder = 0;
+	unsigned short us_holder = 0;
 	float f_holder = 0;
 	int file_TX_size = 0;				//tracks number of bytes left to TX in the file TOTAL
 	int file_TX_packet_size = 0;		//number of bytes to send //number of bytes in a packet total
@@ -613,10 +625,11 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	int file_TX_file_pointer_location = 0;
 	int m_loop_var = 1;					//0 = false; 1 = true
 	int bytes_to_read = 0;				//number of bytes to read from data file to put into packet data bytes
-	unsigned int bytes_written;
+	unsigned int bytes_written = 0;
 	unsigned int bytes_read = 0;
 	unsigned int file_TX_2DH_oor_values[5] = {};
-	char *ptr_file_TX_filename;
+	char *ptr_file_TX_filename = NULL;
+	char WF_FILENAME[] = "wf01.bin";
 	char log_file[] = "MNSCMDLOG.txt";
 	char config_file[] = "MNSCONF.bin";
 	char file_TX_folder[100] = "";
@@ -651,6 +664,15 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
 			status = 1;
 		ptr_file_TX_filename = config_file;
+	}
+	else if(file_type == DATA_TYPE_WAV)
+	{
+		//construct the folder
+		bytes_written = snprintf(file_TX_folder, 100,  "0:/WF_I%d", id_num);
+		if(bytes_written == 0)
+			status = 1;
+		//construct the file name
+		ptr_file_TX_filename = WF_FILENAME;
 	}
 	else
 	{
@@ -701,6 +723,12 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			if(bytes_written == 0)
 				status = 1;
 		}
+		else
+		{
+			//the file type was not recognized
+			//we should break out and not go further
+			status = 3;	//indicate that the file type is bad
+		}
 
 		ptr_file_TX_filename = file_TX_filename;
 	}
@@ -737,15 +765,15 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		file_TX_size = file_size(&TXFile);
 		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG)	//EVT, CPS, 2DH, WAV files
 		{
-			f_res = f_read(&TXFile, &data_file_header, sizeof(data_file_header), &bytes_read);	//read in 188 bytes, up to the real time
+			f_res = f_read(&TXFile, &data_file_header, sizeof(data_file_header), &bytes_read);	//read in the data file header
 			if(f_res != FR_OK || bytes_read != sizeof(data_file_header))
 				status = 2;
 			else
 				file_TX_size -= bytes_read;
 
-			if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_WAV || file_type == DATA_TYPE_CPS) //2DH files don't have this
+			if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_CPS) //EVT, CPS files
 			{
-				f_res = f_read(&TXFile, &data_file_2ndy_header, sizeof(data_file_2ndy_header), &bytes_read);	//read in the real times
+				f_res = f_read(&TXFile, &data_file_2ndy_header, sizeof(data_file_2ndy_header), &bytes_read);	//read in the secondary data file header
 				if(f_res != FR_OK)
 				{
 					//TODO: can do a check that the eventID bytes are correct here so we know that it's a good read?
@@ -757,11 +785,11 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			}
 			if(file_type == DATA_TYPE_EVT)
 			{
-				f_res = f_lseek(&TXFile, DP_HEADER_SIZE);
+				f_res = f_lseek(&TXFile, DP_HEADER_SIZE);	//move past the
 				if(f_res != FR_OK)
 					status = 2;
 				else
-					file_TX_size -= (DP_HEADER_SIZE - sizeof(data_file_header) - sizeof(data_file_2ndy_header));	//this is correct 6-13-2019 //at this point, we have already subtracted the header and 2ndy, don't subtract them again
+					file_TX_size -= (DP_HEADER_SIZE - sizeof(data_file_header) - sizeof(data_file_2ndy_header));	//this is correct 10-02-2019
 			}
 		}
 		else if(file_type == DATA_TYPE_CFG)	//the config file is just one config header
@@ -774,111 +802,104 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		}
 		//no header information in the log file //need to assign the
 	}
-	//deal with footers on the files, if they exist	//TESTING 5-22-2019
+	//deal with footers on the files, if they exist
 	if(status == 0)
 	{
 		//get the location of the file pointer so we can reset it there when we are done
 		file_TX_file_pointer_location = TXFile.fptr;
 		if(file_type == DATA_TYPE_EVT)
 		{
-			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_EVT);	//goes to the end minus the footer size
+			f_res = f_lseek(&TXFile, file_size(&TXFile) - sizeof(data_file_footer));	//goes to the end minus the footer size
 			if(f_res != FR_OK)
 				status = 2;
 			else
 			{
-				f_res = f_read(&TXFile, &data_file_footer, sizeof(data_file_footer), &bytes_read);	//read in 188 bytes, up to the real time
+				f_res = f_read(&TXFile, &data_file_footer, sizeof(data_file_footer), &bytes_read);
 				if(f_res != FR_OK || bytes_read != sizeof(data_file_footer))
 					status = 2;
 			}
-			//then subtract the footer bytes from the total file size //do this even though the read may have failed
+
 			file_TX_size -= sizeof(data_file_footer);
 		}
 		else if(file_type == DATA_TYPE_CPS)
 		{
-			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_CPS);	//goes to the end minus the footer size
+			f_res = f_lseek(&TXFile, file_size(&TXFile) - sizeof(data_file_footer));
 			if(f_res != FR_OK)
 				status = 2;
 			else
 			{
-				f_res = f_read(&TXFile, &data_file_footer, sizeof(data_file_footer), &bytes_read);	//read in 188 bytes, up to the real time
+				f_res = f_read(&TXFile, &data_file_footer, sizeof(data_file_footer), &bytes_read);
 				if(f_res != FR_OK || bytes_read != sizeof(data_file_footer))
 					status = 2;
 			}
-			//then subtract the footer bytes from the total file size //do this even though the read may have failed
+
 			file_TX_size -= sizeof(data_file_footer);
 		}
 		else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
 		{
-			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_2DH);	//goes to the end minus the footer size
+			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_2DH);
 			if(f_res != FR_OK)
 				status = 2;
 			else
 			{
-				f_res = f_read(&TXFile, &file_TX_2DH_oor_values, sizeof(unsigned int) * 5, &bytes_read);	//read in 188 bytes, up to the real time
+				f_res = f_read(&TXFile, &file_TX_2DH_oor_values, sizeof(unsigned int) * 5, &bytes_read);
 				if(f_res != FR_OK || bytes_read != (sizeof(unsigned int) * 5))
 					status = 2;
 			}
-			//then subtract the footer bytes from the total file size //do this even though the read may have failed
+
 			file_TX_size -= sizeof(unsigned int) * 5;
 		}
 		//reset the file pointer to where it was when we began
 		f_res = f_lseek(&TXFile, file_TX_file_pointer_location);
-	}	//TESTING 5-22-2019
+	}
 
-	//compile the RMD data header (different based on file type)
+	//compile the Mini-NS data header (different based on file type)
 	if(status == 0)
 	{
-		//for EVT file type
-		//fill in the RMD header	//these are shared header values for CPS, 2DH, EVT, WAV, CFG //only LOG doesn't have this
-		f_holder = data_file_header.configBuff.ScaleFactorEnergy_1_1;	memcpy(&(packet_array[11]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ScaleFactorEnergy_1_2;	memcpy(&(packet_array[15]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ScaleFactorPSD_1_1;		memcpy(&(packet_array[19]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ScaleFactorPSD_1_2;		memcpy(&(packet_array[23]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetEnergy_1_1;		memcpy(&(packet_array[27]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetEnergy_1_2;		memcpy(&(packet_array[31]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetPSD_1_1;			memcpy(&(packet_array[35]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.OffsetPSD_1_2;			memcpy(&(packet_array[39]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ECalSlope;				memcpy(&(packet_array[43]), &f_holder, sizeof(float));
-		f_holder = data_file_header.configBuff.ECalIntercept;			memcpy(&(packet_array[47]), &f_holder, sizeof(float));
-		s_holder = (unsigned short)data_file_header.configBuff.TriggerThreshold;	memcpy(&(packet_array[51]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationBaseline;	memcpy(&(packet_array[53]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationShort;	memcpy(&(packet_array[55]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationLong;		memcpy(&(packet_array[57]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationFull;		memcpy(&(packet_array[59]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[0];	memcpy(&(packet_array[61]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[1];	memcpy(&(packet_array[63]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[2];	memcpy(&(packet_array[65]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[3];	memcpy(&(packet_array[67]), &s_holder, sizeof(s_holder));
+		//for EVT, CPS, 2DH, WAV file types
+		//fill in the Mini-NS Data Header	//these are shared header values for CPS, 2DH, EVT, WAV, CFG //only LOG doesn't have this
+		//will probably have to keep the floats like this to ensure that they get copied correctly
+		//when we are keeping the other parameters consistent with the packet values (ie. unsigned short on file -> unsigned short in packet) then
+		// we'll be able to just use memcpy rather than using the holder variables
+		f_holder = data_file_header.configBuff.ECalSlope;								memcpy(&(packet_array[11]), &f_holder, sizeof(float));
+		f_holder = data_file_header.configBuff.ECalIntercept;							memcpy(&(packet_array[15]), &f_holder, sizeof(float));
+		us_holder = (unsigned short)data_file_header.configBuff.TriggerThreshold;		memcpy(&(packet_array[19]), &us_holder, sizeof(us_holder));
+		s_holder = (unsigned short)data_file_header.configBuff.IntegrationBaseline;		memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
+		s_holder = (unsigned short)data_file_header.configBuff.IntegrationShort;		memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
+		s_holder = (unsigned short)data_file_header.configBuff.IntegrationLong;			memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
+		s_holder = (unsigned short)data_file_header.configBuff.IntegrationFull;			memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
+		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[0];	memcpy(&(packet_array[29]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[1];	memcpy(&(packet_array[31]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[2];	memcpy(&(packet_array[33]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[3];	memcpy(&(packet_array[35]), &us_holder, sizeof(us_holder));
+		us_holder = data_file_header.IDNum;												memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
+		us_holder = data_file_header.RunNum;											memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
 
-		if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_WAV || file_type == DATA_TYPE_CPS)
+		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG && file_type != DATA_TYPE_WAV)
 		{
-			memcpy(&(packet_array[69]), &data_file_2ndy_header.RealTime, sizeof(data_file_2ndy_header.RealTime));
-			memcpy(&(packet_array[77]), &data_file_2ndy_header.FirstEventTime, sizeof(data_file_2ndy_header.FirstEventTime));
+			memcpy(&(packet_array[41]), &data_file_2ndy_header.RealTime, sizeof(data_file_2ndy_header.RealTime));
+			memcpy(&(packet_array[45]), &data_file_2ndy_header.FirstEventTime, sizeof(data_file_2ndy_header.FirstEventTime));
 		}
-		else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )	//TESTING 5-22-2019
+		else
 		{
-			memcpy(&(packet_array[69]), &file_TX_2DH_oor_values[0], sizeof(unsigned int));
-			memcpy(&(packet_array[73]), &file_TX_2DH_oor_values[1], sizeof(unsigned int));
-			memcpy(&(packet_array[77]), &file_TX_2DH_oor_values[2], sizeof(unsigned int));
-			memcpy(&(packet_array[81]), &file_TX_2DH_oor_values[3], sizeof(unsigned int));
+			//the log file, config file, and WAV files don't have spacecraft or FPGA times
+			memset(&(packet_array[41]), 0, sizeof(unsigned int));	//just set the variables to 0
+			memset(&(packet_array[45]), 0, sizeof(unsigned int));
 		}
 	}
 	if(status != 0)
 		m_loop_var = 0;	//don't loop, just exit
-	//loop here to compile the packets, all above stuff is necessary once and stays the same in each packet
-	//This loop compiles the remaining parts of the packet and sends it
-	// then repeats until there is no more data
+	//All above information is necessary to acquire once as it stays the same in each packet
+	//This loop compiles the remaining parts of the packet and sends it, then repeats until there is no more data
 	while(m_loop_var == 1)
 	{
-		//here is where I'll get data product specific
 		switch(file_type)
 		{
-		case DATA_TYPE_EVT:
-			//what do we need to specify to make things correct for one data product or another?
-			file_TX_data_bytes_size = DATA_BYTES_EVT;
-			file_TX_packet_size = PKT_SIZE_EVT;
-			file_TX_packet_header_size = PKT_HEADER_EVT;
-			file_TX_apid = 0x77;
+		case DATA_TYPE_CPS:
+			file_TX_data_bytes_size = DATA_BYTES_CPS;
+			file_TX_packet_size = PKT_SIZE_CPS;
+			file_TX_packet_header_size = PKT_HEADER_CPS;
+			file_TX_apid = 0x55;
 			break;
 		case DATA_TYPE_WAV:
 			file_TX_data_bytes_size = DATA_BYTES_WAV;
@@ -886,11 +907,12 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_packet_header_size = PKT_HEADER_WAV;
 			file_TX_apid = 0x66;
 			break;
-		case DATA_TYPE_CPS:
-			file_TX_data_bytes_size = DATA_BYTES_CPS;
-			file_TX_packet_size = PKT_SIZE_CPS;
-			file_TX_packet_header_size = PKT_HEADER_CPS;
-			file_TX_apid = 0x55;
+		case DATA_TYPE_EVT:
+			//what do we need to specify to make things correct for one data product or another?
+			file_TX_data_bytes_size = DATA_BYTES_EVT;
+			file_TX_packet_size = PKT_SIZE_EVT;
+			file_TX_packet_header_size = PKT_HEADER_EVT;
+			file_TX_apid = 0x77;
 			break;
 		case DATA_TYPE_2DH_1:
 			/* Falls through to case 2DH_2 */
@@ -918,7 +940,8 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_apid = 0xAA;
 			break;
 		default:
-			//how did we get here if the file type is wrong?
+			status = 3;		//problem with the file type
+			m_loop_var = 0;	//stop looping
 			break;
 		}
 
@@ -942,6 +965,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 				file_TX_group_flags = 2;	//last packet
 		}
 
+		//need to generalize this for the CFG, LOG transfers, they don't have a data file header to read the APID from
 		PutCCSDSHeader(packet_array, data_file_header.FileTypeAPID, file_TX_group_flags, file_TX_sequence_count, file_TX_packet_size);
 
 		f_res = f_read(&TXFile, &(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), bytes_to_read, &bytes_read);
@@ -957,7 +981,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_add_padding = 0;	//reset
 		}
 
-		//for 2DH packets, add the PMT ID to the end of the data bytes //should always put this at 10+75+1950 = byte 2035	//TESTING 5-22-2019
+		//for 2DH packets, add the PMT ID to the end of the data bytes //currently at 10+39+1984 = 2033 //10-4-2019
 		if(file_type == DATA_TYPE_2DH_1)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x01;
 		else if(file_type == DATA_TYPE_2DH_2)
@@ -985,11 +1009,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		{
 			//wait here
 		}
-//		while(XUartPs_IsTransmitEmpty(&Uart_PS))
-//		{
-//			//wait until we are done sending the TX FIFO
-//		}
-		//Testing 9/25
 
 		//check if there are multiple packets to send
 		switch(file_TX_group_flags)
@@ -1000,15 +1019,15 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			m_loop_var = 1;
 			file_TX_sequence_count++;
 			//erase the parts of the packet which are unique so they don't get put into the next packet
+			//this includes everything past the data header
 			memset(&(packet_array[6]), '\0', 2);	//reset group flags, sequence count
 			memset(&(packet_array[10]), '\0', 1);	//reset secondary header (reset request bits)
 			if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_WAV || file_type == DATA_TYPE_CPS)
-				memset(&(packet_array[81]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
+				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
 			else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
-				memset(&(packet_array[85]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - PKT_HEADER_2DH);
+				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
 			else if(file_type == DATA_TYPE_LOG)
-				memset(&(packet_array[11]), '\0', file_TX_packet_size- CCSDS_HEADER_PRIM);
-			//no need to erase the config file
+				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM);	//modify this for CFG, LOG
 			break;
 		case 2:	//current packet was last packet
 			/* Falls through to case 3 */
@@ -1028,7 +1047,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		{
 		case -1:
 			//this is bad input or an error in input
-			//should handle this separately from default
+			//TODO: handle this separately from default
 			break;
 		case BREAK_CMD:
 			m_loop_var = 0;	//done looping
@@ -1037,7 +1056,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		default:
 			break;
 		}
-
 	}//END OF WHILE(m_loop_var == 1)
 
 	f_close(&TXFile);
