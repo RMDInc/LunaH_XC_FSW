@@ -34,8 +34,8 @@
 #define EVENT_BUFFER_SIZE	2048
 #define EVT_DATA_BUFF_SIZE	16384
 #define SIZEOF_HEADER_TIMES	14
-#define TWODH_X_BINS		260 //512
-#define	TWODH_Y_BINS		30  //64
+#define TWODH_X_BINS		512		//260
+#define	TWODH_Y_BINS		64		//30
 #define TWODH_ENERGY_MAX	1200000	//previously used 1,000,000 but recalculated that this was correct using temp. calib. data
 #define TWODH_PSD_MAX		2.0
 #define RMD_CHECKSUM_SIZE	2
@@ -125,41 +125,40 @@
 #define DATA_TYPE_2DH_3	12
 #define DATA_TYPE_2DH_4 13
 
-//MNS DATA PACKET HEADER SIZES //Helps with calculating packet size //includes secondary header + data header
-#define PKT_HEADER_EVT	71
-#define PKT_HEADER_WAV	71
-#define PKT_HEADER_CPS	71
-#define PKT_HEADER_2DH	75
+//MNS DATA PACKET HEADER SIZES //includes secondary header + data header
+#define PKT_HEADER_EVT	39
+#define PKT_HEADER_WAV	39
+#define PKT_HEADER_CPS	39
+#define PKT_HEADER_2DH	39
 #define PKT_HEADER_LOG	1
 #define PKT_HEADER_CFG	1
 
 //MNS DATA PRODUCT DATA BYTE SIZES
-#define DATA_BYTES_EVT	1952
-#define DATA_BYTES_WAV	1950
-#define DATA_BYTES_CPS	1946
-#define DATA_BYTES_2DH	1951
+#define DATA_BYTES_EVT	1984
+#define DATA_BYTES_WAV	1984
+#define DATA_BYTES_CPS	1974
+#define DATA_BYTES_2DH	1985
 #define DATA_BYTES_LOG	1963
 #define DATA_BYTES_CFG	187
 
 //MNS DATA PACKET SIZES //Full size - 10 - 1
 #define PKT_SIZE_EVT 	2026
 #define PKT_SIZE_WAV	2026
-#define PKT_SIZE_CPS	2020
-#define PKT_SIZE_2DH	2029
+#define PKT_SIZE_CPS	2016
+#define PKT_SIZE_2DH	2027
 #define PKT_SIZE_LOG	2029	//TODO: define this
 #define PKT_SIZE_CFG	191
 
-//MNS DATA FILE FOOTER SIZES //The main data products have a footer in the file	//current 5-22-2019
-#define FILE_FOOT_EVT	32
-#define FILE_FOOT_WAV	0
-#define FILE_FOOT_CPS	32
+//MNS DATA FILE FOOTER SIZES //The main data products have a footer in the file
 #define FILE_FOOT_2DH	20
-#define FILE_FOOT_LOG	0
-#define	FILE_FOOT_CFG	0
 
 //DAQ FINAL STATE
 #define DAQ_BREAK		0
 #define DAQ_TIME_OUT	1
 #define DAQ_END			2
+
+//Mini-NS DMA Addresses to read from
+#define DRAM_BASE		0xA000000u
+#define DRAM_CEILING	0xA004000u
 
 #endif /* SRC_LUNAH_DEFINES_H_ */

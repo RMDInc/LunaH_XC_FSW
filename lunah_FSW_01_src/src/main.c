@@ -52,16 +52,6 @@
 int main()
 {
 	int status = 0;			//local status variable for reporting SUCCESS/FAILURE
-	int valid_data = 0;		//local test variable for WF
-	int array_index = 0;
-	int dram_addr = 0;
-	int dram_base = 0xA000000;
-	int dram_ceiling = 0xA004000;
-	int numWFs = 0;
-	unsigned int numBytesWritten = 0;
-	unsigned int wf_data[DATA_BUFFER_SIZE] = {};
-	FIL WFData;
-	FRESULT f_res = FR_OK;
 
 	init_platform();		//Maybe we dropped out important init functions?
 	ps7_post_config();
@@ -143,6 +133,7 @@ int main()
 	}
 	// *********** Mount SD Card ****************//
 	/* FAT File System Variables */
+	FRESULT f_res = FR_OK;
 	FATFS fatfs[2];
 	int sd_status = 0;
 
@@ -202,8 +193,25 @@ int main()
 	int done = 0;				//local status variable for keeping track of progress within loops
 	int DAQ_run_number = 0;		//run number value for file names, tracks the number of runs per POR
 	int	menusel = 99999;		//case select variable for polling
-	FIL *cpsDataFile;			//create FIL pointers to use later
+	FIL *cpsDataFile;			//create FIL pointers to check and make sure that the DAQ files were closed out
 	FIL *evtDataFile;
+	// ******************* WF Data Product Variables *******************//
+	int valid_data = 0;		//local test variable for WF
+	int numWFs = 0;
+	int dram_addr = 0;
+	int array_index = 0;
+	int wf_id_number = 0;
+	unsigned int numBytesWritten = 0;
+	char wf_run_folder[100] = "";
+	DATA_FILE_HEADER_TYPE wf_file_header = {};
+	unsigned int wf_data[DATA_BUFFER_SIZE] = {};
+	char WF_FILENAME[] = "wf01.bin";
+	FIL WFData;
+	FILINFO fno;		//file info structure
+	TCHAR LFName[256];
+	fno.lfname = LFName;
+	fno.lfsize = sizeof(LFName);
+
 	// ******************* APPLICATION LOOP *******************//
 
 	//This loop will continue forever and the program won't leave it
@@ -254,7 +262,8 @@ int main()
 			PutNeutronTotal(0);	//set the SOH neutron count reports back to 0 for the run
 			CPSInit();	//reset neutron counts for the run
 			status = CMD_SUCCESS;	//reset the variable so that we jump into the loop
-			SetModeByte(MODE_PRE_DAQ);	//set the mode byte in SOH
+			SetModeByte(MODE_PRE_DAQ);
+			SetIDNumber(GetIntParam(1));
 			/* Create the file names we will use for this run:
 			 * Check if the filename given is unique
 			 * if the filename is unique, then we will go through these functions once
@@ -263,16 +272,17 @@ int main()
 			{
 				//only report a packet when the file has been successfully changed and did not exist already?
 				++DAQ_run_number;	//initialized to 0, the first run will increment to 1
+				SetRunNumber(DAQ_run_number);
 				SetFileName(GetIntParam(1), DAQ_run_number, 0);	//creates a file name of IDNum_runNum_type.bin
 				//check that the file name(s) do not already exist on the SD card...we do not want to append existing files
 
-				status = DoesFileExist();	//TEST 7-26
-				if(status == CMD_ERROR)		//TEST 7-26
-				{
-					//handle a non-success/failure return
-					//this means we don't have access to something
-					//TODO: handle return
-				}
+				status = DoesFileExist();
+//				if(status == CMD_ERROR)	// commented
+//				{
+//					//handle a non-success/failure return
+//					//this means we don't have access to something
+//					//TODO: handle return
+//				}
 				//returns FALSE if file does NOT exist
 				//returns TRUE if file does exist
 				//we need the file to be unique, so FALSE is a positive result,
@@ -298,12 +308,11 @@ int main()
 			while(done != 1)
 			{
 				status = ReadCommandType(RecvBuffer, &Uart_PS);	//Check for user input
-				//see if we got anything meaningful //we'll accept any valid command
 				if ( status >= -1 && status <= 23 )
 				{
 					if(status != -1)
 						LogFileWrite( GetLastCommand(), GetLastCommandSize() );
-					//if no good input is found, silently ignore the input
+
 					switch(status)
 					{
 					case -1:
@@ -321,7 +330,6 @@ int main()
 						reportSuccess(Uart_PS, 0);
 						break;
 					case START_CMD:
-						//TODO: pass in the FIL pointers
 						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer, GetIntParam(1));
 						//we will return in three ways:
 						// BREAK (0)	= failure
@@ -349,10 +357,6 @@ int main()
 					default:
 						//got something outside of these commands
 						done = 0;	//continue looping //not done
-						//I want to report failure and also include something like daq loop in the string
-						// that way a person controlling the MNS would see the reason all their commands
-						// are failing. If the loop is here, the command entered was recognized and relevant
-						// but we can't do it because this loop doesn't have access.
 						reportFailure(Uart_PS);
 						break;
 					}
@@ -383,9 +387,10 @@ int main()
 			ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to //TEST
 
 			SetModeByte(MODE_STANDBY);
+			SetIDNumber(0);
+			SetRunNumber(0);
 			break;
 		case WF_CMD:
-			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
 			//set processed data mode
 			if(GetIntParam(1) == 0)
 				Xil_Out32(XPAR_AXI_GPIO_14_BASEADDR, GetIntParam(1));	//get AA wfs = 0 //TRG wfs = 3
@@ -394,22 +399,75 @@ int main()
 				reportFailure(Uart_PS);	//report failure
 				break;
 			}
-			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 1);	//enable 5V to analog board
-
 			status = ApplyDAQConfig(&Iic);
-			f_res = f_open(&WFData, "wfAA01.bin", FA_WRITE|FA_OPEN_ALWAYS);
-			if(f_res != FR_OK)
-				xil_printf("1 open file fail WF\n");
-			f_res = f_lseek(&WFData, file_size(&WFData));
-			if(f_res != FR_OK)
-				xil_printf("2 lseek fail WF\n");
 
+			wf_id_number = GetIntParam(3);
+			while(1)
+			{
+				numBytesWritten = snprintf(wf_run_folder, 100, "0:/WF_I%d", wf_id_number);
+				if(numBytesWritten == 0)
+					status = CMD_FAILURE;
+				f_res = f_stat(wf_run_folder, &fno);
+				if(f_res == FR_NO_FILE)
+					break;
+				else if(f_res == FR_NO_PATH)
+					break;
+				else
+					wf_id_number++;
+			}
 
+			f_res = f_mkdir(wf_run_folder);
+			if(f_res != FR_OK)
+			{
+				done = 1;
+			}
+			else
+			{
+				f_res = f_chdir(wf_run_folder);
+				if(f_res != FR_OK)
+				{
+					done = 1;
+				}
+				//don't open the file unless we have changed directory first
+				f_res = f_open(&WFData, WF_FILENAME, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
+				if(f_res != FR_OK)
+					xil_printf("1 open file fail WF\n");
+				else
+				{
+					//if we open the file, create and write in the header file
+					wf_file_header.configBuff = *GetConfigBuffer();	//dereference to copy the struct into our local struct
+					wf_file_header.IDNum = wf_id_number;
+					wf_file_header.RunNum = 0;
+					wf_file_header.SetNum = 0;
+					wf_file_header.FileTypeAPID = DATA_TYPE_WAV;
+					wf_file_header.TempCorrectionSetNum = 1;
+					wf_file_header.EventID1 = 0xFF;
+					wf_file_header.EventID2 = 0xFF;
+
+					//write the header into the file
+					f_res = f_write(&WFData, &wf_file_header, sizeof(wf_file_header), &numBytesWritten);
+					if(f_res == FR_OK && numBytesWritten == sizeof(wf_file_header))
+					{
+						f_res = f_sync(&WFData);
+						if(f_res == FR_OK)
+							done = 0;
+						else
+							done = 1;
+					}
+				}
+			}
+
+			Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module
+			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+			numWFs = 0;
 			memset(wf_data, '\0', sizeof(unsigned int)*DATA_BUFFER_SIZE);
 			SetModeByte(MODE_DAQ_WF);
+			SetIDNumber(wf_id_number);
+			SetRunNumber(0);
 			ClearBRAMBuffers();
-			while(done != 1)
+			while(numWFs < GetIntParam(2))
 			{
 				valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);
 				if(valid_data == 1)
@@ -424,14 +482,12 @@ int main()
 					//This check would replace the sleep statement.
 
 					Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
-
 					ClearBRAMBuffers();
-
 					Xil_DCacheInvalidateRange(0xa0000000, 65536);
 
 					array_index = 0;
-					dram_addr = dram_base;
-					while(dram_addr < dram_ceiling)
+					dram_addr = DRAM_BASE;
+					while(dram_addr < DRAM_CEILING)
 					{
 						wf_data[array_index] = Xil_In32(dram_addr);
 						dram_addr += 4;
@@ -440,21 +496,54 @@ int main()
 
 					numWFs++;
 					//have the WF, save to file //WFData
-					f_res = f_write(&WFData, wf_data, DATA_BUFFER_SIZE, &numBytesWritten);
+					f_res = f_write(&WFData, wf_data, DATA_BUFFER_SIZE * sizeof(unsigned int), &numBytesWritten);
 					if(f_res != FR_OK)
 						xil_printf("3 write fail WF\n");
 				}
 
-				//check for input
+				//check for SOH
 				CheckForSOH(&Iic, Uart_PS);
-				if(numWFs > GetIntParam(2))
+				//check for user input (check for BREAK)
+				status = ReadCommandType(RecvBuffer, &Uart_PS);
+				switch(status)
+				{
+				case -1:
+					//We received a bad command
+					done = 0;
+					reportFailure(Uart_PS);
+					break;
+				case BREAK_CMD:
+					//received the command to BREAK out of this loop and stop taking WF data
 					done = 1;
-			}
+					break;
+				default:
+					//other commands will not generate a response
+					break;
+				}
+				if(done == 1)
+					break;
+			} //end of While(numWFs < #)
+
 			f_close(&WFData);
+
+			//change directories back to the root directory
+			f_res = f_chdir("0:/");
+			if(f_res != FR_OK)
+			{
+				//TODO: handle change directory fail
+			}
+
 			Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 0);		//disable ADC
 			Xil_Out32 (XPAR_AXI_GPIO_7_BASEADDR, 0);	//disable 5V to analog board
-			reportSuccess(Uart_PS, 0);
+
+			if(done == 1)
+				reportFailure(Uart_PS);
+			else
+				reportSuccess(Uart_PS, 0);
+
 			SetModeByte(MODE_STANDBY);
+			SetIDNumber(0);
+			SetRunNumber(0);
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
@@ -488,11 +577,10 @@ int main()
 			switch(GetIntParam(1))
 			{
 			case DATA_TYPE_EVT:
-				//the following will TX one EVT file which has the specified ID, run, and set number
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_EVT, GetIntParam(2), GetIntParam(3), GetIntParam(4));
 				break;
 			case DATA_TYPE_WAV:
-				status = 1;	//don't do this yet
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_WAV, GetIntParam(2), 0, 0);	//Run, set numbers always 0 for WAV
 				break;
 			case DATA_TYPE_CPS:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_CPS, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for CPS

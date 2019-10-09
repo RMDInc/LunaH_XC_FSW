@@ -211,9 +211,9 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "WF"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d", &detectorVal, &firstVal, &secondVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal);
 
-					if(ret != 3)	//invalid input
+					if(ret != 4)	//invalid input
 						commandNum = -1;
 					else
 						commandNum = WF_CMD;
