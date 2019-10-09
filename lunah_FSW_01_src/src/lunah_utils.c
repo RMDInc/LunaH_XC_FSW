@@ -576,6 +576,33 @@ void CalculateChecksums(unsigned char * packet_array)
 }
 
 /*
+ *  Function to calculate a checksum for the data product files we generate on the Mini-NS.
+ *  This function calculates a Fletcher checksum for the file requested by looping over all the bytes that will be
+ *  	sent in a file transfer. All data product files (WF, EVT, CPS, 2DH) have some header bytes and footer bytes
+ *  	within the data product files which will not be transferred, so those bytes should not be used when calculating
+ *  	the checksum.
+ *  Alternatively, a cumulative checksum could be provided? This could be something like we keep calculate a checksum
+ *  	for the data bytes we send out in a packet, then when we read more data bytes to send, we re-calculate
+ *
+ *
+ *  The file is found via the file type, id, run, and set numbers. Using this information, we create the file string
+ *  	and then attempt to open the file.
+ *  Alternatively, this function could be called by passing in an open FIL pointer.
+ *
+ *  @param	packet_array	This is a pointer to the CCSDS packet which
+ *    							needs to have its checksums calculated.
+ *	@param	length			The packet length
+ *
+ *	@return	(int) returns the value assigned when the command was scanned
+ */
+int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num, int set_num)
+{
+	int status = 0;
+
+	return status;
+}
+
+/*
  * Transfers any one file that is on the SD card. Will return command FAILURE if the file does not exist.
  *
  * @param	(XUartPS)The instance of the UART so we can push packets to the bus

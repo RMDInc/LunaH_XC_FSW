@@ -42,6 +42,7 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, 
 int reportSuccess(XUartPs Uart_PS, int report_filename);
 int reportFailure(XUartPs Uart_PS);
 void CalculateChecksums(unsigned char * packet_array);
+int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num, int set_num);
 int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num,  int set_num );
 
 #endif /* SRC_LUNAH_UTILS_H_ */

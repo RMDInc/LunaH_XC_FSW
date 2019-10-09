@@ -147,8 +147,6 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 	//this line is bothersome, as I want to floor the value, but then have to cast it anyway...
 	m_x_bin_number = (unsigned int)floor(energy_value / ((double)TWODH_ENERGY_MAX / (double)TWODH_X_BINS));
 	m_y_bin_number = (unsigned int)floor(psd_value / ((double)TWODH_PSD_MAX / (double)TWODH_Y_BINS));
-	x_bin = m_x_bin_number;
-	y_bin = m_y_bin_number;
 
 	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
 		m_x_bin_number &= 0x01FF;
@@ -160,13 +158,13 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 	else
 		m_y_bin_number = 0x1F;	//stay at 5 bits for this version 9/20/2019
 
-	if(0 <= x_bin)
+	if(0 <= m_x_bin_number)
 	{
-		if(x_bin < TWODH_X_BINS)
+		if(m_x_bin_number < TWODH_X_BINS)
 		{
-			if(0 <= y_bin)
+			if(0 <= m_y_bin_number)
 			{
-				if(y_bin < TWODH_Y_BINS)
+				if(m_y_bin_number < TWODH_Y_BINS)
 				{
 					//value is good
 					switch(pmt_ID)
