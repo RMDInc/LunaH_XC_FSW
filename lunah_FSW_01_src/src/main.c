@@ -474,8 +474,8 @@ int main()
 				{
 					//init/start MUX to transfer data between integrator modules and the DMA
 					Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
-					Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, 0xa000000);
-					Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
+					Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, DRAM_BASE);
+					Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58, 65536);
 					usleep(54);
 					//TODO: need to check a shared variable within the interrupt handler and this function
 					// to see if the transfer is completed
@@ -483,7 +483,7 @@ int main()
 
 					Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 0);
 					ClearBRAMBuffers();
-					Xil_DCacheInvalidateRange(0xa0000000, 65536);
+					Xil_DCacheInvalidateRange(DRAM_BASE, 65536);
 
 					array_index = 0;
 					dram_addr = DRAM_BASE;

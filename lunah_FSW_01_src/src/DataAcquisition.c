@@ -537,7 +537,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			//init/start MUX to transfer data between integrator modules and the DMA
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
 			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, DRAM_BASE);
-			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
+			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58, 65536);
 			usleep(54);
 			//TODO: need to check a shared variable within the interrupt handler and this function
 			// to see if the transfer is completed
