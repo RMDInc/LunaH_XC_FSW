@@ -17,6 +17,16 @@
 #include "CPSDataProduct.h"
 #include "TwoDHisto.h"
 
+//the data from the FPGA is in the following format
+//event id = data_raw[iter]
+//time = data_raw[iter+1]
+//total counts = data_raw[iter+2]
+//event number/PMT Hit ID = data_raw[iter+3] //I think this is just a 28/4 bit split across the 32-bit unsigned int
+//baseline int = data_raw[iter+4]
+//short int = data_raw[iter+5]
+//long int = data_raw[iter+6]
+//full int = data_raw[iter+7]
+
 typedef struct {
 	unsigned char field0;
 	unsigned char field1;
