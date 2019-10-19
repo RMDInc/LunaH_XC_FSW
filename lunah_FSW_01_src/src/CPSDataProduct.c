@@ -35,7 +35,10 @@ static double mean_psd_2[4];
 static double mean_nrg_2[4];
 
 //Temperature Correction Value Arrays
-//2-D arrays example: my_array[row][column];
+//2-D arrays example:
+// my_array[det_num][module_num];
+// where det_num 	= detector number: 0, 1 based on MNS_DETECTOR_NUM defined in lunah_defines
+// where module_num = CLYC module number: 0 - 3 and each is recalculated when the temp changes
 //static double MinNRG_C0[2][4] = {{ 107.88,  105.47,   102.23,   104.80   }, {  89.283,   102.45,   93.524,  99.865   }};
 //static double MinNRG_C1[2][4] = {{   2.4292,  2.1978,   2.2977,   2.7017 }, {   1.6472,   1.9591,   2.8101,  2.1276  }};
 //static double MaxNRG_C0[2][4] = {{ 143.60,  140.30,   142.51,   149.89   }, { 134.67,   140.69,   147.52,  148.08    }};
@@ -230,15 +233,22 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 bool CPSIsWithinEllipse( double energy, double psd, int module_num, int ellipse_num )
 {
 	bool ret = FALSE;
-	float c1 = m_cfg_buff.SF_PSD[ellipse_num] * b_rad_1[module_num] / m_cfg_buff.SF_E[ellipse_num] * a_rad_1[module_num];
-	float c2 = m_cfg_buff.SF_E[ellipse_num] 	* a_rad_1[module_num];
-	float xval = energy - mean_nrg_1[module_num] - m_cfg_buff.Off_E[ellipse_num];
-	float yval = psd	- mean_psd_1[module_num] - m_cfg_buff.Off_PSD[ellipse_num];
+	double c1 = m_cfg_buff.SF_PSD[ellipse_num] * b_rad_1[module_num] / m_cfg_buff.SF_E[ellipse_num] * a_rad_1[module_num];
+	double c2 = m_cfg_buff.SF_E[ellipse_num] * a_rad_1[module_num];
+	double xco = mean_nrg_1[module_num] + m_cfg_buff.Off_E[ellipse_num];
+	double xval = energy - xco;
+	double yval = psd	- mean_psd_1[module_num] - m_cfg_buff.Off_PSD[ellipse_num];
 
-	if(	yval <  c1 * sqrt( c2 * c2 - xval * xval) && yval > -c1 * sqrt( c2 * c2 - xval * xval))
-		ret = TRUE;
-	else
-		ret = FALSE;
+	//check x-coords
+	//if this inequality is not met, then we cannot check y-coords or we will square root a negative number
+	if(energy < xco + c2 && energy > xco - c2)
+	{
+		//check y-coords
+		if(	yval <  c1 * sqrt( c2 * c2 - xval * xval) && yval > -c1 * sqrt( c2 * c2 - xval * xval))
+			ret = TRUE;
+		else
+			ret = FALSE;
+	}
 
 	return ret;
 }
@@ -288,10 +298,10 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 	int model_id_num = 0;
 	int ell_1 = 0;	//ellipse 1
 	int ell_2 = 0;	//ellipse 2
-	float MaxNRG = 0;
-	float MinNRG = 0;
-	float MaxPSD = 0;
-	float MinPSD = 0;
+	double MaxNRG = 0;
+	double MinNRG = 0;
+	double MaxPSD = 0;
+	double MinPSD = 0;
 	//check the temperature if it has been ~10s
 	XTime_GetTime(&cps_t_current);
 	cps_t_elapsed = (cps_t_current - cps_t_start)/COUNTS_PER_SECOND;

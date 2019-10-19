@@ -44,10 +44,10 @@ typedef struct {
 	int IntegrationLong;
 	int IntegrationFull;
 	int HighVoltageValue[4];
-	float SF_E[8];
-	float SF_PSD[8];
-	float Off_E[8];
-	float Off_PSD[8];
+	double SF_E[8];
+	double SF_PSD[8];
+	double Off_E[8];
+	double Off_PSD[8];
 } CONFIG_STRUCT_TYPE;
 
 /*
