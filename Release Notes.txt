@@ -33,3 +33,13 @@ NOTE: There is a difference in the XC and XQ versions of this software due to a 
 	Without an I2C connection, the XC version cannot report the analog board temperature, nor can it 
 	set the HV pots. The XQ board can, as it is assumed to have the I2C connection. 
 	
+- Level 4 FSW -
+- This release brings in updated neutron cuts which track the neutron peak as it shifts with temperature. 
+	Updated capability of the FSW: can take and transfer waveform data products; new binning for 2DH and EVT
+	 data products; updates to most data products, including SOH, please reference the ICD, at least version 10.4;
+	A new attempt to address the issue with the transfer function has been implemented; we are waiting for the UART
+	 to signal to us that it is done sending and ready to go again before compiling the next packet in the queue.
+	The support programs, such as the packet reader, have been updated to handle the new data product formats.
+	This version accepts the following new commands:
+	+ MNS_WF
+	

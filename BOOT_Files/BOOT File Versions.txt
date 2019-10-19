@@ -1,24 +1,47 @@
 GJS - 3/28/2019
 
 This document serves as a list for the versions of FSW BOOT files in this folder.
+
+Folder: MNS XC FSW V1 - V3
+	This folder contains the boot files from previous FSW versions. These are usable and will still work with the current hardware setup, but have reduced functionality from the current version.
+	- produced 6/4/2019 and before
+	- XC and/or XQ chip, check the version on the folder
+	- 921600 baud rate
 	
-Mini-NS XC FSW V1 - 
-	This folder contains the Version 1 FSW for the Mini-NS. This version was capable of outputting SOH packets, but no interaction. This version may be useful for sanity checking a setup at the bare minimum. 
-	- Baud Rate: 921600 bps
-	
-Mini-NS XC FSW V2 - 
-	This version of the FSW extends the use of the version 1 FSW and allows for the Mini-NS system parameters to be set and recorded, as well as reporting the SOH packets. This version of the FSW handles Raw Bytes commands which are prepended with the CCSDS Sync Marker. This functionality was tested at ASU during the March 2019 visit. 
-	- Baud Rate: 921600 bps
-	
-Mini-NS XC FSW V3
-	This version has all capabilities of V1 and V2, can make data acquisition runs, and can transfer the data product files fully packetized.
-	- produced 6/4/2019
+Mini-NS XC FSW V4 -HB-D0-O0
+Mini-NS XC FSW V4 -HB-D1-O0
+	This version has all capabilities of V1 - V3, can take waveform data, many updates to the data products.
+	- produced 10/21/2019
 	- XC chip
-	- 921600 baud rate	
+	- 921600 baud rate
+	- Det0/Det1 differentiation
+	- Compiler optimization disabled
+
+Mini-NS XC FSW V4 -HB-D0-O2
+Mini-NS XC FSW V4 -HB-D1-O2
+	This version has all capabilities of V1 - V3, can take waveform data, many updates to the data products.
+	- produced 10/21/2019
+	- XC chip
+	- 921600 baud rate
+	- Det0/Det1 differentiation
+	- Compiler optimization enabled
 	
-Mini-NS XQ FSW V3
-	This version has all capabilities of V1 and V2, can make data acquisition runs, and can transfer the data product files fully packetized.
-	- produced 6/4/2019
+Mini-NS XQ FSW V4 -HB-D0-O0
+Mini-NS XQ FSW V4 -HB-D1-O0
+	This version has all capabilities of V1 - V3, can take waveform data, many updates to the data products.
+	- produced 10/21/2019
 	- XQ chip
 	- 921600 baud rate
+	- Det0/Det1 differentiation
+	- Compiler optimization disabled
+	
+Mini-NS XQ FSW V4 -HB-D0-O2
+Mini-NS XQ FSW V4 -HB-D1-O2
+	This version has all capabilities of V1 - V3, can take waveform data, many updates to the data products.
+	- produced 10/21/2019
+	- XQ chip
+	- 921600 baud rate
+	- Det0/Det1 differentiation
+	- Compiler optimization enabled
+	
 	
