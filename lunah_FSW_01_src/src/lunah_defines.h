@@ -52,6 +52,7 @@
 
 //PMT ID Values
 //These values are the decimal interpretations of a binary, active high signal (ie. 4=0100 -> PMT_ID_3)
+#define NO_HIT_PATTERN	0
 #define	PMT_ID_0		1
 #define	PMT_ID_1		2
 #define	PMT_ID_2		4

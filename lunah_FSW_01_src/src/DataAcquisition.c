@@ -253,8 +253,8 @@ int DoesFileExist( void )
 		status = CMD_FAILURE;
 	else if(ffs_res == FR_NO_PATH)
 		status = CMD_FAILURE;
-	else						//TEST 05-16
-		status = CMD_SUCCESS;	//TEST 05-16
+	else
+		status = CMD_SUCCESS;
 
 
 //	else if(ffs_res == FR_INVALID_NAME)
@@ -529,9 +529,6 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		status = CMD_FAILURE;
 #endif
 
-	//TODO: remove this when the ellipse cuts are implemented
-	CPSSetCuts();
-
 	while(done != 1)
 	{
 		valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);
@@ -540,7 +537,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			//init/start MUX to transfer data between integrator modules and the DMA
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
 			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, DRAM_BASE);
-			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58 , 65536);
+			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x58, 65536);
 			usleep(54);
 			//TODO: need to check a shared variable within the interrupt handler and this function
 			// to see if the transfer is completed
@@ -761,16 +758,16 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	//here is where we should transfer the CPS, 2DH files?
 	status_SOH = Save2DHToSD( PMT_ID_0 );
 	if(status_SOH != CMD_SUCCESS)
-		xil_printf("9 save sd 1 DAQ\n");
+		xil_printf("9 save sd 0 DAQ\n");
 	status_SOH = Save2DHToSD( PMT_ID_1 );
 	if(status_SOH != CMD_SUCCESS)
-		xil_printf("10 save sd 2 DAQ\n");
+		xil_printf("10 save sd 1 DAQ\n");
 	status_SOH = Save2DHToSD( PMT_ID_2 );
 	if(status_SOH != CMD_SUCCESS)
-		xil_printf("11 save sd 3 DAQ\n");
+		xil_printf("11 save sd 2 DAQ\n");
 	status_SOH = Save2DHToSD( PMT_ID_3 );
 	if(status_SOH != CMD_SUCCESS)
-		xil_printf("12 save sd 4 DAQ\n");
+		xil_printf("12 save sd 3 DAQ\n");
 
 	//TESTING 6-13-2019
 #ifdef PRODUCE_RAW_DATA

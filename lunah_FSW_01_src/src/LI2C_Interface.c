@@ -7,6 +7,7 @@
 
 #include "LI2C_Interface.h"
 
+//commented these timers because we aren't using them
 //static XTime i2c_time;
 static XTime i2c_time_start;
 //static XTime i2c_time_current;
