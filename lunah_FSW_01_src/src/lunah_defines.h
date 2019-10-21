@@ -12,7 +12,7 @@
 
 #define MNS_DETECTOR_NUM	0
 
-#define PRODUCE_RAW_DATA	0
+//#define PRODUCE_RAW_DATA	0
 
 #define NS_TO_SAMPLES		4		//conversion factor number of nanoseconds per sample
 #define INTEG_TIME_START	200

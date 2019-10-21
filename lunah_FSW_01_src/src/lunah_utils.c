@@ -176,7 +176,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	i2c_Send_Buffer[1] = 0x0;
 	int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
 	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
-//	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, on module near thermistor on TEC
+	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, mounted near the modules
 
 	switch(check_temp_sensor){
 	case 0:	//analog board
@@ -230,7 +230,32 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
-			modu_board_temp += 1;
+
+			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
+			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
+			a = i2c_Recv_Buffer[0]<< 5;
+			b = a | i2c_Recv_Buffer[1] >> 3;
+			if(i2c_Recv_Buffer[0] >= 128)
+			{
+				b = (b - 8192) / 16;
+			}
+			else
+			{
+				b = b / 16;
+			}
+			modu_board_temp = b;
+
+//			i2c_Send_Buffer[0] = 0x0;
+//			i2c_Send_Buffer[1] = 0x0;
+//			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
+//			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
+//			a = i2c_Recv_Buffer[0]<< 5;
+//			b = a | i2c_Recv_Buffer[1] >> 3;
+//			if(i2c_Recv_Buffer[0] >= 128)
+//				b = (b - 8192) / 16;
+//			else
+//				b = b / 16;
+//			modu_board_temp = b;
 		}
 		break;
 	default:

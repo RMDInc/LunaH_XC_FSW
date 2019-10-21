@@ -125,7 +125,7 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 //		}
 	}
 
-	return XST_SUCCESS;
+	return iStatus;
 }
 
 int IicPsMasterRecieve(XIicPs * Iic, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)

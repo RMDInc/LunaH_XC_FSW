@@ -311,7 +311,7 @@ int CPSUpdateTallies(double energy, double psd, int pmt_id)
 		{
 			cps_t_next_interval += 10;	//this value is how long we will wait in between checks on the temperature
 		}
-		m_current_module_temp = GetAnlgTemp(); //= GetModuTemp();	//TODO: use the module temp sensor when I attach one...
+		m_current_module_temp = GetModuTemp();
 
 		//Calculate the values for the cuts to used
 		//This is based on the temperature, which is the driver for where the cuts should be.

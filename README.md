@@ -107,4 +107,4 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 
 - Version 6.3 This is a pre-commit for including things without the new neutron cuts so we don't have to go back further.
 
-- Version 6.4 This update to the repository includes a number of boot files for the XC and XQ versions of FSW V4. This is not a full release, but we are beyond preV4 now as we really need to get testing. Pulled in the new neutron cuts for this version. Testing out the compiler optimization levels, as well.
+- Version 6.4 This update to the repository includes a number of boot files for the XC version of FSW V4. This is not a full release, but we are beyond preV4 now as we really need to get testing. Pulled in the new neutron cuts for this version. Testing out the compiler optimization levels, as well. All of these XC boot files are at the high baud rate with the new cuts. XC-processor, HB-high baud rate, NC-new cuts, opt/noopt-optimization level, det 0/1-detector number.
