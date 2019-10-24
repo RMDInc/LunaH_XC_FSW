@@ -1,0 +1,91 @@
+; don't show the macro window
+show -1
+;setecho 0
+; hide TT
+showtt 0
+
+flushrecv
+
+;This is for detector 0
+logopen 'C:\Users\gstoddard\Desktop\V4_MACRO_OUT_WF.bin' 1 0
+; show the log window
+showtt 8
+
+setdebug 3
+
+messagebox "Press OK to set system parameters." "Detector 0"
+
+;random command testing
+sendln 'MNS_READTEMP_0'
+pause 2
+sendln 'MNS_GETSTAT_0'
+pause 2
+
+;put in the correct parameters for a DAQ run
+sendln 'MNS_TRG_0_13000'
+pause 2
+
+sendln 'MNS_INT_0_-52_88_472_6000'
+pause 2
+
+sendln 'MNS_ENABLE_ACT_0'
+pause 2
+
+sendln 'MNS_HV_0_1_238'
+pause 2
+
+sendln 'MNS_HV_0_2_245'
+pause 2
+
+sendln 'MNS_HV_0_2_240'
+pause 2
+
+sendln 'MNS_HV_0_2_241'
+pause 2
+
+sendln 'MNS_ECAL_0_1.0_0.0'
+pause 2
+
+messagebox "Press OK to Move to Collect Waveforms." "Detector 0"
+sendln 'MNS_WF_0_0_5_10'
+pause 2
+
+messagebox "Press OK when SOH mode byte returns to Standby." "Detector 0"
+pause 2
+
+messagebox "Press OK to move to Collect Waveforms." "Detector 0"
+sendln 'MNS_WF_0_0_10_11'
+pause 2
+
+messagebox "Press OK when SOH mode byte returns to Standby." "Detector 0"
+pause 2
+
+messagebox "Press OK to move to Collect Waveforms." "Detector 0"
+sendln 'MNS_WF_0_0_20_12'
+pause 2
+
+messagebox "Press OK when SOH mode byte returns to Standby." "Detector 0"
+pause 2
+
+messagebox "Press OK to transfer WF file for the test." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_6_10_0_0_0'
+pause 1
+
+messagebox "Press OK to transfer WF file for the test." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_6_11_0_0_0'
+pause 1
+
+messagebox "Press OK to transfer WF file for the test." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_6_12_0_0_0'
+pause 1
+
+messagebox "Press OK when the transfer has finished." "Detector 0"
+
+setdebug 0
+logclose
+
+flushrecv
+end
