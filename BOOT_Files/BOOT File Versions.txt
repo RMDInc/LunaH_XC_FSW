@@ -44,4 +44,12 @@ Mini-NS XQ FSW V4 -HB-D1-O2
 	- Det0/Det1 differentiation
 	- Compiler optimization enabled
 	
-	
+Mini-NS XQ FSW V4 -LB-D0-O0
+Mini-NS XQ FSW V4 -LB-D0-O2
+	This version has all capabilities of V1 - V3, can take waveform data, many updates to the data products.
+	- produced 10/22/2019
+	- XQ chip
+	- 115200 baud rate
+	- Only Detector ID 0
+	- Compiler optimization disabled for -O0
+	- Compiler optimization enabled for -O2
