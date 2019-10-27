@@ -27,7 +27,7 @@ static FIL m_2DH_file;
 //Data buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
 static unsigned int data_array[DATA_BUFFER_SIZE * 4];
 
-static DATA_FILE_HEADER_TYPE file_header_to_write;	//188 bytes
+static DATA_FILE_HEADER_TYPE file_header_to_write;	//320 bytes
 static DATA_FILE_SECONDARY_HEADER_TYPE file_secondary_header_to_write;	//16 bytes
 static DATA_FILE_FOOTER_TYPE file_footer_to_write;	//20 bytes
 
