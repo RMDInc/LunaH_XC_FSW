@@ -700,6 +700,9 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	fno.lfsize = sizeof(LFName);
 	FRESULT f_res = FR_OK;	//SD card status variable type
 
+	XTime wait_start;
+	XTime wait_timer;
+
 	//find the folder/file that was requested
 	if(file_type == DATA_TYPE_LOG)
 	{
@@ -1056,10 +1059,19 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			sent += bytes_sent;
 		}
 
-		//Testing 9/25
 		while(XUartPs_IsSending(&Uart_PS))
 		{
 			//wait here
+		}
+
+		//add in a "wait time" where we allow the XB-1 flight computer enough time to have completely emptied
+		// its receive buffer so that we don't overwrite anything
+		XTime_GetTime(&wait_start);
+		while(1)
+		{
+			XTime_GetTime(&wait_timer);
+			if((float)(wait_timer - wait_start)/COUNTS_PER_SECOND >= 0.15)
+				break;
 		}
 
 		//check if there are multiple packets to send

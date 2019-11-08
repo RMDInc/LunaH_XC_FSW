@@ -112,3 +112,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 6.41 This update places the boot files in the BOOT Files folder in the project so they are more easily accessed. 
 
 - Version 6.42 The Command macros folder has been updated with the command macros and processing programs for analyzing the data files for V4 of the FSW.
+
+- Version 6.5 Added in a 15 millisecond wait time after each UART send only when transferring files with the MNS_TX command. Updated some of the documentation files for the project to their most recent versions.
