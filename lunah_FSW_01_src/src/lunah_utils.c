@@ -1070,7 +1070,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		while(1)
 		{
 			XTime_GetTime(&wait_timer);
-			if((float)(wait_timer - wait_start)/COUNTS_PER_SECOND >= 0.15)
+			if((float)(wait_timer - wait_start)/COUNTS_PER_SECOND >= 0.015)
 				break;
 		}
 
