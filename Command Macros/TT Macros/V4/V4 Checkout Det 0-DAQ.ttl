@@ -1,0 +1,85 @@
+; don't show the macro window
+show -1
+;setecho 0
+; hide TT
+showtt 0
+
+flushrecv
+
+;This is for detector 0
+logopen 'C:\Users\gstoddard\Desktop\V4_MACRO_OUT_DAQ.bin' 1 0
+; show the log window
+showtt 8
+
+setdebug 3
+
+messagebox "Press OK to set system parameters." "Detector 0"
+
+;random command testing
+sendln 'MNS_READTEMP_0'
+pause 2
+sendln 'MNS_GETSTAT_0'
+pause 2
+
+;put in the correct parameters for a DAQ run
+sendln 'MNS_TRG_0_9000'
+pause 2
+sendln 'MNS_INT_0_-52_88_472_6000'
+pause 2
+sendln 'MNS_ENABLE_ACT_0'
+pause 2
+sendln 'MNS_HV_0_1_238'
+pause 2
+sendln 'MNS_HV_0_2_245'
+pause 2
+sendln 'MNS_HV_0_2_235'
+pause 2
+sendln 'MNS_HV_0_2_240'
+pause 2
+sendln 'MNS_ECAL_0_1.0_0.0'
+pause 2
+
+messagebox "Press OK to move to Pre-Data Acquisition state." "Detector 0"
+
+sendln 'MNS_DAQ_0_7'
+pause 1
+
+messagebox "Press OK to move to Start Data Acquisition." "Detector 0"
+
+sendln 'MNS_START_0_123321_1'
+pause 60
+
+messagebox "Wait until the system has returned to Standby, then press OK." "Detector 0"
+
+messagebox "Press OK to transfer CPS file." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_5_7_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer EVT file." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_7_7_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer 2DH file for PMT 0." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_8_7_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer 2DH file for PMT 1." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_11_7_1_0_0'
+pause 1
+
+messagebox "Press OK to transfer 2DH file for PMT 3." "Detector 0"
+pause 1
+sendln 'MNS_TX_0_13_7_1_0_0'
+pause 1
+ 
+messagebox "Press OK when the transfer has finished." "Detector 0"
+
+setdebug 0
+logclose
+
+flushrecv
+end

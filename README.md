@@ -102,3 +102,15 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 6.06 Updated a number of files with minor changes and uncommented some code to allow the system to run with the analog board in preparation for the analog boards to be built and shipped to ASU. No functional changes; added an ifdef block for creating a raw_data file during a DAQ run. 
 
 - Version 6.1 Merged in branch with the fix for the SOH timing bug. I also brought this change into the CPS data product time management. How we keep track of neutron counts has been changed, SOH reports cumulative counts, CPS reports per-second counts. Fixed the f_stat bug which caused hangs when requesting MNS_TX and sometimes MNS_DAQ. The mode byte has been added to all SOH packets, see the ICD, Telemetry Dictionary for info. 
+
+- Version 6.x Have merged a bunch of updates in since the previous update to this file. The most recent updates are that the WF function is fully integrated into the FSW. Users may take and transfer WF data products. How to issue this command can be found in version 10.4 of the ICD, but that has not been uploaded to this repository yet. The 2DH data product has been moved to the updated 512x64 resolution. That can also be transferred. A few test runs with all data products has been performed with 100% success so far. A few fields have been added to the SOH packets, namely: ID number, run number, and the mode byte. These are described in the ICD, as well. All of the data products have been updated when it comes to format. The L3 data packet output sorter has been updated to handle all these updated data products. It will fully parse all packets (assuming a valid APID) and create an "output packet" text file which describes every packet received in order, as well as one data bytes file for each set of transfer packets. Each new data product APID will trigger a new file to be created. This separates the data bytes out nicely so they may easily be compared to the SD card files or further processed.
+
+- Version 6.3 This is a pre-commit for including things without the new neutron cuts so we don't have to go back further.
+
+- Version 6.4 This update to the repository includes a number of boot files for the XC version of FSW V4. This is not a full release, but we are beyond preV4 now as we really need to get testing. Pulled in the new neutron cuts for this version. Testing out the compiler optimization levels, as well. All of these XC boot files are at the high baud rate with the new cuts. XC-processor, HB-high baud rate, NC-new cuts, opt/noopt-optimization level, det 0/1-detector number.
+
+- Version 6.41 This update places the boot files in the BOOT Files folder in the project so they are more easily accessed. 
+
+- Version 6.42 The Command macros folder has been updated with the command macros and processing programs for analyzing the data files for V4 of the FSW.
+
+- Version 6.5 Added in a 15 millisecond wait time after each UART send only when transferring files with the MNS_TX command. Updated some of the documentation files for the project to their most recent versions.

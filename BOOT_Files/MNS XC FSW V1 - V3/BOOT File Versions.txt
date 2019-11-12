@@ -1,0 +1,24 @@
+GJS - 3/28/2019
+
+This document serves as a list for the versions of FSW BOOT files in this folder.
+	
+Mini-NS XC FSW V1 - 
+	This folder contains the Version 1 FSW for the Mini-NS. This version was capable of outputting SOH packets, but no interaction. This version may be useful for sanity checking a setup at the bare minimum. 
+	- Baud Rate: 921600 bps
+	
+Mini-NS XC FSW V2 - 
+	This version of the FSW extends the use of the version 1 FSW and allows for the Mini-NS system parameters to be set and recorded, as well as reporting the SOH packets. This version of the FSW handles Raw Bytes commands which are prepended with the CCSDS Sync Marker. This functionality was tested at ASU during the March 2019 visit. 
+	- Baud Rate: 921600 bps
+	
+Mini-NS XC FSW V3
+	This version has all capabilities of V1 and V2, can make data acquisition runs, and can transfer the data product files fully packetized.
+	- produced 6/4/2019
+	- XC chip
+	- 921600 baud rate	
+	
+Mini-NS XQ FSW V3
+	This version has all capabilities of V1 and V2, can make data acquisition runs, and can transfer the data product files fully packetized.
+	- produced 6/4/2019
+	- XQ chip
+	- 921600 baud rate
+	

@@ -30,7 +30,7 @@ static float ffirstVal = 0.0;
 static float fsecondVal = 0.0;
 static float fthirdVal = 0.0;
 static float ffourthVal = 0.0;
-static unsigned long long realTime = 0;
+static unsigned int realTime = 0;	//changed to unsigned int 9-6-2019, spacecraft is only going to provide a 32-bit time
 
 /* Delete a scanned out command from the buffer then shift the buffer over */
 // This function deletes bytes from the beginning of a char buffer then
@@ -211,9 +211,9 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "WF"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d", &detectorVal, &firstVal, &secondVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal);
 
-					if(ret != 3)	//invalid input
+					if(ret != 4)	//invalid input
 						commandNum = -1;
 					else
 						commandNum = WF_CMD;
@@ -372,7 +372,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "START"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llu_%d", &detectorVal, &realTime, &firstVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%u_%d", &detectorVal, &realTime, &firstVal);
 
 					if(ret != 3)	//invalid input
 						commandNum = -1;
@@ -395,7 +395,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "END"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%llud", &detectorVal, &realTime);	//check for the _number of the waveform
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%ud", &detectorVal, &realTime);	//check for the _number of the waveform
 
 					if(ret != 2)	//invalid input
 						commandNum = -1;
@@ -554,7 +554,7 @@ float GetFloatParam( int param_num )
 * @return	(long long int) returns the value assigned when the command was scanned
 * 			This is a 64-bit number, so we need a large data type
 */
-unsigned long long GetRealTimeParam( void )
+unsigned int GetRealTimeParam( void )
 {
 	return realTime;
 }

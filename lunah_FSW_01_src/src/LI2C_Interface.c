@@ -7,9 +7,10 @@
 
 #include "LI2C_Interface.h"
 
-static XTime i2c_time;
+//commented these timers because we aren't using them
+//static XTime i2c_time;
 static XTime i2c_time_start;
-static XTime i2c_time_current;
+//static XTime i2c_time_current;
 
 /*
  * Initalize LocalTimeStart at startup
@@ -124,7 +125,7 @@ int IicPsMasterSend(XIicPs * Iic, u16 DeviceId, u8 * ptr_Send_Buffer, u8 * ptr_R
 //		}
 	}
 
-	return XST_SUCCESS;
+	return iStatus;
 }
 
 int IicPsMasterRecieve(XIicPs * Iic, u8 * ptr_Recv_Buffer, int * iI2C_slave_addr)
