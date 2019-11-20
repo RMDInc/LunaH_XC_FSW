@@ -77,7 +77,7 @@ void CreateDefaultConfig( void )
 		.Off_PSD[4] = 0.0,
 		.Off_PSD[5] = 0.0,
 		.Off_PSD[6] = 0.0,
-		.Off_PSD[7] = 0.0
+		.Off_PSD[7] = 0.0,
 		.TotalFiles = 0,
 		.TotalFolders =	0
 	};
@@ -436,14 +436,25 @@ int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
 	int status = 0;
 	int iterator = 0;
 
+	//TODO: have the system check whether or not it is enabled
+	// is this a system parameter that we should set in the configuration buffer?
+	// or is this something that should just be a global parameter we can reference?
+
+	//TODO: error checking for this function includes making sure that we keep track of the HV value that was requested
+	// even if it doesn't get set. The value can be rejected if the system/analog board is not enabled because
+	// the I2C will not respond and we'll get RetVal != XST_SUCCESS and the HV value will not be saved in the config file
+
 	// Fix swap of pot 2 and 3 connections if PmtId == 1 make it 2 and if PmtId == 2 make it 1
-	if(PmtId == 1)
+	switch(PmtId)
 	{
+	case 1:
 		PmtId = 2;
-	}
-	else if(PmtId == 2)
-	{
+		break;
+	case 2:
 		PmtId = 1;
+		break;
+	default:
+		break;
 	}
 
 	//check the PMT ID is ok
@@ -611,13 +622,13 @@ int ApplyDAQConfig( XIicPs * Iic )
 	if(status == CMD_SUCCESS)
 		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
+		status = SetHighVoltage(Iic, 0, ConfigBuff.HighVoltageValue[0]);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
+		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);	//note these are swapped on purpose
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
+		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[2]);	//by changing 1 <-> 2 for the pmtid parameter when calling the function, they get swapped internally so the HV values match up
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
+		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts
 	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(0, 1, ConfigBuff.SF_E[0], ConfigBuff.SF_PSD[0], ConfigBuff.Off_E[0], ConfigBuff.Off_PSD[0]);

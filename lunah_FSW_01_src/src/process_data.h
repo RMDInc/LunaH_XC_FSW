@@ -17,7 +17,7 @@
 #include "CPSDataProduct.h"
 #include "TwoDHisto.h"
 
-//the data from the FPGA is in the following format
+//the data from the FPGA are in the following format
 //event id = data_raw[iter]
 //time = data_raw[iter+1]
 //total counts = data_raw[iter+2]
