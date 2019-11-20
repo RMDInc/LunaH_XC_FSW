@@ -10,6 +10,11 @@
 //File-Scope Variables
 static unsigned int first_FPGA_time;				//the first FPGA time we register for the run //sync with REAL TIME
 static unsigned int m_previous_1sec_interval_time;	//the previous 1 second interval "start" time
+
+static unsigned int dt_events_counted;		//how many events the system has processed
+static unsigned int dt_total_events_start;	//how many events the FPGA has reported at the end of the previous one-second interval
+static unsigned int dt_total_events_end;	//the number of events the FPGA reported at the end of the current one-second interval
+
 static float m_num_intervals_elapsed;				//how many intervals have elapsed during the current run (effectively one/sec)
 static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 second of counts)
 static const CPS_EVENT_STRUCT_TYPE cpsEmptyStruct;	//an empty 'zero' struct to init or clear other structs
@@ -100,6 +105,7 @@ void CPSResetCounts( void )
 	cpsEvent.non_n_events_LSB = 0;
 	cpsEvent.high_energy_events_MSB = 0;
 	cpsEvent.high_energy_events_LSB = 0;
+
 	return;
 }
 
@@ -223,6 +229,47 @@ CPS_EVENT_STRUCT_TYPE * cpsGetEvent( void )
 	cpsEvent.modu_temp = (unsigned char)GetModuTemp();
 
 	return &cpsEvent;
+}
+
+
+/*
+ * Helper functions for calculating the dead time. The user should call these from process_data
+ */
+void CPSIncrementCounts( void )
+{
+	dt_events_counted++;
+	return;
+}
+
+void CPSSetDeadTimeStart( unsigned int time )
+{
+	dt_total_events_start = time;
+	return;
+}
+
+void CPSSetDeadTimeEnd( unsigned int time )
+{
+	dt_total_events_end = time;
+	return;
+}
+
+/*
+ * Calculate the Mini-NS dead time
+ *
+ * This function takes in the number of total counts from the FPGA and also counts how many events the processor sees
+ *  and then compares them to get a ratio. That value is then reported with the CPS data product as the dead time.
+ *
+ * This function has no return, it has helper functions to update the variables that it checks. It just calculates a
+ *  dead time value and sets it within the CPS event structure.
+ *
+ *  @param	none
+ *
+ *  @return	none
+ *
+ */
+void CPSCalculateDeadTime( void )
+{
+
 }
 
 /*

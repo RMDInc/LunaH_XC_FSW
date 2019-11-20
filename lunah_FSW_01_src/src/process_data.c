@@ -14,6 +14,7 @@ static GENERAL_EVENT_TYPE event_buffer[EVENT_BUFFER_SIZE];	//buffer to store eve
 static unsigned int m_neutron_counts;						//total neutron counts
 static unsigned int m_event_number;							//event number holder
 static unsigned int m_first_event_time_FPGA;				//the first event time which needs to be written into every data product header
+
 /*
  * Helper function to allow external functions to grab the EVTs buffer and write it to SD
  */
@@ -114,6 +115,8 @@ int ProcessData( unsigned int * data_raw )
 				break;
 			if(data_raw[iter+1] >= cpsGetCurrentTime())	//time must be the same or increasing
 			{
+
+
 				if(data_raw[iter+2] >= m_neutron_counts)	//counts must be the same or increasing
 				{
 					if(data_raw[iter+3] > m_event_number)
@@ -127,6 +130,7 @@ int ProcessData( unsigned int * data_raw )
 							//loop recording the CPS events until we don't need to
 							while(cpsCheckTime(data_raw[iter+1]) == TRUE)
 							{
+								CPSCalculateDeadTime();
 								f_res = f_write(cpsDataFile, (char *)cpsGetEvent(), CPS_EVENT_SIZE, &num_bytes_written);
 								if(f_res != FR_OK || num_bytes_written != CPS_EVENT_SIZE)
 								{
@@ -141,6 +145,7 @@ int ProcessData( unsigned int * data_raw )
 								}
 								//reset the neutron counts for the CPS data product
 								CPSResetCounts();
+
 							}
 
 							event_holder.field0 = 0xFF;	//event ID is 0xFF
