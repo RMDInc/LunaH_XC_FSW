@@ -12,8 +12,8 @@ static unsigned int first_FPGA_time;				//the first FPGA time we register for th
 static unsigned int m_previous_1sec_interval_time;	//the previous 1 second interval "start" time
 
 static unsigned int dt_events_counted;		//how many events the system has processed
-static unsigned int dt_total_events_start;	//how many events the FPGA has reported at the end of the previous one-second interval
-static unsigned int dt_total_events_end;	//the number of events the FPGA reported at the end of the current one-second interval
+static unsigned int dt_total_events_prev;	//how many events the FPGA has reported at the end of the previous one-second interval
+static unsigned int dt_total_events_curr;	//the number of events the FPGA reported at the end of the current one-second interval
 
 static float m_num_intervals_elapsed;				//how many intervals have elapsed during the current run (effectively one/sec)
 static CPS_EVENT_STRUCT_TYPE cpsEvent;				//the most recent CPS "event" (1 second of counts)
@@ -241,15 +241,21 @@ void CPSIncrementCounts( void )
 	return;
 }
 
-void CPSSetDeadTimeStart( unsigned int time )
+void CPSResetDTCounts( void )
 {
-	dt_total_events_start = time;
+	dt_events_counted = 0;
 	return;
 }
 
-void CPSSetDeadTimeEnd( unsigned int time )
+void CPSUpdateDTTotalCountsPrevious( void )
 {
-	dt_total_events_end = time;
+	dt_total_events_prev = dt_total_events_curr;
+	return;
+}
+
+void CPSSetDTTotalCountsCurrent( unsigned int counts )
+{
+	dt_total_events_curr = counts;
 	return;
 }
 
@@ -269,7 +275,16 @@ void CPSSetDeadTimeEnd( unsigned int time )
  */
 void CPSCalculateDeadTime( void )
 {
+	//protect the division
 
+	double f_cps_dt = (double)dt_events_counted / (double)(dt_total_events_curr - dt_total_events_prev);
+	//multiply by 10E4 to take 0.1234 -> 1234 so we can preserve the decimal places
+	unsigned int ui_cps_dt = f_cps_dt * 10000;
+
+	//now I need to create the CPS event field for these values
+	cpsEvent;
+
+	return;
 }
 
 /*

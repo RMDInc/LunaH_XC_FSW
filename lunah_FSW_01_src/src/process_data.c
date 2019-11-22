@@ -113,10 +113,9 @@ int ProcessData( unsigned int * data_raw )
 			}
 			if(iter >= (DATA_BUFFER_SIZE - 7))	//if we are at the top of the buffer, break out to avoid bad indexing
 				break;
+
 			if(data_raw[iter+1] >= cpsGetCurrentTime())	//time must be the same or increasing
 			{
-
-
 				if(data_raw[iter+2] >= m_neutron_counts)	//counts must be the same or increasing
 				{
 					if(data_raw[iter+3] > m_event_number)
@@ -145,7 +144,9 @@ int ProcessData( unsigned int * data_raw )
 								}
 								//reset the neutron counts for the CPS data product
 								CPSResetCounts();
-
+								//update the values for the dead time calculation
+								CPSResetDTCounts();
+								CPSUpdateDTTotalCountsPrevious();
 							}
 
 							event_holder.field0 = 0xFF;	//event ID is 0xFF
@@ -175,6 +176,7 @@ int ProcessData( unsigned int * data_raw )
 								event_holder.field1 |= (m_pmt_ID_holder << 4); //OR the bits to get the full hit pattern
 								break;
 							}
+							CPSSetDTTotalCountsCurrent(data_raw[iter+2]);
 							m_total_events_holder = data_raw[iter+2] & 0xFFF;	//mask the upper bits we don't care about
 							event_holder.field1 |= (unsigned char)(m_total_events_holder >> 8);
 							event_holder.field2 |= (unsigned char)(m_total_events_holder);
@@ -241,6 +243,9 @@ int ProcessData( unsigned int * data_raw )
 			}
 			else
 				valid_event = FALSE;
+
+			//add one to the CPS dead time events_counted regardless of valid data or not
+			CPSIncrementCounts();
 
 			if(valid_event == FALSE)
 				iter++;
