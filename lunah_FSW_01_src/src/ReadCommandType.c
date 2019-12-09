@@ -288,7 +288,7 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "LS"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %s_%d", commandBuffer2, &detectorVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %[^_]_%d", commandBuffer2, &detectorVal);
 
 					if(ret != 2)
 						commandNum = -1;
@@ -401,6 +401,15 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 						commandNum = -1;
 					else
 						commandNum = END_CMD;
+				}
+				else if(!strcmp(commandBuffer, "DIR"))
+				{
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%ud", &detectorVal);
+
+					if(ret != 1)
+						commandNum = -1;
+					else
+						commandNum = 21;
 				}
 				else
 				{

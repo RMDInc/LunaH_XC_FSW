@@ -43,6 +43,8 @@ int reportSuccess(XUartPs Uart_PS, int report_filename);
 int reportFailure(XUartPs Uart_PS);
 void CalculateChecksums(unsigned char * packet_array);
 int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num, int set_num);
+int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file_type, int id_num, int run_num, int set_num );
 int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num,  int set_num );
+int SendPacket( XUartPs Uart_PS, unsigned char *packet_buffer, int bytes_to_send );
 
 #endif /* SRC_LUNAH_UTILS_H_ */

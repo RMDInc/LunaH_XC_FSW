@@ -27,8 +27,7 @@
 #define ROOT_DIR_NAME_SIZE	3
 #define FOLDER_NAME_SIZE	11		//"I1234_R1234"
 #define SIZEOF_FILENAME		13		//filename example: "cps_S0001.bin"
-#define DATA_PACKET_SIZE	2040
-#define PAYLOAD_MAX_SIZE	2028
+#define TELEMETRY_MAX_SIZE	2038
 #define VALID_BUFFER_SIZE	512
 #define DATA_BUFFER_SIZE	4096
 #define EVENT_BUFFER_SIZE	2048
@@ -50,6 +49,7 @@
 #define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes) //the smaller the data file, the more files we might be able to downlink
 #define SIZE_4_MIB			4194304	//4 MiB, rather than 4 MB (4e6 bytes) //this yields fewer files in each DAQ folder
 #define DP_HEADER_SIZE		16384	//we put blank space past the header so we always write on a cluster boundary
+#define XB1_SEND_WAIT		0.015	//15ms wait time; this accounts for the latency on the XB-1 side of communications
 
 //PMT ID Values
 //These values are the decimal interpretations of a binary, active high signal (ie. 4=0100 -> PMT_ID_3)
@@ -127,6 +127,7 @@
 #define DATA_TYPE_2DH_4 13
 
 //MNS DATA PACKET HEADER SIZES //includes secondary header + data header
+#define PKT_HEADER_DIR	19
 #define PKT_HEADER_EVT	39
 #define PKT_HEADER_WAV	39
 #define PKT_HEADER_CPS	39
@@ -135,6 +136,7 @@
 #define PKT_HEADER_CFG	1
 
 //MNS DATA PRODUCT DATA BYTE SIZES
+#define DATA_BYTES_DIR	2004
 #define DATA_BYTES_EVT	1984
 #define DATA_BYTES_WAV	1984
 #define DATA_BYTES_CPS	1974
@@ -143,6 +145,7 @@
 #define DATA_BYTES_CFG	187
 
 //MNS DATA PACKET SIZES //Full size - 10 - 1
+#define PKT_SIZE_DIR	2027
 #define PKT_SIZE_EVT 	2026
 #define PKT_SIZE_WAV	2026
 #define PKT_SIZE_CPS	2016

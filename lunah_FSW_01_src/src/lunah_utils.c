@@ -7,11 +7,13 @@
 
 #include "lunah_utils.h"
 
-static XTime t_elapsed;	//was LocalTime
+static XTime t_elapsed;			//was LocalTime
 static XTime t_next_interval;	//added to take the place of t_elapsed
-static XTime TempTime;	//unchanged
-static XTime t_start;	//was LocalTimeStart
-static XTime t_current;	//was LocalTimeCurrent
+static XTime TempTime;			//unchanged
+static XTime t_start;			//was LocalTimeStart
+static XTime t_current;			//was LocalTimeCurrent
+static XTime wait_start;		//timer for sending packets
+static XTime wait_timer;		//timer for sending packets
 
 static int analog_board_temp;
 static int digital_board_temp;
@@ -628,6 +630,160 @@ int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type,
 }
 
 /*
+ * Delete a file on either SD card. This also calls sd_deleteFileRecord which marks the file as deleted on
+ *  its metadata file. This means the file will still be listed when we transfer the directory log, but it
+ *  will be listed as "deleted". This approach would allow us to view all the files that we ever created.
+ *
+ *  @param
+ *
+ *  @return
+ */
+int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file_type, int id_num, int run_num, int set_num )
+{
+	int status = 0;
+	unsigned int bytes_written = 0;
+	char *ptr_file_TX_filename = NULL;
+	char file_TX_folder[100] = "";
+	char file_TX_filename[100] = "";
+	char file_TX_path[100] = "";
+	char WF_FILENAME[] = "wf01.bin";
+	char log_file[] = "MNSCMDLOG.txt";
+	char config_file[] = "MNSCONF.bin";
+	FILINFO fno;			//file info structure
+	//Initialize the FILINFO struct with something //If using LFN, then we need to init these values, otherwise we don't
+	TCHAR LFName[256];
+	fno.lfname = LFName;
+	fno.lfsize = sizeof(LFName);
+	FRESULT f_res = FR_OK;	//SD card status variable type
+
+	//put the file name back together
+	//find the folder/file that was requested
+	if(file_type == DATA_TYPE_LOG)
+	{
+		//just on the root directory
+		bytes_written = snprintf(file_TX_folder, 100, "0:");
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+			status = 1;
+		ptr_file_TX_filename = log_file;
+	}
+	else if(file_type == DATA_TYPE_CFG)
+	{
+		//just on the root directory
+		bytes_written = snprintf(file_TX_folder, 100, "0:");
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+			status = 1;
+		ptr_file_TX_filename = config_file;
+	}
+	else if(file_type == DATA_TYPE_WAV)
+	{
+		//construct the folder
+		bytes_written = snprintf(file_TX_folder, 100,  "0:/WF_I%d", id_num);
+		if(bytes_written == 0)
+			status = 1;
+		//construct the file name
+		ptr_file_TX_filename = WF_FILENAME;
+	}
+	else
+	{
+		//construct the folder
+		bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + FOLDER_NAME_SIZE)
+			status = 1;
+		//construct the file name
+		if(file_type == DATA_TYPE_EVT)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "evt_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_WAV)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "wav_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_CPS)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "cps_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_1)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d1_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_2)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d2_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_3)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d3_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_4)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d4_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else
+		{
+			//the file type was not recognized
+			//we should break out and not go further
+			status = 3;	//indicate that the file type is bad
+		}
+
+		ptr_file_TX_filename = file_TX_filename;
+	}
+
+	//write the total file path
+	bytes_written = snprintf(file_TX_path, 100, "%s/%s", file_TX_folder, ptr_file_TX_filename);
+	if(bytes_written == 0)
+		status = 1;
+
+	//check to see if the file exists
+	//check that the folder/file we just wrote exists in the file system
+	//check first so that we don't just open a blank new file; there are no protections for that
+	f_res = f_stat(file_TX_path, &fno);
+	if(f_res == FR_NO_FILE)
+	{
+		//couldn't find the folder
+		status = 1;	//folder DNE
+	}
+	else if(f_res == FR_DENIED)
+	{
+		//the file/sub-directory must not be read-only
+		//the sub-directory must be empty and must not be the current directory
+		status = 2;
+	}
+	else if(f_res == FR_OK)
+	{
+		//if it does, call f_unlink to delete the file
+		f_res = f_unlink(file_TX_path);
+		if(f_res == FR_OK)
+		{
+			//if it is success, call sd_deleteFileRecord to mark the file as deleted
+			sd_deleteFileRecord(file_TX_path);
+		}
+		else
+		{
+			//TODO: error check the delete function
+			status = 3;
+		}
+	}
+	else
+		status = 4;
+
+	return status;
+}
+
+/*
  * Transfers any one file that is on the SD card. Will return command FAILURE if the file does not exist.
  *
  * @param	(XUartPS)The instance of the UART so we can push packets to the bus
@@ -687,7 +843,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	char file_TX_folder[100] = "";
 	char file_TX_filename[100] = "";
 	char file_TX_path[100] = "";
-	unsigned char packet_array[2040] = "";
+	unsigned char packet_array[2040] = "";	//TODO: check if I can drop the 2040 -> TELEMETRY_MAX_SIZE (2038)
 	DATA_FILE_HEADER_TYPE data_file_header = {};
 	DATA_FILE_SECONDARY_HEADER_TYPE data_file_2ndy_header = {};
 	CONFIG_STRUCT_TYPE config_file_header = {};
@@ -699,9 +855,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	fno.lfname = LFName;
 	fno.lfsize = sizeof(LFName);
 	FRESULT f_res = FR_OK;	//SD card status variable type
-
-	XTime wait_start;
-	XTime wait_timer;
 
 	//find the folder/file that was requested
 	if(file_type == DATA_TYPE_LOG)
@@ -1123,6 +1276,49 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	}//END OF WHILE(m_loop_var == 1)
 
 	f_close(&TXFile);
+
+	return status;
+}
+
+/*
+ * Function to send a packet of data out across the RS-422
+ * Pass in the variables that we need, the UART handle, the packet to send, the number of bytes
+ * Pass in the total number of bytes to send. This function does no math on the bytes_to_send variable
+ *  that is passed in, so as to remain transparent about what is being done.
+ *
+ * @param	(XUartPS)	The instance of the UART so we can push packets to the bus
+ * @param	(unsigned char *)	pointer to the packet buffer
+ * @param	(int)		total bytes in the packet (should be the same for packets of the same type)
+ *
+ * @return	(int)
+ */
+int SendPacket( XUartPs Uart_PS, unsigned char *packet_buffer, int bytes_to_send )
+{
+	int status = 0;
+	int sent = 0;
+	int bytes_sent = 0;
+
+	//send the packet
+	while(sent < bytes_to_send)
+	{
+		bytes_sent = XUartPs_Send(&Uart_PS, &(packet_buffer[sent]), bytes_to_send - sent);
+		sent += bytes_sent;
+	}
+
+	while(XUartPs_IsSending(&Uart_PS))
+	{
+		//wait here
+	}
+
+	//add in a "wait time" where we allow the XB-1 flight computer enough time to have completely emptied
+	// its receive buffer so that we don't overwrite anything
+	XTime_GetTime(&wait_start);
+	while(1)
+	{
+		XTime_GetTime(&wait_timer);
+		if((float)(wait_timer - wait_start)/COUNTS_PER_SECOND >= 0.015)
+			break;
+	}
 
 	return status;
 }
