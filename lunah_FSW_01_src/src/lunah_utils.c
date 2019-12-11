@@ -378,7 +378,7 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, 
 	case APID_SOH:
 		SOH_buff[5] = 0x22;	//APID for SOH
 		break;
-	case APID_LS_FILES:
+	case APID_DIR:
 		SOH_buff[5] = 0x33;	//APID for LS Files
 		break;
 	case APID_TEMP:
@@ -687,7 +687,7 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
 	{
 		//construct the folder
 		bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
-		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + FOLDER_NAME_SIZE)
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + DAQ_FOLDER_SIZE)
 			status = 1;
 		//construct the file name
 		if(file_type == DATA_TYPE_EVT)
@@ -886,7 +886,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	{
 		//construct the folder
 		bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
-		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + FOLDER_NAME_SIZE)
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + DAQ_FOLDER_SIZE)
 			status = 1;
 		//construct the file name
 		if(file_type == DATA_TYPE_EVT)

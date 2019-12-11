@@ -12,10 +12,14 @@
 #include "xil_printf.h"
 #include "ff.h"
 #include "lunah_defines.h"
+#include "lunah_utils.h"
+#include "SetInstrumentParam.h"
 
 #define NO_TX_CHANGE			-1
 #define MAX_FILENAME_SIZE		14
 #define NUM_FILES_PER_FOLDER	25
+
+#define DIR_PACKET_HEADER		17	//Number of bytes in the DIR packet header
 
 /*
  * This structure is a file record that the Mini-NS uses to keep track of the files
@@ -42,7 +46,9 @@ int sd_totalFilesIncrement( void );
 int sd_totalFilesDecrement( void );
 int sd_getTotalFiles( void );
 void sd_setTotalFiles( int num_folders );
-int SDCountFilesOnCard( char *path );
-int SDScanFilesOnCard( char * path, unsigned char *packet_buffer );
+void SDInitDIR( void );
+int SDCreateDIRHeader( unsigned char *packet_buffer, int sd_card_number );
+FRESULT SDCountFilesOnCard( char *path );
+FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer );
 
 #endif /* SRC_RECORDFILES_H_ */

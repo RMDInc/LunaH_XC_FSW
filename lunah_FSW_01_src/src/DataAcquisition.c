@@ -198,7 +198,7 @@ int SetFileName( int ID_number, int run_number, int set_number )
 
 	//create a folder for the run //0:/I0000_R0001/
 	bytes_written = snprintf(current_run_folder, 100, "0:/I%04d_R%04d", ID_number, run_number);
-	if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + FOLDER_NAME_SIZE)
+	if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + DAQ_FOLDER_SIZE)
 		status = CMD_FAILURE;
 
 	bytes_written = snprintf(current_filename_EVT, 100, "evt_S%04d.bin", set_number);

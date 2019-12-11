@@ -25,7 +25,8 @@
 #define	TEC_PIN				18
 #define EVT_EVENT_SIZE		8
 #define ROOT_DIR_NAME_SIZE	3
-#define FOLDER_NAME_SIZE	11		//"I1234_R1234"
+#define DAQ_FOLDER_SIZE		11		//"I1234_R1234"
+#define WF_FOLDER_SIZE		8		//"WF_I1234"
 #define SIZEOF_FILENAME		13		//filename example: "cps_S0001.bin"
 #define TELEMETRY_MAX_SIZE	2038
 #define VALID_BUFFER_SIZE	512
@@ -68,7 +69,7 @@
 #define ENABLE_ACT_CMD	5
 #define TX_CMD			6
 #define DEL_CMD			7
-#define LS_CMD			8
+#define DIR_CMD			8
 #define TXLOG_CMD		9
 #define	CONF_CMD		10
 #define TRG_CMD			11
@@ -98,7 +99,7 @@
 #define APID_CMD_SUCC	0
 #define APID_CMD_FAIL	1
 #define APID_SOH		2
-#define APID_LS_FILES	3
+#define APID_DIR		3
 #define APID_TEMP		4
 #define APID_MNS_CPS	5
 #define APID_MNS_WAV	6
@@ -127,7 +128,7 @@
 #define DATA_TYPE_2DH_4 13
 
 //MNS DATA PACKET HEADER SIZES //includes secondary header + data header
-#define PKT_HEADER_DIR	19
+#define PKT_HEADER_DIR	18
 #define PKT_HEADER_EVT	39
 #define PKT_HEADER_WAV	39
 #define PKT_HEADER_CPS	39
@@ -136,7 +137,7 @@
 #define PKT_HEADER_CFG	1
 
 //MNS DATA PRODUCT DATA BYTE SIZES
-#define DATA_BYTES_DIR	2004
+#define DATA_BYTES_DIR	2006
 #define DATA_BYTES_EVT	1984
 #define DATA_BYTES_WAV	1984
 #define DATA_BYTES_CPS	1974

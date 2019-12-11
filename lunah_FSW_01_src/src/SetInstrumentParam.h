@@ -59,6 +59,7 @@ typedef struct {
 	double Off_PSD[8];
 	int TotalFiles;
 	int TotalFolders;
+	unsigned int MostRecentRealTime;
 } CONFIG_STRUCT_TYPE;
 
 /*
@@ -143,7 +144,13 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float ECut1, float ECut2, f
 int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int value);
 int SetIntegrationTime(int Baseline, int Short, int Long, int Full);
 int SetEnergyCalParam(float Slope, float Intercept);
+void SetSDTotalFiles( int total_files );
+int GetSDTotalFiles( void );
+void SetSDTotalFolders( int total_folders );
+int GetSDTotalFolders( void );
 int RecordSDState( void );
+int SetRealTime( unsigned int real_time );
+unsigned int GetRealTime( void );
 int ApplyDAQConfig( XIicPs * Iic );
 
 #endif /* SRC_SETINSTRUMENTPARAM_H_ */

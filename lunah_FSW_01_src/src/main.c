@@ -212,7 +212,9 @@ int main()
 	fno.lfname = LFName;
 	fno.lfsize = sizeof(LFName);
 	//packet buffer for DIR function
+	char dir_sd_card_buffer[10] = "";
 	unsigned char dir_packet_buffer[TELEMETRY_MAX_SIZE] = "";
+	int bytes_written = 0;
 
 	// ******************* APPLICATION LOOP *******************//
 
@@ -238,12 +240,6 @@ int main()
 				if(menusel != -1)
 					LogFileWrite( GetLastCommand(), GetLastCommandSize() );
 				break;	//leave the inner loop and execute the commanded function
-			}
-			else if( menusel == 21)
-			{
-				//call the test case
-				//21 is the test case that will be used for the scan files function for now
-				break;
 			}
 			//check to see if it is time to report SOH information, 1 Hz
 			CheckForSOH(&Iic, Uart_PS);
@@ -631,16 +627,22 @@ int main()
 
 			//xil_printf("received DEL command\r\n");
 			break;
-		case LS_CMD:
+		case DIR_CMD:
+			SDInitDIR();
 			//prepare the packet buffer outside of the function:
-			//if we are keeping track of the number of folders and files on the SD card, then we can estimate if we will
-			// want to have the group flags be first packet or unsegmented packet here; just use first packet, then check it later
-			PutCCSDSHeader(dir_packet_buffer, APID_LS_FILES, GF_FIRST_PACKET, 0, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
+			PutCCSDSHeader(dir_packet_buffer, APID_DIR, GF_FIRST_PACKET, 0, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
+			bytes_written = snprintf(dir_sd_card_buffer, 10, "%d:", GetIntParam(1));
+			if(bytes_written == 0 || bytes_written != 2)
+				reportFailure(Uart_PS);
+			//count the number of files/folders on the SD card
+			f_res = SDCountFilesOnCard( dir_sd_card_buffer );
+			if(f_res != FR_OK)
+				reportFailure(Uart_PS);
+			//put the SD card number, most recent Real Time, Total Folders, and Total Files in the packet header
+			SDCreateDIRHeader(dir_packet_buffer, GetIntParam(1));
 			//transfer the names and sizes of the files on the SD card
-			status = SDScanFilesOnCard("0:", dir_packet_buffer);	//we only want to read the entire Root directory for now
-			if(status)
-				reportSuccess(Uart_PS, 0);
-			else
+			f_res = SDScanFilesOnCard(dir_sd_card_buffer, dir_packet_buffer);	//we only want to read the entire Root directory for now
+			if(f_res != FR_OK)
 				reportFailure(Uart_PS);
 			break;
 		case TXLOG_CMD:

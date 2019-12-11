@@ -79,7 +79,8 @@ void CreateDefaultConfig( void )
 		.Off_PSD[6] = 0.0,
 		.Off_PSD[7] = 0.0,
 		.TotalFiles = 0,
-		.TotalFolders =	0
+		.TotalFolders =	0,
+		.MostRecentRealTime = 0
 	};
 
 	return;
@@ -589,6 +590,30 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 }
 
 /*
+ * Helper functions to get and set the total number of files and folders on the SD card.
+ */
+void SetSDTotalFiles( int total_files )
+{
+	ConfigBuff.TotalFiles = total_files;
+	return;
+}
+
+int GetSDTotalFiles( void )
+{
+	return ConfigBuff.TotalFiles;
+}
+
+void SetSDTotalFolders( int total_folders )
+{
+	ConfigBuff.TotalFolders = total_folders;
+	return;
+}
+
+int GetSDTotalFolders( void )
+{
+	return ConfigBuff.TotalFolders;
+}
+/*
  * Record the state of the SD card. This function gets the values of the total number of files and folders
  *  which are recorded by the RecordFiles module.
  *
@@ -612,6 +637,54 @@ int RecordSDState( void )
 	return status;
 }
 
+/*
+ * Keep track of the most recently input Real Time from the spacecraft.
+ * The Real Time is a 32-bit unsigned integer type which represents a time value and will be used
+ *  to track when operations happened on the Mini-NS, as well as time tagging when the system state
+ *  is reported either with DIR, LOG, or CFG.
+ *
+ * @param	(unsigned int)the Real Time from the spacecraft
+ *
+ * @return	(int)status variable, success/failure
+ */
+int SetRealTime( unsigned int real_time )
+{
+	int status = 0;
+
+	if(real_time < ConfigBuff.MostRecentRealTime)
+		status = 1;
+
+	ConfigBuff.MostRecentRealTime = real_time;
+
+	return status;
+}
+
+/*
+ * Helper function to allow for retrieving the most Recent Real Time.
+ * As long as we are setting this whenever we get it, this doesn't have to be labeled as "Most Recent"
+ *
+ * @param	none
+ *
+ * @return	(unsigned int)the value of the most recent Real Time recorded in the configuration file
+ */
+unsigned int GetRealTime( void )
+{
+	return ConfigBuff.MostRecentRealTime;
+}
+
+/*
+ * Applies all the settings which are currently recorded in the configuration file. This goes one-by-one
+ *  through all the different parameters that can be set and makes sure they get updated.
+ * NOTE: Make sure to call MNS_ENABLE_ACT before this to enable power to the analog board. Otherwise, the
+ *  High Voltage values will not be set on the pots.
+ * NOTE: If any of the sub-functions called here fail, then the rest of the function calls will fail, which
+ *  will result in those parameters not being update/set in the system. This function needs to be error checked
+ *  better, perhaps, to try and prevent/recover that situation.
+ *
+ *  @param	(XIicPs *)pointer to the I2C instance which lets us talk to the HV pots
+ *
+ *  @return	(int)status variable, success/failure
+ */
 int ApplyDAQConfig( XIicPs * Iic )
 {
 	int status = CMD_SUCCESS;

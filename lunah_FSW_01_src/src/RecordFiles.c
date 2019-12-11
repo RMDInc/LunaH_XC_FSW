@@ -10,10 +10,13 @@
 //static variables (file scope globals)
 static char m_FILES[MAX_FILENAME_SIZE] = "FILES.bin";
 
+static int sd_count_files;
+static int sd_count_folders;
 static int sd_total_folders;
 static int sd_total_files;
 
 //Variables for LS function
+static int iter;
 static FILINFO sd_fno;			//this is static because we call this function recursively
 static TCHAR sd_LFName[_MAX_LFN + 1];	//we keep sd_fno static across recursive calls, keep this, too
 
@@ -211,29 +214,72 @@ void sd_setTotalFiles( int num_files )
 }
 
 /*
- * Function to loop over the SD card directories and count up the number of files and folders.
- * There is a distinction made between
+ * Initialize variables before calling SDCountFiles() or SDScanFiles()
+ *
+ * @param	none
+ *
+ * @return	(int)status variable, success/failure
  */
-int SDCountFilesOnCard( char *path )
+void SDInitDIR( void )
 {
-	int status = 0;
+	iter = 0;
+	sd_count_folders = 0;
+	sd_count_files = 0;
 
-	return status;
+	return;
 }
 
 /*
- * Function to scan the contents of the Root directory and all folders on the Root directory.
+ * Helper function to put together the DIR packet header, which is comprised of the following:
+ *  the SD card number (0/1)
+ *  the most recent Real Time listed in the configuration file
+ *  the total number of folders on the SD card
+ *  the total number of files on the SD card
+ * The only input needed is the value for the sd card number. The primary SD card is 0, the backup
+ *  card is 1. The Real Time is retrieved from the configuration file. The value for the number of files
+ *  and folders can be taken from the configuration file, but it can also be checked using the
+ *  SDCountFilesOnCard() function below. That will give the most up-to-date number.
+ * There is no distinction made between DAQ folders/files and WF folders/files. This could be included by
+ *  doing a strcmp when looping over the directories with the SDCountFilesOnCard() function.
+ * These values will not change during the course of a DIR function call, so this function only needs
+ *  to be called once at the beginning. From then the buffer bytes should be left intact.
  *
- * @param	path to the directory to be scanned
- * 			use this command with "0" or "1" to scan the entire Root directory
- * @param	(char *)pointer to the buffer to use for the DIR packets
- * 				Since this function is called recursively, we must pass this through so the same
- * 				buffer is used, rather than multiple buffers.
+ * @param	(int)the SD card ID number, either 0/1
+ * @param	(char *)pointer to the buffer where we are putting the header in
+ *
+ * @return	(int)the status variable indicating success/failure for this function
  */
-int SDScanFilesOnCard( char * path, unsigned char *packet_buffer )
+int SDCreateDIRHeader( unsigned char *packet_buffer, int sd_card_number )
 {
 	int status = 0;
+	unsigned int real_time = GetRealTime();
 
+	packet_buffer[CCSDS_HEADER_FULL] = sd_card_number;
+	packet_buffer[CCSDS_HEADER_FULL + 1] = NEWLINE_CHAR_CODE;
+	packet_buffer[CCSDS_HEADER_FULL + 2] = (unsigned char)(real_time >> 24);
+	packet_buffer[CCSDS_HEADER_FULL + 3] = (unsigned char)(real_time >> 16);
+	packet_buffer[CCSDS_HEADER_FULL + 4] = (unsigned char)(real_time >> 8);
+	packet_buffer[CCSDS_HEADER_FULL + 5] = (unsigned char)(real_time);
+	packet_buffer[CCSDS_HEADER_FULL + 6] = NEWLINE_CHAR_CODE;
+	packet_buffer[CCSDS_HEADER_FULL + 7] = (unsigned char)(sd_total_folders >> 24);
+	packet_buffer[CCSDS_HEADER_FULL + 8] = (unsigned char)(sd_total_folders >> 16);
+	packet_buffer[CCSDS_HEADER_FULL + 9] = (unsigned char)(sd_total_folders >> 8);
+	packet_buffer[CCSDS_HEADER_FULL + 10] = (unsigned char)(sd_total_folders);
+	packet_buffer[CCSDS_HEADER_FULL + 11] = NEWLINE_CHAR_CODE;
+	packet_buffer[CCSDS_HEADER_FULL + 12] = (unsigned char)(sd_total_files >> 24);
+	packet_buffer[CCSDS_HEADER_FULL + 13] = (unsigned char)(sd_total_files >> 16);
+	packet_buffer[CCSDS_HEADER_FULL + 14] = (unsigned char)(sd_total_files >> 8);
+	packet_buffer[CCSDS_HEADER_FULL + 15] = (unsigned char)(sd_total_files);
+	packet_buffer[CCSDS_HEADER_FULL + 16] = NEWLINE_CHAR_CODE;
+
+	return status;
+}
+/*
+ * Function to loop over the SD card directories and count up the number of files and folders.
+ * There is a distinction made between
+ */
+FRESULT SDCountFilesOnCard( char *path )
+{
 	/*
 	 * This function is taken from the elm-chan website: http://elm-chan.org/fsw/ff/doc/readdir.html
 	 * I have changed the function from the website so that we can pull the folder and file names,
@@ -246,31 +292,121 @@ int SDScanFilesOnCard( char * path, unsigned char *packet_buffer )
 	sd_fno.lfname = sd_LFName;
 	sd_fno.lfsize = sizeof(sd_LFName);
 
-	res = f_opendir(&dir, path);							/* Open the directory */
+	res = f_opendir(&dir, path);
 	if (res == FR_OK) {
 		for (;;)
 		{
-			res = f_readdir(&dir, &sd_fno);					/* Read a directory item */
-			if (res != FR_OK || sd_fno.fname[0] == 0)break;	/* Break on error or end of dir */
-			if (sd_fno.fname[0] == '.') continue;			/* Ignore the dot entry */
+			res = f_readdir(&dir, &sd_fno);							/* Read a directory item */
+			if (res != FR_OK || sd_fno.fname[0] == 0)break;			/* Break on error or end of dir */
+			if (sd_fno.fname[0] == '.') continue;					/* Ignore the dot entry */
+			if (sd_fno.fattrib & AM_HID) continue;					/* Ignore hidden directories */
+			if (sd_fno.fattrib & AM_SYS) continue;					/* Ignore system directories */
 			//check what type of name we should use
 			fn = *sd_fno.lfname ? sd_fno.lfname : sd_fno.fname;
 			if (sd_fno.fattrib & AM_DIR)
-			{												/* It is a directory */
-				if(!strcmp(fn, "System Volume Information"))break;	//if we match a system folder, don't print it
+			{
 				i = strlen(path);
 				sprintf(&path[i], "/%s", fn);
-				xil_printf("%s\n", path);					/* Print the directory name */
+				sd_count_folders++;
+				res = SDCountFilesOnCard(path);						/* Enter the directory */
+				if (res != FR_OK)
+					break;
+				path[i] = 0;
+			}
+			else
+				sd_count_files++;
+		}
+		f_closedir(&dir);
+	}
+
+	//validate our new number against what the system has recorded from creation and deletion:
+	//The real question is: which number do we believe if they disagree?
+	// My guess would be to believe this number, I suppose...
+	if(sd_count_folders != sd_total_folders)
+	{
+		sd_total_folders = sd_count_folders;
+		SetSDTotalFolders(sd_count_folders);
+	}
+
+	if(sd_count_files != sd_total_files)
+	{
+		sd_total_files = sd_count_files;
+		SetSDTotalFiles(sd_count_files);
+	}
+
+	return res;
+}
+
+/*
+ * Function to scan the contents of the Root directory and all folders on the Root directory.
+ *
+ * @param	path to the directory to be scanned
+ * 			use this command with "0" or "1" to scan the entire Root directory
+ * @param	(char *)pointer to the buffer to use for the DIR packets
+ * 				Since this function is called recursively, we must pass this through so the same
+ * 				buffer is used, rather than multiple buffers.
+ *
+ * @return	(FRESULT) SD card library status indicator; use this to jump back from directories when looping
+ * 				If this is FR_OK, we finished successfully
+ * 				If this is not FR_OK, there was an error somewhere; depending on the error it could have
+ * 				 been from either f_opendir or f_readdir
+ */
+FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer )
+{
+	/*
+	 * This function is taken from the elm-chan website: http://elm-chan.org/fsw/ff/doc/readdir.html
+	 * I have changed the function from the website so that we can pull the folder and file names,
+	 *  and the file sizes and print them to a char buffer that can be sent as a packet.
+	*/
+	int bytes_written = 0;
+	FRESULT res;
+	DIR dir;
+	UINT i;
+	char *fn;
+	sd_fno.lfname = sd_LFName;
+	sd_fno.lfsize = sizeof(sd_LFName);
+
+	//when we get to this point, we already have a CCSDS header on the packet buffer. We will need to modify the group flags before sending
+	//we also just counted the total number of files and folders on the SD card
+	//we can start writing into the buffer at location buff[11] which is the first data byte
+
+	res = f_opendir(&dir, path);
+	if (res == FR_OK) {
+		for (;;)
+		{
+			res = f_readdir(&dir, &sd_fno);
+			if (res != FR_OK || sd_fno.fname[0] == 0)break;	/* Break on error or end of dir */
+			if (sd_fno.fname[0] == '.') continue;			/* Ignore the dot entry */
+			if (sd_fno.fattrib & AM_HID) continue;			/* Ignore hidden directories */
+			if (sd_fno.fattrib & AM_SYS) continue;			/* Ignore system directories */
+			//check what type of name we should use
+			fn = *sd_fno.lfname ? sd_fno.lfname : sd_fno.fname;
+			if (sd_fno.fattrib & AM_DIR)
+			{
+				i = strlen(path);
+				sprintf(&path[i], "/%s", fn);
+				//DAQ folders are 11 char long, there is a backslash and a newline added on the end = 13 bytes; snprintf prints n-1 char, so add one more = 14 bytes (potential max)
+				bytes_written = snprintf((char *)&packet_buffer[CCSDS_HEADER_PRIM + DIR_PACKET_HEADER + iter], 14, "%s/\n", fn);
+				if(bytes_written == 0)
+					res = 20;	//unused SD card library error code //TODO: check if this is valid, handle this better
+				else if(bytes_written == DAQ_FOLDER_SIZE + 2)
+					iter += (DAQ_FOLDER_SIZE + 2);
+				else if(bytes_written == WF_FOLDER_SIZE + 2)
+					iter += (WF_FOLDER_SIZE + 2);
+
 				res = SDScanFilesOnCard(path, packet_buffer);				/* Enter the directory */
 				if (res != FR_OK)
 					break;
 				path[i] = 0;
 			}
-			else											/* It is a file. */
-				xil_printf("%s/%s\n", path, fn);
+			else
+			{
+//				xil_printf("%s/%s - %u\n", path, fn, sd_fno.fsize); //print the SD card number (0/1) in the header of the packet
+				bytes_written = snprintf((char *)&packet_buffer[CCSDS_HEADER_PRIM + DIR_PACKET_HEADER + iter], 17, "%s\t%d\n", fn, sd_fno.fsize);
+			}
 		}
 		f_closedir(&dir);
 	}
 
-	return status;
+	return res;
 }
