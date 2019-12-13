@@ -158,8 +158,8 @@ int InitConfig( void )
 		f_close(&ConfigFile);
 
 		//set the values for the number of files/folders on the SD cards
-		sd_setTotalFiles( ConfigBuff.TotalFiles );
-		sd_setTotalFolders( ConfigBuff.TotalFolders );
+		SDSetTotalFiles( ConfigBuff.TotalFiles );
+		SDSetTotalFolders( ConfigBuff.TotalFolders );
 	}
 	else if(fres == FR_NO_FILE)// The config file does not exist, create it
 	{
@@ -626,8 +626,8 @@ int RecordSDState( void )
 	int status = 0;
 
 	//get the values from the RecordFiles module
-	ConfigBuff.TotalFiles = sd_getTotalFiles();
-	ConfigBuff.TotalFolders = sd_getTotalFolders();
+	ConfigBuff.TotalFiles = SDGetTotalFiles();
+	ConfigBuff.TotalFolders = SDGetTotalFolders();
 	status = SaveConfig();
 	if(status == FR_OK)
 		status = CMD_SUCCESS;

@@ -198,7 +198,7 @@ int ProcessData( unsigned int * data_raw )
 							}
 
 							m_neutron_detected = CPSUpdateTallies(energy, psd, m_pmt_ID_holder);
-							IncNeutronTotal(m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
+							IncNeutronTotal( m_pmt_ID_holder, m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
 							if(m_neutron_detected == 1)
 								m_tagging_bit = 1;
 							else

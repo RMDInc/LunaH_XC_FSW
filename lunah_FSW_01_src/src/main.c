@@ -325,7 +325,7 @@ int main()
 						break;
 					case READ_TMP_CMD:
 						done = 0;
-						status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+						status = report_SOH(&Iic, GetLocalTime(), Uart_PS, READ_TMP_CMD);
 						if(status == CMD_FAILURE)
 							reportFailure(Uart_PS);
 						break;
@@ -334,6 +334,7 @@ int main()
 						reportSuccess(Uart_PS, 0);
 						break;
 					case START_CMD:
+						SetRealTime(GetRealTimeParam());
 						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer, GetIntParam(1));
 						//we will return in three ways:
 						// BREAK (0)	= failure
@@ -551,13 +552,13 @@ int main()
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
-			status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			status = report_SOH(&Iic, GetLocalTime(), Uart_PS, READ_TMP_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
 		case GETSTAT_CMD: //Push an SOH packet to the bus
 			//instead of checking for SOH, just push one SOH packet out because it was requested
-			status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
+			status = report_SOH(&Iic, GetLocalTime(), Uart_PS, GETSTAT_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
@@ -628,9 +629,11 @@ int main()
 			//xil_printf("received DEL command\r\n");
 			break;
 		case DIR_CMD:
+			SetModeByte(MODE_TRANSFER);	//set the mode byte to standby
 			SDInitDIR();
+			memset(dir_packet_buffer, 0, sizeof(unsigned char) * TELEMETRY_MAX_SIZE);
 			//prepare the packet buffer outside of the function:
-			PutCCSDSHeader(dir_packet_buffer, APID_DIR, GF_FIRST_PACKET, 0, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
+			PutCCSDSHeader(dir_packet_buffer, APID_DIR, GF_FIRST_PACKET, 0, PKT_SIZE_DIR);
 			bytes_written = snprintf(dir_sd_card_buffer, 10, "%d:", GetIntParam(1));
 			if(bytes_written == 0 || bytes_written != 2)
 				reportFailure(Uart_PS);
@@ -641,7 +644,7 @@ int main()
 			//put the SD card number, most recent Real Time, Total Folders, and Total Files in the packet header
 			SDCreateDIRHeader(dir_packet_buffer, GetIntParam(1));
 			//transfer the names and sizes of the files on the SD card
-			f_res = SDScanFilesOnCard(dir_sd_card_buffer, dir_packet_buffer);	//we only want to read the entire Root directory for now
+			f_res = SDScanFilesOnCard(dir_sd_card_buffer, dir_packet_buffer, Uart_PS);	//we only want to read the entire Root directory for now
 			if(f_res != FR_OK)
 				reportFailure(Uart_PS);
 			break;

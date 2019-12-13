@@ -204,19 +204,24 @@ int SetFileName( int ID_number, int run_number, int set_number )
 	bytes_written = snprintf(current_filename_EVT, 100, "evt_S%04d.bin", set_number);
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_CPS, 100, "cps_S%04d.bin", set_number);
+//	bytes_written = snprintf(current_filename_CPS, 100, "cps_S%04d.bin", set_number);
+	bytes_written = snprintf(current_filename_CPS, 100, "cps.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_2DH_1, 100, "2d1_S%04d.bin", set_number);
+//	bytes_written = snprintf(current_filename_2DH_1, 100, "2d1_S%04d.bin", set_number);
+	bytes_written = snprintf(current_filename_CPS, 100, "2d0.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_2DH_2, 100, "2d2_S%04d.bin", set_number);
+//	bytes_written = snprintf(current_filename_2DH_2, 100, "2d2_S%04d.bin", set_number);
+	bytes_written = snprintf(current_filename_CPS, 100, "2d1.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_2DH_3, 100, "2d3_S%04d.bin", set_number);
+//	bytes_written = snprintf(current_filename_2DH_3, 100, "2d3_S%04d.bin", set_number);
+	bytes_written = snprintf(current_filename_CPS, 100, "2d2.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
-	bytes_written = snprintf(current_filename_2DH_4, 100, "2d4_S%04d.bin", set_number);
+//	bytes_written = snprintf(current_filename_2DH_4, 100, "2d4_S%04d.bin", set_number);
+	bytes_written = snprintf(current_filename_CPS, 100, "2d3.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
 
@@ -759,7 +764,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			//just leave this to default
 			break;
 		case READ_TMP_CMD:
-			status_SOH = report_SOH(Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			status_SOH = report_SOH(Iic, GetLocalTime(), Uart_PS, READ_TMP_CMD);
 			if(status_SOH == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;

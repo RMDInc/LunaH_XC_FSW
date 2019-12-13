@@ -16,7 +16,10 @@ static int sd_total_folders;
 static int sd_total_files;
 
 //Variables for LS function
+static int dir_is_top_level;
 static int iter;
+static int dir_sequence_count;
+static int dir_group_flags;
 static FILINFO sd_fno;			//this is static because we call this function recursively
 static TCHAR sd_LFName[_MAX_LFN + 1];	//we keep sd_fno static across recursive calls, keep this, too
 
@@ -178,12 +181,12 @@ int sd_totalFoldersDecrement( void )
 	return --sd_total_folders;
 }
 
-int sd_getTotalFolders( void )
+int SDGetTotalFolders( void )
 {
 	return sd_total_folders;
 }
 
-void sd_setTotalFolders( int num_folders )
+void SDSetTotalFolders( int num_folders )
 {
 	sd_total_folders = num_folders;
 	return;
@@ -202,12 +205,12 @@ int sd_totalFilesDecrement( void )
 	return --sd_total_files;
 }
 
-int sd_getTotalFiles( void )
+int SDGetTotalFiles( void )
 {
 	return sd_total_files;
 }
 
-void sd_setTotalFiles( int num_files )
+void SDSetTotalFiles( int num_files )
 {
 	sd_total_files = num_files;
 	return;
@@ -225,6 +228,8 @@ void SDInitDIR( void )
 	iter = 0;
 	sd_count_folders = 0;
 	sd_count_files = 0;
+	dir_sequence_count = 0;
+	dir_group_flags = 1;
 
 	return;
 }
@@ -254,7 +259,7 @@ int SDCreateDIRHeader( unsigned char *packet_buffer, int sd_card_number )
 	int status = 0;
 	unsigned int real_time = GetRealTime();
 
-	packet_buffer[CCSDS_HEADER_FULL] = sd_card_number;
+	packet_buffer[CCSDS_HEADER_FULL] = (unsigned char)sd_card_number;
 	packet_buffer[CCSDS_HEADER_FULL + 1] = NEWLINE_CHAR_CODE;
 	packet_buffer[CCSDS_HEADER_FULL + 2] = (unsigned char)(real_time >> 24);
 	packet_buffer[CCSDS_HEADER_FULL + 3] = (unsigned char)(real_time >> 16);
@@ -338,20 +343,46 @@ FRESULT SDCountFilesOnCard( char *path )
 }
 
 /*
+ * Function which handles all the messy stuff relating to sending a packet while we're scanning the SD card
+ *
+ * @param	(unsigned char *)pointer to the packet buffer that the information will be stored in
+ *
+ * @return	(int)status variable, command success/failure
+ */
+int SDPrepareDIRPacket( unsigned char *packet_buffer)
+{
+	int status = 0;
+
+	if(dir_sequence_count == 0)
+		dir_group_flags = GF_FIRST_PACKET;
+	else
+		dir_group_flags = GF_INTER_PACKET;
+	PutCCSDSHeader(packet_buffer, APID_DIR, dir_group_flags, dir_sequence_count, PKT_SIZE_DIR);
+	CalculateChecksums(packet_buffer);
+	if(CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter < PKT_SIZE_DIR)
+	{
+		memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter]), APID_DIR, DATA_BYTES_DIR - (DIR_PACKET_HEADER + iter));
+	}
+
+	return status;
+}
+/*
  * Function to scan the contents of the Root directory and all folders on the Root directory.
  *
- * @param	path to the directory to be scanned
- * 			use this command with "0" or "1" to scan the entire Root directory
- * @param	(char *)pointer to the buffer to use for the DIR packets
+ * @param	(char *)path to the directory to be scanned
+ * 				use this command with "0" or "1" to scan the entire Root directory
+ * @param	(unsigned char *)pointer to the buffer to use for the DIR packets
  * 				Since this function is called recursively, we must pass this through so the same
  * 				buffer is used, rather than multiple buffers.
+ * @param	(XUartPs)the instance of the UART so that we can pass this to SendPacket() which pushes the packet
+ * 				out over the Uart to the flight computer
  *
  * @return	(FRESULT) SD card library status indicator; use this to jump back from directories when looping
  * 				If this is FR_OK, we finished successfully
  * 				If this is not FR_OK, there was an error somewhere; depending on the error it could have
  * 				 been from either f_opendir or f_readdir
  */
-FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer )
+FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uart_PS )
 {
 	/*
 	 * This function is taken from the elm-chan website: http://elm-chan.org/fsw/ff/doc/readdir.html
@@ -383,29 +414,77 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer )
 			fn = *sd_fno.lfname ? sd_fno.lfname : sd_fno.fname;
 			if (sd_fno.fattrib & AM_DIR)
 			{
+				//before we get further into the loop, we need to check how many bytes are still availabe in the buffer
+				//If there are fewer than 133 bytes (one folder + 6 files), then we send the packet and reset the loop variables
+				//otherwise keep looping
+				if(DATA_BYTES_DIR - iter <= TOTAL_FOLDER_BYTES)
+				{
+					SDPrepareDIRPacket(packet_buffer);
+					SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
+					//house keeping
+					iter = 0;
+					dir_sequence_count++;
+					memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR]), '\0', DATA_BYTES_DIR + CHECKSUM_SIZE);
+				}
+
 				i = strlen(path);
 				sprintf(&path[i], "/%s", fn);
-				//DAQ folders are 11 char long, there is a backslash and a newline added on the end = 13 bytes; snprintf prints n-1 char, so add one more = 14 bytes (potential max)
-				bytes_written = snprintf((char *)&packet_buffer[CCSDS_HEADER_PRIM + DIR_PACKET_HEADER + iter], 14, "%s/\n", fn);
+				//DAQ folders are 11 char long, there is a backslash and a newline added on the end = 13 bytes, add one more for the null terminator = 14 bytes (potential max)
+				bytes_written = snprintf((char *)&packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter], 14, "%s/\n", fn);
 				if(bytes_written == 0)
 					res = 20;	//unused SD card library error code //TODO: check if this is valid, handle this better
 				else if(bytes_written == DAQ_FOLDER_SIZE + 2)
-					iter += (DAQ_FOLDER_SIZE + 2);
+					iter += DAQ_FOLDER_SIZE + 2;
 				else if(bytes_written == WF_FOLDER_SIZE + 2)
-					iter += (WF_FOLDER_SIZE + 2);
+					iter += WF_FOLDER_SIZE + 2;
+				else
+					iter += bytes_written;
 
-				res = SDScanFilesOnCard(path, packet_buffer);				/* Enter the directory */
+				dir_is_top_level++;
+				res = SDScanFilesOnCard(path, packet_buffer, Uart_PS);				/* Enter the directory */
 				if (res != FR_OK)
 					break;
+				dir_is_top_level--;
 				path[i] = 0;
 			}
 			else
 			{
-//				xil_printf("%s/%s - %u\n", path, fn, sd_fno.fsize); //print the SD card number (0/1) in the header of the packet
-				bytes_written = snprintf((char *)&packet_buffer[CCSDS_HEADER_PRIM + DIR_PACKET_HEADER + iter], 17, "%s\t%d\n", fn, sd_fno.fsize);
+				//check to see if we are ok to write the filename in:
+				if(DATA_BYTES_DIR - iter <= DIR_FILE_BYTES)
+				{
+					SDPrepareDIRPacket(packet_buffer);
+					SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
+					//house keeping
+					iter = 0;
+					dir_sequence_count++;
+					memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR]), '\0', DATA_BYTES_DIR + CHECKSUM_SIZE);
+				}
+				//write the filename, spacing byte, file size, and another spacing byte
+				//the largest possible file name to write is 10 bytes, so 10 + 1 + 4 + 1 = 16, then add one for the null terminator
+				//TODO: since the evt files are still written as "evt_S0001.bin" we need at least 3 more bytes than normal, so 17->20 for now //GJS 12-12-2019
+				bytes_written = snprintf((char *)&packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter], 20, "%s\t%c%c%c%c\n",
+						fn,
+						(unsigned char)(sd_fno.fsize >> 24),
+						(unsigned char)(sd_fno.fsize >> 16),
+						(unsigned char)(sd_fno.fsize >> 8),
+						(unsigned char)(sd_fno.fsize));
+				if(bytes_written == 0)
+					res = 20;	//unused SD card library error code //TODO: check if this is valid, handle this better
+				else
+					iter += bytes_written;
 			}
 		}
 		f_closedir(&dir);
+		//make sure that we send the final packet
+		if(dir_is_top_level == 0)
+		{
+			SDPrepareDIRPacket(packet_buffer);
+			SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
+			//house keeping
+			iter = 0;
+			dir_sequence_count++;
+			memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR]), '\0', DATA_BYTES_DIR + CHECKSUM_SIZE);
+		}
 	}
 
 	return res;

@@ -18,6 +18,8 @@
 #define NO_TX_CHANGE			-1
 #define MAX_FILENAME_SIZE		14
 #define NUM_FILES_PER_FOLDER	25
+#define DIR_FILE_BYTES			19
+#define TOTAL_FOLDER_BYTES		127	//the number of bytes to write the folder name and six file names and sizes //TEMP, GJS 12-12-2019
 
 #define DIR_PACKET_HEADER		17	//Number of bytes in the DIR packet header
 
@@ -40,15 +42,16 @@ void sd_updateFileRecords( char * filename, int transfer_byteVal );
 void sd_deleteFileRecord( char * filename );
 int sd_totalFoldersIncrement( void );
 int sd_totalFoldersDecrement( void );
-int sd_getTotalFolders( void );
-void sd_setTotalFolders( int num_folders );
+int SDGetTotalFolders( void );
+void SDSetTotalFolders( int num_folders );
 int sd_totalFilesIncrement( void );
 int sd_totalFilesDecrement( void );
-int sd_getTotalFiles( void );
-void sd_setTotalFiles( int num_folders );
+int SDGetTotalFiles( void );
+void SDSetTotalFiles( int num_folders );
 void SDInitDIR( void );
 int SDCreateDIRHeader( unsigned char *packet_buffer, int sd_card_number );
 FRESULT SDCountFilesOnCard( char *path );
-FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer );
+int SDPrepareDIRPacket( unsigned char *packet_buffer);
+FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uart_PS  );
 
 #endif /* SRC_RECORDFILES_H_ */

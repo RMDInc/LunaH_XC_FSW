@@ -18,7 +18,11 @@ static XTime wait_timer;		//timer for sending packets
 static int analog_board_temp;
 static int digital_board_temp;
 static int modu_board_temp;
-static int iNeutronTotal;
+static int iNeutronTotal;		//total neutron counts across all PMTs
+static int iNeutronTotal_pmt0;
+static int iNeutronTotal_pmt1;
+static int iNeutronTotal_pmt2;
+static int iNeutronTotal_pmt3;
 static int check_temp_sensor;
 static unsigned char mode_byte;
 static int soh_id_number;
@@ -50,7 +54,7 @@ XTime GetTempTime(void)
 }
 
 /*
- *  Stub file to return neuron total.
+ *  Stub file to return neutron total.
  */
 int GetNeutronTotal(void)
 {
@@ -63,9 +67,36 @@ int PutNeutronTotal(int total)
 	return iNeutronTotal;
 }
 
-int IncNeutronTotal(int increment)
+/*
+ * Take in both the number of neutrons to increment by, as well as which PMT to assign the
+ *  counts to.
+ *
+ *  @param	(int)PMT to assign the counts to (1, 2, 4, 8)
+ *  @param	(int)number of counts to increment
+ */
+int IncNeutronTotal(int pmt_id, int increment)
 {
-    iNeutronTotal += increment;
+	switch(pmt_id)
+	{
+	case PMT_ID_0:
+		iNeutronTotal_pmt0 += increment;
+		break;
+	case PMT_ID_1:
+		iNeutronTotal_pmt1 += increment;
+		break;
+	case PMT_ID_2:
+		iNeutronTotal_pmt2 += increment;
+		break;
+	case PMT_ID_3:
+		iNeutronTotal_pmt3 += increment;
+		break;
+	}
+
+	//TODO: handle a bad PMT ID, they will certainly get passed in,
+	// but we don't want to include them in the individual module totals.
+	//I do not think that we need anything special to include it. Just increment the total, but not the individual hits.
+	iNeutronTotal += increment;
+
 	return iNeutronTotal;
 }
 /*
@@ -152,7 +183,7 @@ void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 		{
 			t_next_interval++;
 		}
-		report_SOH(Iic, t_elapsed, iNeutronTotal, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
+		report_SOH(Iic, t_elapsed, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
 	}
 	return;
 }
@@ -162,7 +193,7 @@ void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 //////////////////////////// Report SOH Function ////////////////////////////////
 //This function takes in the number of neutrons currently counted and the local time
 // and pushes the SOH data product to the bus over the UART
-int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type)
+int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 {
 	//Variables
 	unsigned char report_buff[100] = "";
@@ -200,7 +231,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 			{
 				b = b / 16;
 			}
-//			b = 23;
 			analog_board_temp = b;
 		}
 		break;
@@ -246,18 +276,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 				b = b / 16;
 			}
 			modu_board_temp = b;
-
-//			i2c_Send_Buffer[0] = 0x0;
-//			i2c_Send_Buffer[1] = 0x0;
-//			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-//			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//				b = (b - 8192) / 16;
-//			else
-//				b = b / 16;
-//			modu_board_temp = b;
 		}
 		break;
 	default:
@@ -265,10 +283,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		break;
 	}
 
-	//to replace the printf statement, we need to sort the integer temps into the array so they have fixed widths
-	// and since we're already using a char array, we'll sort the ints into chars
-	//do this for anlg, digi, and modu, then take that out of the cases below
-	//will still need to do this in the getstat case b/c have to include the n total and time
 	report_buff[11] = (unsigned char)(analog_board_temp >> 24);
 	report_buff[12] = (unsigned char)(analog_board_temp >> 16);
 	report_buff[13] = (unsigned char)(analog_board_temp >> 8);
@@ -283,8 +297,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	report_buff[22] = (unsigned char)(modu_board_temp >> 16);
 	report_buff[23] = (unsigned char)(modu_board_temp >> 8);
 	report_buff[24] = (unsigned char)(modu_board_temp);
-	report_buff[25] = TAB_CHAR_CODE;
-
+	report_buff[25] = NEWLINE_CHAR_CODE;
 
 	switch(packet_type)
 	{
@@ -299,29 +312,44 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 			status = CMD_FAILURE;
 		break;
 	case GETSTAT_CMD:
-		report_buff[26] = (unsigned char)(i_neutron_total >> 24);
-		report_buff[27] = (unsigned char)(i_neutron_total >> 16);
-		report_buff[28] = (unsigned char)(i_neutron_total >> 8);
-		report_buff[29] = (unsigned char)(i_neutron_total);
+		report_buff[26] = (unsigned char)(iNeutronTotal_pmt0 >> 24);
+		report_buff[27] = (unsigned char)(iNeutronTotal_pmt0 >> 16);
+		report_buff[28] = (unsigned char)(iNeutronTotal_pmt0 >> 8);
+		report_buff[29] = (unsigned char)(iNeutronTotal_pmt0);
 		report_buff[30] = TAB_CHAR_CODE;
-		local_time_holder = (unsigned int)local_time;
-		report_buff[31] = (unsigned char)(local_time_holder >> 24);
-		report_buff[32] = (unsigned char)(local_time_holder >> 16);
-		report_buff[33] = (unsigned char)(local_time_holder >> 8);
-		report_buff[34] = (unsigned char)(local_time_holder);
+		report_buff[31] = (unsigned char)(iNeutronTotal_pmt1 >> 24);
+		report_buff[32] = (unsigned char)(iNeutronTotal_pmt1 >> 16);
+		report_buff[33] = (unsigned char)(iNeutronTotal_pmt1 >> 8);
+		report_buff[34] = (unsigned char)(iNeutronTotal_pmt1);
 		report_buff[35] = TAB_CHAR_CODE;
-		report_buff[36] = mode_byte;
-		report_buff[37] = NEWLINE_CHAR_CODE;
-		report_buff[38] = (unsigned char)(soh_id_number >> 24);
-		report_buff[39] = (unsigned char)(soh_id_number >> 16);
-		report_buff[40] = (unsigned char)(soh_id_number >> 8);
-		report_buff[41] = (unsigned char)(soh_id_number);
-		report_buff[42] = NEWLINE_CHAR_CODE;
-		report_buff[43] = (unsigned char)(soh_run_number >> 24);
-		report_buff[44] = (unsigned char)(soh_run_number >> 16);
-		report_buff[45] = (unsigned char)(soh_run_number >> 8);
-		report_buff[46] = (unsigned char)(soh_run_number);
-		report_buff[47] = NEWLINE_CHAR_CODE;
+		report_buff[36] = (unsigned char)(iNeutronTotal_pmt2 >> 24);
+		report_buff[37] = (unsigned char)(iNeutronTotal_pmt2 >> 16);
+		report_buff[38] = (unsigned char)(iNeutronTotal_pmt2 >> 8);
+		report_buff[39] = (unsigned char)(iNeutronTotal_pmt2);
+		report_buff[40] = TAB_CHAR_CODE;
+		report_buff[41] = (unsigned char)(iNeutronTotal_pmt3 >> 24);
+		report_buff[42] = (unsigned char)(iNeutronTotal_pmt3 >> 16);
+		report_buff[43] = (unsigned char)(iNeutronTotal_pmt3 >> 8);
+		report_buff[44] = (unsigned char)(iNeutronTotal_pmt3);
+		report_buff[45] = TAB_CHAR_CODE;
+		local_time_holder = (unsigned int)local_time;
+		report_buff[46] = (unsigned char)(local_time_holder >> 24);
+		report_buff[47] = (unsigned char)(local_time_holder >> 16);
+		report_buff[48] = (unsigned char)(local_time_holder >> 8);
+		report_buff[49] = (unsigned char)(local_time_holder);
+		report_buff[50] = TAB_CHAR_CODE;
+		report_buff[51] = mode_byte;
+		report_buff[52] = TAB_CHAR_CODE;
+		report_buff[53] = (unsigned char)(soh_id_number >> 24);
+		report_buff[54] = (unsigned char)(soh_id_number >> 16);
+		report_buff[55] = (unsigned char)(soh_id_number >> 8);
+		report_buff[56] = (unsigned char)(soh_id_number);
+		report_buff[57] = TAB_CHAR_CODE;
+		report_buff[58] = (unsigned char)(soh_run_number >> 24);
+		report_buff[59] = (unsigned char)(soh_run_number >> 16);
+		report_buff[60] = (unsigned char)(soh_run_number >> 8);
+		report_buff[61] = (unsigned char)(soh_run_number);
+		report_buff[62] = NEWLINE_CHAR_CODE;
 
 		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
@@ -350,9 +378,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
  * @param length			The length of the packet is equal to the number of bytes in the secondary CCSDS header
  * 							plus the payload data bytes plus the checksums minus one.
  * 							Len = 1 + N + 4 - 1
- *
- * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
- * 			the correct number of bytes with the packet.
  *
  */
 void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, int sequence_count, int length)
@@ -1072,16 +1097,16 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		f_holder = data_file_header.configBuff.ECalSlope;								memcpy(&(packet_array[11]), &f_holder, sizeof(float));
 		f_holder = data_file_header.configBuff.ECalIntercept;							memcpy(&(packet_array[15]), &f_holder, sizeof(float));
 		us_holder = (unsigned short)data_file_header.configBuff.TriggerThreshold;		memcpy(&(packet_array[19]), &us_holder, sizeof(us_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationBaseline;		memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationShort;		memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationLong;			memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationFull;			memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationBaseline;		memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationShort;		memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationLong;			memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationFull;			memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[0];	memcpy(&(packet_array[29]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[1];	memcpy(&(packet_array[31]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[2];	memcpy(&(packet_array[33]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[3];	memcpy(&(packet_array[35]), &us_holder, sizeof(us_holder));
-		us_holder = data_file_header.IDNum;												memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
-		us_holder = data_file_header.RunNum;											memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.IDNum;												memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.RunNum;											memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
 
 		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG && file_type != DATA_TYPE_WAV)
 		{
