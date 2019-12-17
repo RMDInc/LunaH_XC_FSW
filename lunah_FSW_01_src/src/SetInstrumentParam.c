@@ -145,7 +145,6 @@ int InitConfig( void )
 	uint NumBytesRd;
 	FRESULT fres = FR_OK;
 	FIL ConfigFile;
-	int RetVal = 0;
 	int ConfigSize = sizeof(ConfigBuff);
 
 	// check if the config file exists
@@ -177,8 +176,7 @@ int InitConfig( void )
 
 	}
 
-	RetVal = (int)fres;
-	return RetVal;
+	return (int)fres;
 }
 
 /* This function will save the current system configuration to the configuration file, if it exists.

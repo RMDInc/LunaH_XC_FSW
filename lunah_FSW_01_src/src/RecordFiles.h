@@ -51,7 +51,7 @@ void SDSetTotalFiles( int num_folders );
 void SDInitDIR( void );
 int SDCreateDIRHeader( unsigned char *packet_buffer, int sd_card_number );
 FRESULT SDCountFilesOnCard( char *path );
-int SDPrepareDIRPacket( unsigned char *packet_buffer);
+int SDPrepareDIRPacket( unsigned char *packet_buffer, int file_count);
 FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uart_PS  );
 
 #endif /* SRC_RECORDFILES_H_ */

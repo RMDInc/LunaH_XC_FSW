@@ -14,10 +14,10 @@ static unsigned int m_oor_right;
 static unsigned int m_oor_below;
 static unsigned int m_oor_above;
 static unsigned int m_valid_multi_hit_event;
+static unsigned short m_2DH_pmt0[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt1[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt2[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt3[TWODH_X_BINS][TWODH_Y_BINS];
-static unsigned short m_2DH_pmt4[TWODH_X_BINS][TWODH_Y_BINS];
 
 /*
  * Helper function to allow external functions to get the address of the 2DHs
@@ -46,32 +46,32 @@ int Save2DHToSD( int pmt_ID )
 	switch(pmt_ID)
 	{
 	case PMT_ID_0:
-		m_2DH_holder = &m_2DH_pmt1;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_1 );
+		m_2DH_holder = &m_2DH_pmt0;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_0 );
 		if(filename_pointer == NULL)
 			xil_printf("3 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
 	case PMT_ID_1:
-		m_2DH_holder = &m_2DH_pmt2;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_2 );
+		m_2DH_holder = &m_2DH_pmt1;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_1 );
 		if(filename_pointer == NULL)
 			xil_printf("4 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
 	case PMT_ID_2:
-		m_2DH_holder = &m_2DH_pmt3;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_3 );
+		m_2DH_holder = &m_2DH_pmt2;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_2 );
 		if(filename_pointer == NULL)
 			xil_printf("5 return filename pointer 2dh\n");
 		else
 			snprintf(filename_buff, sizeof(filename_buff), "%s", filename_pointer);
 		break;
 	case PMT_ID_3:
-		m_2DH_holder = &m_2DH_pmt4;
-		filename_pointer = GetFileName( DATA_TYPE_2DH_4 );
+		m_2DH_holder = &m_2DH_pmt3;
+		filename_pointer = GetFileName( DATA_TYPE_2DH_3 );
 		if(filename_pointer == NULL)
 			xil_printf("6 return filename pointer 2dh\n");
 		else
@@ -114,7 +114,7 @@ int Save2DHToSD( int pmt_ID )
 	else
 		status = CMD_SUCCESS;
 
-	sd_updateFileRecords(filename_buff, file_size(&save2DH));
+//	sd_updateFileRecords(filename_buff, file_size(&save2DH));
 	f_close(&save2DH);
 	return status;
 }
@@ -167,16 +167,16 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 					switch(pmt_ID)
 					{
 					case PMT_ID_0:
-						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
+						m_2DH_pmt0[m_x_bin_number][m_y_bin_number]++;
 						break;
 					case PMT_ID_1:
-						m_2DH_pmt2[m_x_bin_number][m_y_bin_number]++;
+						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
 						break;
 					case PMT_ID_2:
-						m_2DH_pmt3[m_x_bin_number][m_y_bin_number]++;
+						m_2DH_pmt2[m_x_bin_number][m_y_bin_number]++;
 						break;
 					case PMT_ID_3:
-						m_2DH_pmt4[m_x_bin_number][m_y_bin_number]++;
+						m_2DH_pmt3[m_x_bin_number][m_y_bin_number]++;
 						break;
 					default:
 						//don't record non-singleton hits in a 2DH

@@ -427,13 +427,13 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, 
 	case APID_CONFIG:
 		SOH_buff[5] = 0xAA;	//APID for Configuration
 		break;
+	case DATA_TYPE_2DH_1:
+		SOH_buff[5] = 0x88;	//APID for 2D Histogram
+		break;
 	case DATA_TYPE_2DH_2:
 		SOH_buff[5] = 0x88;	//APID for 2D Histogram
 		break;
 	case DATA_TYPE_2DH_3:
-		SOH_buff[5] = 0x88;	//APID for 2D Histogram
-		break;
-	case DATA_TYPE_2DH_4:
 		SOH_buff[5] = 0x88;	//APID for 2D Histogram
 		break;
 	default:
@@ -729,31 +729,31 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
 		}
 		else if(file_type == DATA_TYPE_CPS)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "cps_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "cps.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_0)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d0.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_1)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d1_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d1.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_2)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d2_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d2.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_3)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d3_S%04d.bin", set_num);
-			if(bytes_written == 0)
-				status = 1;
-		}
-		else if(file_type == DATA_TYPE_2DH_4)
-		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d4_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d3.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
@@ -816,7 +816,7 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
  * @param	(int)file_type	The macro for the type of file to TX back, see lunah_defines.h for the codes
  * 							 There are 9 file types:
  * 							 DATA_TYPE_EVT, DATA_TYPE_CPS, DATA_TYPE_WAV,
- * 							 DATA_TYPE_2DH_1, DATA_TYPE_2DH_2, DATA_TYPE_2DH_3, DATA_TYPE_2DH_4,
+ * 							 DATA_TYPE_2DH_0, DATA_TYPE_2DH_1, DATA_TYPE_2DH_2, DATA_TYPE_2DH_3,
  * 							 DATA_TYPE_LOG, DATA_TYPE_CFG
  * @param 	(int)id_num 	The ID number for the folder the user wants to access
  * @param	(int)run_num	The Run number for the folder the user wants to access *
@@ -928,31 +928,31 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		}
 		else if(file_type == DATA_TYPE_CPS)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "cps_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "cps.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_0)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d0.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_1)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d1_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d1.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_2)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d2_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d2.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_3)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d3_S%04d.bin", set_num);
-			if(bytes_written == 0)
-				status = 1;
-		}
-		else if(file_type == DATA_TYPE_2DH_4)
-		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d4_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d3.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
@@ -1068,7 +1068,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 
 			file_TX_size -= sizeof(data_file_footer);
 		}
-		else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
+		else if(file_type == DATA_TYPE_2DH_0 || file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 )
 		{
 			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_2DH);
 			if(f_res != FR_OK)
@@ -1147,13 +1147,13 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_packet_header_size = PKT_HEADER_EVT;
 			file_TX_apid = 0x77;
 			break;
-		case DATA_TYPE_2DH_1:
+		case DATA_TYPE_2DH_0:
 			/* Falls through to case 2DH_2 */
-		case DATA_TYPE_2DH_2:
+		case DATA_TYPE_2DH_1:
 			/* Falls through to case 2DH_3 */
-		case DATA_TYPE_2DH_3:
+		case DATA_TYPE_2DH_2:
 			/* Falls through to case 2DH_4 */
-		case DATA_TYPE_2DH_4:
+		case DATA_TYPE_2DH_3:
 			file_TX_data_bytes_size = DATA_BYTES_2DH - 1;	//Subtract one byte, there is an additional field (PMT ID) added to the packet
 			file_TX_packet_size = PKT_SIZE_2DH;
 			file_TX_packet_header_size = PKT_HEADER_2DH;
@@ -1215,13 +1215,13 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		}
 
 		//for 2DH packets, add the PMT ID to the end of the data bytes //currently at 10+39+1984 = 2033 //10-4-2019
-		if(file_type == DATA_TYPE_2DH_1)
+		if(file_type == DATA_TYPE_2DH_0)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x01;
-		else if(file_type == DATA_TYPE_2DH_2)
+		else if(file_type == DATA_TYPE_2DH_1)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x02;
-		else if(file_type == DATA_TYPE_2DH_3)
+		else if(file_type == DATA_TYPE_2DH_2)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x04;
-		else if(file_type == DATA_TYPE_2DH_4)
+		else if(file_type == DATA_TYPE_2DH_3)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x08;
 
 		//calculate the checksums for the packet
@@ -1266,7 +1266,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			memset(&(packet_array[10]), '\0', 1);	//reset secondary header (reset request bits)
 			if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_WAV || file_type == DATA_TYPE_CPS)
 				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
-			else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
+			else if(file_type == DATA_TYPE_2DH_0 || file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 )
 				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
 			else if(file_type == DATA_TYPE_LOG)
 				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM);	//modify this for CFG, LOG

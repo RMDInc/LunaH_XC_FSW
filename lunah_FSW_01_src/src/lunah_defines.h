@@ -118,14 +118,14 @@
 #define DATA_TYPE_CPS	5
 #define DATA_TYPE_WAV	6
 #define DATA_TYPE_EVT 	7
-#define DATA_TYPE_2DH_1	8
+#define DATA_TYPE_2DH_0	8
 #define DATA_TYPE_LOG	9
 #define DATA_TYPE_CFG	10
 //the above are made to match the APID packet types
 //the below are to make it easier to sort 2dh types
-#define DATA_TYPE_2DH_2	11
-#define DATA_TYPE_2DH_3	12
-#define DATA_TYPE_2DH_4 13
+#define DATA_TYPE_2DH_1	11
+#define DATA_TYPE_2DH_2	12
+#define DATA_TYPE_2DH_3 13
 
 //MNS DATA PACKET HEADER SIZES //includes secondary header + data header
 #define PKT_HEADER_DIR	18

@@ -349,14 +349,25 @@ FRESULT SDCountFilesOnCard( char *path )
  *
  * @return	(int)status variable, command success/failure
  */
-int SDPrepareDIRPacket( unsigned char *packet_buffer)
+int SDPrepareDIRPacket( unsigned char *packet_buffer, int file_count)
 {
 	int status = 0;
 
 	if(dir_sequence_count == 0)
-		dir_group_flags = GF_FIRST_PACKET;
+	{
+		if(sd_total_files > file_count)
+			dir_group_flags = GF_FIRST_PACKET;
+		else
+			dir_group_flags = GF_UNSEG_PACKET;
+	}
 	else
-		dir_group_flags = GF_INTER_PACKET;
+	{
+		if(sd_total_files > file_count)
+			dir_group_flags = GF_INTER_PACKET;
+		else
+			dir_group_flags = GF_LAST_PACKET;
+	}
+
 	PutCCSDSHeader(packet_buffer, APID_DIR, dir_group_flags, dir_sequence_count, PKT_SIZE_DIR);
 	CalculateChecksums(packet_buffer);
 	if(CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter < PKT_SIZE_DIR)
@@ -390,6 +401,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 	 *  and the file sizes and print them to a char buffer that can be sent as a packet.
 	*/
 	int bytes_written = 0;
+	int current_file_count = 0;
 	FRESULT res;
 	DIR dir;
 	UINT i;
@@ -419,7 +431,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 				//otherwise keep looping
 				if(DATA_BYTES_DIR - iter <= TOTAL_FOLDER_BYTES)
 				{
-					SDPrepareDIRPacket(packet_buffer);
+					SDPrepareDIRPacket(packet_buffer, current_file_count);
 					SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
 					//house keeping
 					iter = 0;
@@ -452,7 +464,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 				//check to see if we are ok to write the filename in:
 				if(DATA_BYTES_DIR - iter <= DIR_FILE_BYTES)
 				{
-					SDPrepareDIRPacket(packet_buffer);
+					SDPrepareDIRPacket(packet_buffer, current_file_count);
 					SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
 					//house keeping
 					iter = 0;
@@ -468,6 +480,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 						(unsigned char)(sd_fno.fsize >> 16),
 						(unsigned char)(sd_fno.fsize >> 8),
 						(unsigned char)(sd_fno.fsize));
+				current_file_count++;
 				if(bytes_written == 0)
 					res = 20;	//unused SD card library error code //TODO: check if this is valid, handle this better
 				else
@@ -478,7 +491,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 		//make sure that we send the final packet
 		if(dir_is_top_level == 0)
 		{
-			SDPrepareDIRPacket(packet_buffer);
+			SDPrepareDIRPacket(packet_buffer, current_file_count);
 			SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
 			//house keeping
 			iter = 0;

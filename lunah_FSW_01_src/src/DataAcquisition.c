@@ -11,10 +11,10 @@
 static char current_run_folder[100];
 static char current_filename_EVT[100];
 static char current_filename_CPS[100];
+static char current_filename_2DH_0[100];
 static char current_filename_2DH_1[100];
 static char current_filename_2DH_2[100];
 static char current_filename_2DH_3[100];
-static char current_filename_2DH_4[100];
 static char current_filename_WAV[100];
 static unsigned int daq_run_id_number;
 static unsigned int daq_run_run_number;
@@ -93,6 +93,9 @@ char *GetFileName( int file_type )
 	case DATA_TYPE_CPS:
 		current_filename = current_filename_CPS;
 		break;
+	case DATA_TYPE_2DH_0:
+		current_filename = current_filename_2DH_0;
+		break;
 	case DATA_TYPE_2DH_1:
 		current_filename = current_filename_2DH_1;
 		break;
@@ -101,9 +104,6 @@ char *GetFileName( int file_type )
 		break;
 	case DATA_TYPE_2DH_3:
 		current_filename = current_filename_2DH_3;
-		break;
-	case DATA_TYPE_2DH_4:
-		current_filename = current_filename_2DH_4;
 		break;
 	default:
 		current_filename = NULL;
@@ -208,20 +208,20 @@ int SetFileName( int ID_number, int run_number, int set_number )
 	bytes_written = snprintf(current_filename_CPS, 100, "cps.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
+//	bytes_written = snprintf(current_filename_2DH_0, 100, "2d0_S%04d.bin", set_number);
+	bytes_written = snprintf(current_filename_2DH_0, 100, "2d0.bin");
+	if(bytes_written == 0)
+		status = CMD_FAILURE;
 //	bytes_written = snprintf(current_filename_2DH_1, 100, "2d1_S%04d.bin", set_number);
-	bytes_written = snprintf(current_filename_CPS, 100, "2d0.bin");
+	bytes_written = snprintf(current_filename_2DH_1, 100, "2d1.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
 //	bytes_written = snprintf(current_filename_2DH_2, 100, "2d2_S%04d.bin", set_number);
-	bytes_written = snprintf(current_filename_CPS, 100, "2d1.bin");
+	bytes_written = snprintf(current_filename_2DH_2, 100, "2d2.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
 //	bytes_written = snprintf(current_filename_2DH_3, 100, "2d3_S%04d.bin", set_number);
-	bytes_written = snprintf(current_filename_CPS, 100, "2d2.bin");
-	if(bytes_written == 0)
-		status = CMD_FAILURE;
-//	bytes_written = snprintf(current_filename_2DH_4, 100, "2d4_S%04d.bin", set_number);
-	bytes_written = snprintf(current_filename_CPS, 100, "2d3.bin");
+	bytes_written = snprintf(current_filename_2DH_3, 100, "2d3.bin");
 	if(bytes_written == 0)
 		status = CMD_FAILURE;
 
@@ -327,7 +327,7 @@ int CreateDAQFiles( void )
 		//once we create the folder and change to it, update the number of folders
 		sd_totalFoldersIncrement();
 		//create the TX_bytes file to record the individual files
-		sd_createTXBytesFile();
+//		sd_createTXBytesFile();	//comment 12-16-2019
 	}
 
 	for(iter = 0; iter < 6; iter++)
@@ -345,23 +345,23 @@ int CreateDAQFiles( void )
 			DAQ_file = &m_CPS_file;
 			break;
 		case 2:
+			file_to_open = current_filename_2DH_0;
+			file_header_to_write.FileTypeAPID = DATA_TYPE_2DH_0;
+			DAQ_file = &m_2DH_file;
+			break;
+		case 3:
 			file_to_open = current_filename_2DH_1;
 			file_header_to_write.FileTypeAPID = DATA_TYPE_2DH_1;
 			DAQ_file = &m_2DH_file;
 			break;
-		case 3:
+		case 4:
 			file_to_open = current_filename_2DH_2;
 			file_header_to_write.FileTypeAPID = DATA_TYPE_2DH_2;
 			DAQ_file = &m_2DH_file;
 			break;
-		case 4:
+		case 5:
 			file_to_open = current_filename_2DH_3;
 			file_header_to_write.FileTypeAPID = DATA_TYPE_2DH_3;
-			DAQ_file = &m_2DH_file;
-			break;
-		case 5:
-			file_to_open = current_filename_2DH_4;
-			file_header_to_write.FileTypeAPID = DATA_TYPE_2DH_4;
 			DAQ_file = &m_2DH_file;
 			break;
 		default:
@@ -388,7 +388,7 @@ int CreateDAQFiles( void )
 							status = CMD_FAILURE;
 
 						//record the new file information in the tx_bytes file
-						sd_updateFileRecords(file_to_open, file_size(DAQ_file));
+//						sd_updateFileRecords(file_to_open, file_size(DAQ_file));
 					}
 					if(iter < 2)	//sync the EVT, CPS files; we're leaving them open during the run
 					{
@@ -399,12 +399,12 @@ int CreateDAQFiles( void )
 							status = CMD_FAILURE;
 
 						//record the new file information in the tx_bytes file
-						sd_updateFileRecords(file_to_open, file_size(DAQ_file));
+//						sd_updateFileRecords(file_to_open, file_size(DAQ_file));
 					}
 					else
 					{
 						//record the new file information in the tx_bytes file
-						sd_updateFileRecords(file_to_open, file_size(DAQ_file));
+//						sd_updateFileRecords(file_to_open, file_size(DAQ_file));
 
 						f_close(DAQ_file);
 						status = CMD_SUCCESS;
@@ -534,6 +534,10 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE * evts_array = NULL;
 
+	//timing variables //delete when not timing
+	XTime tStart = 0;
+	XTime tEnd = 0;
+
 	memset(&m_write_blank_space_buff, 186, 16384);
 
 	ResetEVTsBuffer();
@@ -553,7 +557,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	//record that we have created a new file
 	sd_totalFilesIncrement();
 	//record the new file information in the tx_bytes file
-	sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
+//	sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
 #endif
 
 	while(done != 1)
@@ -574,6 +578,9 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			ClearBRAMBuffers();
 			Xil_DCacheInvalidateRange(DRAM_BASE, 65536);
 
+//**************//Start timing here for tracking the latency //here is where we just finished the DMA transfer between the FPGA and the processor
+			XTime_GetTime(&tStart);
+
 			array_index = 0;
 			dram_addr = dram_base;
 			while(dram_addr < DRAM_CEILING)
@@ -584,6 +591,8 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			}
 			status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 			buff_num++;
+
+
 
 			if(buff_num == 3)
 			{
@@ -600,7 +609,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					//TODO: error check
 					xil_printf("8 error syncing DAQ\n");
 				}
-				sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
+//				sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
 #endif
 
 				//check the file size and see if we need to change files
@@ -612,7 +621,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 						status = CMD_FAILURE;
 					//just before we close the file, write the final record of it
-					sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//					sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 					//then close the file, as we're done with it
 					f_close(&m_EVT_file);
 					//create the new file name (increment the set number)
@@ -642,7 +651,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 						//record that we have created a new file
 						sd_totalFilesIncrement();
 						//record the new file information in the tx_bytes file
-						sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//						sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 					}
 					else
 						status = CMD_FAILURE;
@@ -674,7 +683,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					if(f_res != FR_OK || bytes_written != sizeof(file_secondary_header_to_write))
 						status = CMD_FAILURE;
 
-					sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//					sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 
 					f_res = f_lseek(&m_CPS_file, sizeof(file_header_to_write));	//want to move to the reserved space we allocated before the run, directly after header
 					f_res = f_write(&m_CPS_file, &file_secondary_header_to_write, sizeof(file_secondary_header_to_write), &bytes_written);
@@ -683,7 +692,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 						//TODO: handle error checking the write
 						xil_printf("10 error writing DAQ\n");
 					}
-					sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
+//					sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
 
 					f_res = f_lseek(&m_CPS_file, file_size(&m_CPS_file));	//forward the file pointer so we're at the top of the file again
 
@@ -725,13 +734,16 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 					m_buffers_written = 0;	//reset
 				}
 
-				sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//				sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 
 				ResetEVTsBuffer();
 				ResetEVTsIterator();
 			}
 			valid_data = 0;	//reset
 
+			//****************//End timing of the loop here //we have finished processing and finished saving
+			XTime_GetTime(&tEnd);
+			printf("Loop %d-%d took %.2f us\n", m_buffers_written, buff_num, 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
 		}//END OF IF VALID DATA
 
 		//check to see if it is time to report SOH information, 1 Hz
@@ -746,11 +758,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
-			sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//			sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 			f_res = f_write(&m_CPS_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
-			sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
+//			sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
 			status = DAQ_TIME_OUT;
 			done = 1;
 		}
@@ -774,11 +786,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
-			sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//			sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 			f_res = f_write(&m_CPS_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
-			sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
+//			sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
 			status = DAQ_BREAK;
 			done = 1;
 			break;
@@ -788,11 +800,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			f_res = f_write(&m_EVT_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
-			sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
+//			sd_updateFileRecords(current_filename_EVT, file_size(&m_EVT_file));
 			f_res = f_write(&m_CPS_file, &file_footer_to_write, sizeof(file_footer_to_write), &bytes_written);
 			if(f_res != FR_OK || bytes_written != sizeof(file_footer_to_write))
 				status = CMD_FAILURE;
-			sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
+//			sd_updateFileRecords(current_filename_CPS, file_size(&m_CPS_file));
 			status = DAQ_END;
 			done = 1;
 			break;
@@ -817,7 +829,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 	//TESTING 6-13-2019
 #ifdef PRODUCE_RAW_DATA
-	sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
+//	sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
 	f_close(&m_raw_data_file);
 #endif
 	//TESTING 6-13-2019

@@ -590,6 +590,9 @@ int main()
 			case DATA_TYPE_CPS:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_CPS, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for CPS
 				break;
+			case DATA_TYPE_2DH_0:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_0, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
+				break;
 			case DATA_TYPE_2DH_1:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_1, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
 				break;
@@ -598,9 +601,6 @@ int main()
 				break;
 			case DATA_TYPE_2DH_3:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_3, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
-				break;
-			case DATA_TYPE_2DH_4:
-				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_4, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
 				break;
 			case DATA_TYPE_LOG:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_LOG, 0, 0, 0);
