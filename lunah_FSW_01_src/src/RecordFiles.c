@@ -249,8 +249,8 @@ void SDInitDIR( void )
  * These values will not change during the course of a DIR function call, so this function only needs
  *  to be called once at the beginning. From then the buffer bytes should be left intact.
  *
- * @param	(int)the SD card ID number, either 0/1
  * @param	(char *)pointer to the buffer where we are putting the header in
+ * @param	(int)the SD card ID number, either 0/1
  *
  * @return	(int)the status variable indicating success/failure for this function
  */
@@ -282,6 +282,11 @@ int SDCreateDIRHeader( unsigned char *packet_buffer, int sd_card_number )
 /*
  * Function to loop over the SD card directories and count up the number of files and folders.
  * There is a distinction made between
+ *
+ * @param	(char *)pointer to the SD card path we are counting files on
+ *
+ * @return	(FRESULT)SD card status result
+ *
  */
 FRESULT SDCountFilesOnCard( char *path )
 {
@@ -324,6 +329,11 @@ FRESULT SDCountFilesOnCard( char *path )
 		f_closedir(&dir);
 	}
 
+	return res;
+}
+
+void SDUpdateFileCounts( void )
+{
 	//validate our new number against what the system has recorded from creation and deletion:
 	//The real question is: which number do we believe if they disagree?
 	// My guess would be to believe this number, I suppose...
@@ -339,7 +349,11 @@ FRESULT SDCountFilesOnCard( char *path )
 		SetSDTotalFiles(sd_count_files);
 	}
 
-	return res;
+	//reset sd_count_files so we may reuse it in SDScanFiles()
+	sd_count_folders = 0;
+	sd_count_files = 0;
+
+	return;
 }
 
 /*
@@ -349,20 +363,20 @@ FRESULT SDCountFilesOnCard( char *path )
  *
  * @return	(int)status variable, command success/failure
  */
-int SDPrepareDIRPacket( unsigned char *packet_buffer, int file_count)
+int SDPrepareDIRPacket( unsigned char *packet_buffer )
 {
 	int status = 0;
 
 	if(dir_sequence_count == 0)
 	{
-		if(sd_total_files > file_count)
+		if(sd_total_files > sd_count_files)
 			dir_group_flags = GF_FIRST_PACKET;
 		else
 			dir_group_flags = GF_UNSEG_PACKET;
 	}
 	else
 	{
-		if(sd_total_files > file_count)
+		if(sd_total_files > sd_count_files)
 			dir_group_flags = GF_INTER_PACKET;
 		else
 			dir_group_flags = GF_LAST_PACKET;
@@ -372,7 +386,7 @@ int SDPrepareDIRPacket( unsigned char *packet_buffer, int file_count)
 	CalculateChecksums(packet_buffer);
 	if(CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter < PKT_SIZE_DIR)
 	{
-		memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter]), APID_DIR, DATA_BYTES_DIR - (DIR_PACKET_HEADER + iter));
+		memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter]), APID_DIR, DATA_BYTES_DIR - iter);
 	}
 
 	return status;
@@ -401,7 +415,6 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 	 *  and the file sizes and print them to a char buffer that can be sent as a packet.
 	*/
 	int bytes_written = 0;
-	int current_file_count = 0;
 	FRESULT res;
 	DIR dir;
 	UINT i;
@@ -431,7 +444,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 				//otherwise keep looping
 				if(DATA_BYTES_DIR - iter <= TOTAL_FOLDER_BYTES)
 				{
-					SDPrepareDIRPacket(packet_buffer, current_file_count);
+					SDPrepareDIRPacket(packet_buffer);
 					SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
 					//house keeping
 					iter = 0;
@@ -464,7 +477,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 				//check to see if we are ok to write the filename in:
 				if(DATA_BYTES_DIR - iter <= DIR_FILE_BYTES)
 				{
-					SDPrepareDIRPacket(packet_buffer, current_file_count);
+					SDPrepareDIRPacket(packet_buffer);
 					SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
 					//house keeping
 					iter = 0;
@@ -480,7 +493,7 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 						(unsigned char)(sd_fno.fsize >> 16),
 						(unsigned char)(sd_fno.fsize >> 8),
 						(unsigned char)(sd_fno.fsize));
-				current_file_count++;
+				sd_count_files++;
 				if(bytes_written == 0)
 					res = 20;	//unused SD card library error code //TODO: check if this is valid, handle this better
 				else
@@ -489,9 +502,11 @@ FRESULT SDScanFilesOnCard( char *path, unsigned char *packet_buffer, XUartPs Uar
 		}
 		f_closedir(&dir);
 		//make sure that we send the final packet
-		if(dir_is_top_level == 0)
+		//the check on iter should keep us from sending a packet, then sending it again here
+		//essentially, if iter = 0, then we reset it when we sent the packet last and haven't written anything new in
+		if(dir_is_top_level == 0 && iter != 0)
 		{
-			SDPrepareDIRPacket(packet_buffer, current_file_count);
+			SDPrepareDIRPacket(packet_buffer);
 			SendPacket(Uart_PS, packet_buffer, PKT_SIZE_DIR + CCSDS_HEADER_FULL);
 			//house keeping
 			iter = 0;

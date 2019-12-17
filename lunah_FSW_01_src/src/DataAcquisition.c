@@ -535,6 +535,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	GENERAL_EVENT_TYPE * evts_array = NULL;
 
 	//timing variables //delete when not timing
+	XTime tBegin = 0;
 	XTime tStart = 0;
 	XTime tEnd = 0;
 
@@ -579,6 +580,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			Xil_DCacheInvalidateRange(DRAM_BASE, 65536);
 
 //**************//Start timing here for tracking the latency //here is where we just finished the DMA transfer between the FPGA and the processor
+			XTime_GetTime(&tBegin);
 			XTime_GetTime(&tStart);
 
 			array_index = 0;
@@ -589,13 +591,28 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				dram_addr += 4;
 				array_index++;
 			}
+
+			XTime_GetTime(&tEnd);
+			printf("Read-in loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+//*************//Time just the read-in loop
+
+
+//*************//Time just the process data loop
+			XTime_GetTime(&tStart);
+
 			status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 			buff_num++;
 
+			XTime_GetTime(&tEnd);
+			printf("ProcessData loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+//*************//End of timing just the process data loop
 
-
-			if(buff_num == 3)
+			if(buff_num == 4)	//keep this to every 4th buffer, that's what it's set up for...
 			{
+
+//*************//Time the writing to SD card part of the loop
+				XTime_GetTime(&tStart);
+
 				buff_num = 0;
 
 #ifdef PRODUCE_RAW_DATA
@@ -738,16 +755,20 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 
 				ResetEVTsBuffer();
 				ResetEVTsIterator();
+
+				//****************//End timing of the loop here //we have finished processing and finished saving
+				XTime_GetTime(&tEnd);
+				printf("Write to SD loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
 			}
 			valid_data = 0;	//reset
 
-			//****************//End timing of the loop here //we have finished processing and finished saving
+//****************//End timing of the loop here //we have finished processing and finished saving
 			XTime_GetTime(&tEnd);
-			printf("Loop %d-%d took %.2f us\n", m_buffers_written, buff_num, 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+			printf("Loop %d-%d took %.2f us\n", m_buffers_written, buff_num, 1.0 * (tEnd - tBegin) / (COUNTS_PER_SECOND/1000000));
 		}//END OF IF VALID DATA
 
 		//check to see if it is time to report SOH information, 1 Hz
-		CheckForSOH(Iic, Uart_PS);
+//		CheckForSOH(Iic, Uart_PS);	//disable SOH during DAQ so that it is easier to parse the timing output here //12-17-2019
 
 		//check for timeout
 		XTime_GetTime(&m_run_current_time);

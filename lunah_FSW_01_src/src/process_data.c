@@ -270,6 +270,10 @@ int ProcessData( unsigned int * data_raw )
 				iter++;
 
 			break;
+		case 888888:
+			//what are we doing here?
+
+			break;
 		default:
 			//this indicates that we miscounted our place in the buffer somewhere
 			//or there is junk in the buffer in the middle of an event

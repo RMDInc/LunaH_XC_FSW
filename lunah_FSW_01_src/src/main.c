@@ -641,6 +641,8 @@ int main()
 			f_res = SDCountFilesOnCard( dir_sd_card_buffer );
 			if(f_res != FR_OK)
 				reportFailure(Uart_PS);
+			else
+				SDUpdateFileCounts();
 			//put the SD card number, most recent Real Time, Total Folders, and Total Files in the packet header
 			SDCreateDIRHeader(dir_packet_buffer, GetIntParam(1));
 			//transfer the names and sizes of the files on the SD card
