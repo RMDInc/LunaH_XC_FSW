@@ -181,7 +181,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	switch(check_temp_sensor){
 	case 0:	//analog board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
@@ -204,7 +204,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		break;
 	case 1:	//digital board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
@@ -226,7 +226,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		break;
 	case 2:	//module sensor
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
@@ -244,18 +244,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 				b = b / 16;
 			}
 			modu_board_temp = b;
-
-//			i2c_Send_Buffer[0] = 0x0;
-//			i2c_Send_Buffer[1] = 0x0;
-//			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-//			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//				b = (b - 8192) / 16;
-//			else
-//				b = b / 16;
-//			modu_board_temp = b;
 		}
 		break;
 	default:

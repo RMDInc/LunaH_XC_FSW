@@ -558,7 +558,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
 			buff_num++;
 
-			if(buff_num == 3)
+			if(buff_num == 4)
 			{
 				buff_num = 0;
 
@@ -576,7 +576,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 #endif
 
 				//check the file size and see if we need to change files
-				if(m_EVT_file.fsize >= SIZE_1_MIB)
+				if(m_EVT_file.fsize >= SIZE_10_MIB)
 				{
 					//prepare and write in footer for file here
 					file_footer_to_write.digiTemp = GetDigiTemp();
