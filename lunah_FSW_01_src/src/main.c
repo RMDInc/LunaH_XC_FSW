@@ -494,6 +494,7 @@ int main()
 					dram_addr = DRAM_BASE;
 					while(dram_addr < DRAM_CEILING)
 					{
+						//TODO: cast these 32-bit values as unsigned 16-bit values so we save space and packets, etc.
 						wf_data[array_index] = Xil_In32(dram_addr);
 						dram_addr += 4;
 						array_index++;
@@ -501,6 +502,7 @@ int main()
 
 					numWFs++;
 					//have the WF, save to file //WFData
+					//NOTE: the values from the DRAM are 16 bit numbers written into 32 bit fields - the LSBs are where the values are stored
 					f_res = f_write(&WFData, wf_data, DATA_BUFFER_SIZE * sizeof(unsigned int), &numBytesWritten);
 					if(f_res != FR_OK)
 						xil_printf("3 write fail WF\n");

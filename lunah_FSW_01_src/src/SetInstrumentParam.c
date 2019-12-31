@@ -414,9 +414,15 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 }
 
 /*
- * Set High Voltage  (note: connections to pot 2 and pot 3 are reversed - handled in the function)
+ * Set the High Voltage of the HV potentiometers on the analog board
+ *
+ * NOTE: connections to pot 1 and pot 2 are reversed - handled in the function
+ * 	What this means is that the address for PMT 1 and PMT 2 got swapped, so when
+ * 	we are trying to change the pot value for PMT 1, we need the address for PMT 2
+ * 	and the reverse for PMT 2.
  *
  * As of 7/25/2019 this swap is not going to be fixed for the Mini-NS code.
+ * 12-18-2019 - the swap is handled by this function, disregard that the two HV pot addresses are swapped.
  *
  * 		Syntax: SetHighVoltage(PMTID, Value)
  * 			PMTID = (Integer) PMT ID, 0 - 3, 4 to choose all tubes
@@ -473,6 +479,12 @@ int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
 				if(RetVal == XST_SUCCESS)
 				{
 					// write to config file
+					//swap the PMT ID back before setting in the configuration file
+					//this should completely obscure the fact that there is a swap happening
+					if(PmtId == 1)
+						PmtId = 2;
+					else if(PmtId == 2)
+						PmtId = 1;
 					ConfigBuff.HighVoltageValue[PmtId] = Value;
 					SaveConfig();
 					status = CMD_SUCCESS;
@@ -695,9 +707,9 @@ int ApplyDAQConfig( XIicPs * Iic )
 	if(status == CMD_SUCCESS)
 		status = SetHighVoltage(Iic, 0, ConfigBuff.HighVoltageValue[0]);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);	//note these are swapped on purpose
+		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[1]);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[2]);	//by changing 1 <-> 2 for the pmtid parameter when calling the function, they get swapped internally so the HV values match up
+		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[2]);
 	if(status == CMD_SUCCESS)
 		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts

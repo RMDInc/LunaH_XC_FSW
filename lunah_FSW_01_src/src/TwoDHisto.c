@@ -93,16 +93,18 @@ int Save2DHToSD( int pmt_ID )
 		xil_printf("4 lseek fail 2dh\n");
 		status = CMD_FAILURE;
 	}
-	f_res = f_write(&save2DH, m_2DH_holder, sizeof(unsigned short) * TWODH_X_BINS * TWODH_Y_BINS, &numBytesWritten);
-	if(f_res != FR_OK || numBytesWritten != (sizeof(unsigned short) * TWODH_X_BINS * TWODH_Y_BINS))
+	if(m_2DH_holder != NULL)
 	{
-		//TODO: handle error checking the write
-		xil_printf("2 error writing 2dh\n");
-		status = CMD_FAILURE;
+		f_res = f_write(&save2DH, m_2DH_holder, sizeof(unsigned short) * TWODH_X_BINS * TWODH_Y_BINS, &numBytesWritten);
+		if(f_res != FR_OK || numBytesWritten != (sizeof(unsigned short) * TWODH_X_BINS * TWODH_Y_BINS))
+		{
+			//TODO: handle error checking the write
+			xil_printf("2 error writing 2dh\n");
+			status = CMD_FAILURE;
+		}
+		else
+			status = CMD_SUCCESS;
 	}
-	else
-		status = CMD_SUCCESS;
-
 	//write the out of range values in
 	f_res = f_write(&save2DH, m_oor_values, sizeof(unsigned int) * 5, &numBytesWritten);
 	if(f_res != FR_OK || numBytesWritten != (sizeof(unsigned int) * 5))

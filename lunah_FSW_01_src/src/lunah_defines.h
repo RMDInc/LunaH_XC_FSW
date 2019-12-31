@@ -47,8 +47,8 @@
 #define CCSDS_HEADER_DATA	7		//without the sync marker, with the reset request byte
 #define CCSDS_HEADER_PRIM	10		//with the sync marker, without the reset request byte
 #define CCSDS_HEADER_FULL	11		//with the sync marker, with the reset request byte
-#define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes) //the smaller the data file, the more files we might be able to downlink
-#define SIZE_4_MIB			4194304	//4 MiB, rather than 4 MB (4e6 bytes) //this yields fewer files in each DAQ folder
+#define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes)
+#define SIZE_10_MIB			10485760	//10 MiB
 #define DP_HEADER_SIZE		16384	//we put blank space past the header so we always write on a cluster boundary
 #define XB1_SEND_WAIT		0.015	//15ms wait time; this accounts for the latency on the XB-1 side of communications
 

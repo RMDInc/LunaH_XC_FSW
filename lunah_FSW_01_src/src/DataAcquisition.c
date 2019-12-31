@@ -630,7 +630,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 #endif
 
 				//check the file size and see if we need to change files
-				if(m_EVT_file.fsize >= SIZE_1_MIB)
+				if(m_EVT_file.fsize >= SIZE_10_MIB)
 				{
 					//prepare and write in footer for file here
 					file_footer_to_write.digiTemp = GetDigiTemp();

@@ -214,7 +214,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 	switch(check_temp_sensor){
 	case 0:	//analog board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
@@ -236,7 +236,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 		break;
 	case 1:	//digital board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
@@ -258,7 +258,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 		break;
 	case 2:	//module sensor
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
