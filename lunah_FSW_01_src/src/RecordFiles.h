@@ -23,23 +23,6 @@
 
 #define DIR_PACKET_HEADER		17	//Number of bytes in the DIR packet header
 
-/*
- * This structure is a file record that the Mini-NS uses to keep track of the files
- *  in a folder. There will be one record for each file in a folder.
- *
- *  Current size: 24 bytes
- */
-typedef struct{
-	char filename[MAX_FILENAME_SIZE];
-	unsigned int total_file_size;
-	unsigned int bytes_transferred;
-	unsigned char file_deleted;
-	unsigned char file_flags;
-}TX_BYTES_FILE_TYPE;
-
-void sd_createTXBytesFile( void );
-void sd_updateFileRecords( char * filename, int transfer_byteVal );
-void sd_deleteFileRecord( char * filename );
 int sd_totalFoldersIncrement( void );
 int sd_totalFoldersDecrement( void );
 int SDGetTotalFolders( void );

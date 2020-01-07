@@ -122,6 +122,33 @@ int Save2DHToSD( int pmt_ID )
 }
 
 /*
+ * Retrieves and double checks the X array index for the current event being processed.
+ * This value will get reported by the EVTs data product.
+ *
+ * @param	None
+ *
+ * @return	(int) bin number to be stored in an EVTs event
+ */
+unsigned int Get_2DHXIndex( void )
+{
+	return m_x_bin_number;
+}
+
+/*
+ * Retrieves and double checks the X array index for the current event being processed.
+ * This value will get reported by the EVTs data product.
+ *
+ * @param	None
+ *
+ * @return	(int) bin number to be stored in an EVTs event
+ */
+unsigned int Get_2DHYIndex( void )
+{
+		return m_y_bin_number;
+}
+
+
+/*
  * Takes energy and PSD values from an event and tallies them into 2-D Histograms.
  * This function implements the elliptical neutron cuts to determine if an event
  * was good or not.
@@ -156,6 +183,8 @@ int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
 		m_y_bin_number &= 0x3F;	//move to 6 bits 10-11-2019
 	else
 		m_y_bin_number = 0x3F;
+
+	//TODO: Clean this up? Maybe doing this for each hit is too time expensive...
 
 	if(0 <= m_x_bin_number)
 	{

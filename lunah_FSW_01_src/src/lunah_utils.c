@@ -655,13 +655,24 @@ int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type,
 }
 
 /*
- * Delete a file on either SD card. This also calls sd_deleteFileRecord which marks the file as deleted on
- *  its metadata file. This means the file will still be listed when we transfer the directory log, but it
- *  will be listed as "deleted". This approach would allow us to view all the files that we ever created.
+ * Delete a file on either SD card.
  *
- *  @param
+ *  @param	(XUartPs) instance of the UART
+ *  @param	(char *) pointer to the receive buffer
+ *  @param	(int) the SD card number (0/1)
+ *  @param	(int) the file type that is going to be deleted
+ *  @param	(int) the ID number of the file to be deleted
+ *  @param	(int) the Run number of the file to be deleted
+ *  @param	(int) the Set number of the file to be deleted
  *
- *  @return
+ *  @return	(int) status of the delete function
+ *  			0 - success
+ *  			1 - trouble constructing the file name
+ *  			2 - file type is not recognized
+ *  			3 - folder name doesn't exist
+ *  			4 - denied access when trying to delete file
+ *  			5 - f_stat failed
+ *  			6 - f_unlink failed
  */
 int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file_type, int id_num, int run_num, int set_num )
 {
@@ -721,12 +732,6 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
 			if(bytes_written == 0)
 				status = 1;
 		}
-		else if(file_type == DATA_TYPE_WAV)
-		{
-			bytes_written = snprintf(file_TX_filename, 100, "wav_S%04d.bin", set_num);
-			if(bytes_written == 0)
-				status = 1;
-		}
 		else if(file_type == DATA_TYPE_CPS)
 		{
 			bytes_written = snprintf(file_TX_filename, 100, "cps.bin");
@@ -761,7 +766,7 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
 		{
 			//the file type was not recognized
 			//we should break out and not go further
-			status = 3;	//indicate that the file type is bad
+			status = 2;	//indicate that the file type is not recognized
 		}
 
 		ptr_file_TX_filename = file_TX_filename;
@@ -779,31 +784,25 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
 	if(f_res == FR_NO_FILE)
 	{
 		//couldn't find the folder
-		status = 1;	//folder DNE
+		status = 3;	//folder DNE
 	}
 	else if(f_res == FR_DENIED)
 	{
 		//the file/sub-directory must not be read-only
 		//the sub-directory must be empty and must not be the current directory
-		status = 2;
+		status = 4;
 	}
 	else if(f_res == FR_OK)
 	{
 		//if it does, call f_unlink to delete the file
 		f_res = f_unlink(file_TX_path);
 		if(f_res == FR_OK)
-		{
-			//if it is success, call sd_deleteFileRecord to mark the file as deleted
-			sd_deleteFileRecord(file_TX_path);
-		}
+			status = 0;	//all things are good
 		else
-		{
-			//TODO: error check the delete function
-			status = 3;
-		}
+			status = 6;//TODO: error check the delete function
 	}
 	else
-		status = 4;
+		status = 5;
 
 	return status;
 }
@@ -1184,18 +1183,18 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			bytes_to_read = file_TX_data_bytes_size;
 			file_TX_add_padding = 0;
 			if(file_TX_sequence_count == 0)
-				file_TX_group_flags = 1;	//first packet
+				file_TX_group_flags = GF_FIRST_PACKET;	//first packet // 1
 			else
-				file_TX_group_flags = 0;	//intermediate packet
+				file_TX_group_flags = GF_INTER_PACKET;	//intermediate packet // 0
 		}
 		else
 		{
 			bytes_to_read = file_TX_size;
 			file_TX_add_padding = 1;
 			if(file_TX_sequence_count == 0)
-				file_TX_group_flags = 3;	//unsegmented packet
+				file_TX_group_flags = GF_UNSEG_PACKET;	//unsegmented packet // 3
 			else
-				file_TX_group_flags = 2;	//last packet
+				file_TX_group_flags = GF_LAST_PACKET;	//last packet // 2
 		}
 
 		//need to generalize this for the CFG, LOG transfers, they don't have a data file header to read the APID from

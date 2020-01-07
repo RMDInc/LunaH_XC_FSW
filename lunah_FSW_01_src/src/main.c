@@ -38,12 +38,15 @@
  * Added a compiler option "m" to allow us to include math.h to be linked in so we
  *  may use the floor() function. If this can be worked around, I think we should. - GJS
  *
- * 05-24-2019
- * Stopped compiler optimization when creating the 'Release' versions of the program.
- * I believe that choosing -O0 (rather than -O2) has helped us to run through DAQ
- * and TX more smoothly. I don't know why the optimization is a problem, but we can
- * run better without it. Since we don't need to optimize anything to run on the
- * system, I won't use it. - GJS
+ * 1-7-2020
+ * We can use the compiler optimization, the issue turned out to be something else, see notes.
+ * Added "xilffs" library to be compiled in. This solves so many of the issues I had when
+ *  trying to build this project over the past couple of years.
+ * ASU - 921600 baud
+ * HSFL - 115200 baud
+ * Currently using 1 MiB stack & heap
+ * 15 ms "protection" period should be applied to all UART send commands so the XB-1 doesn't
+ *  get swamped when we are sending packets to it.
  *
  */
 
@@ -627,15 +630,18 @@ int main()
 			break;
 		case DEL_CMD:
 			//delete a file from the SD card
-
-			//xil_printf("received DEL command\r\n");
+			SetModeByte(MODE_TRANSFER);
+			status = DeleteFile(Uart_PS, RecvBuffer, GetIntParam(1), GetIntParam(2), GetIntParam(3), GetIntParam(4), GetIntParam(5));
+			if(status == 0)
+				reportSuccess(Uart_PS, 0);
+			else
+				reportFailure(Uart_PS);
+			SetModeByte(MODE_STANDBY);
 			break;
 		case DIR_CMD:
-			SetModeByte(MODE_TRANSFER);	//set the mode byte to standby
+			SetModeByte(MODE_TRANSFER);
 			SDInitDIR();
 			memset(dir_packet_buffer, 0, sizeof(unsigned char) * TELEMETRY_MAX_SIZE);
-			//prepare the packet buffer outside of the function:
-			PutCCSDSHeader(dir_packet_buffer, APID_DIR, GF_FIRST_PACKET, 0, PKT_SIZE_DIR);
 			bytes_written = snprintf(dir_sd_card_buffer, 10, "%d:", GetIntParam(1));
 			if(bytes_written == 0 || bytes_written != 2)
 				reportFailure(Uart_PS);
@@ -651,6 +657,7 @@ int main()
 			f_res = SDScanFilesOnCard(dir_sd_card_buffer, dir_packet_buffer, Uart_PS);	//we only want to read the entire Root directory for now
 			if(f_res != FR_OK)
 				reportFailure(Uart_PS);
+			SetModeByte(MODE_STANDBY);
 			break;
 		case TXLOG_CMD:
 			//transfer the system log file

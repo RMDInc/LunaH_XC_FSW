@@ -211,8 +211,8 @@ int ProcessData( unsigned int * data_raw )
 								//handle error in tallying the event into the 2DH
 								//TODO: identify what can go wrong and handle a bad tally
 							}
-							m_x_bin_number = Get2DHArrayIndexX();
-							m_y_bin_number = Get2DHArrayIndexY();
+							m_x_bin_number = Get_2DHXIndex();
+							m_y_bin_number = Get_2DHYIndex();
 							event_holder.field3 |= (unsigned char)(m_x_bin_number >> 1);
 							event_holder.field4 |= (unsigned char)((m_x_bin_number & 0x01) << 7);
 							event_holder.field4 |= (unsigned char)(m_y_bin_number << 1);

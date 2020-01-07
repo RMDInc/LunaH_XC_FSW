@@ -24,8 +24,7 @@ static FIL m_EVT_file;
 static FIL m_CPS_file;
 static FIL m_2DH_file;
 
-//Data buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
-static unsigned int data_array[DATA_BUFFER_SIZE * 4];
+
 
 static DATA_FILE_HEADER_TYPE file_header_to_write;	//320 bytes
 static DATA_FILE_SECONDARY_HEADER_TYPE file_secondary_header_to_write;	//16 bytes
@@ -490,6 +489,21 @@ void ClearBRAMBuffers( void )
 	Xil_Out32(XPAR_AXI_GPIO_9_BASEADDR,0);
 }
 
+void DAQReadDataIn( unsigned int *raw_array, int buffer_number )
+{
+	unsigned int dram_addr = DRAM_BASE;
+	int array_index = DATA_BUFFER_SIZE * buffer_number;
+
+	while(dram_addr < DRAM_CEILING)
+	{
+		raw_array[array_index] = Xil_In32(dram_addr);
+		dram_addr += 4;
+		array_index++;
+	}
+
+	return;
+}
+
 /* What it's all about.
  * The main event.
  * This is where we interact with the FPGA to receive data,
@@ -520,10 +534,11 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	int poll_val = 0;				//local polling status variable
 	int valid_data = 0;				//goes high/low if there is valid data within the FPGA buffers
 	int buff_num = 0;				//keep track of which buffer we are writing
+	int buff_offset = 0;			//keep track of the buffer offset
 	int m_buffers_written = 0;		//keep track of how many buffers are written, but not synced
-	int array_index = 0;			//the index of our array which will hold data
-	int dram_addr = 0;				//the address in the DRAM we are reading from
-	int dram_base = DRAM_BASE;		//where the buffer starts	//0x0A 00 00 00 = 167,772,160 //0x0A 00 40 00 = 167,788,544 - 167,788,544 = 16384
+//	int array_index = 0;			//the index of our array which will hold data
+//	int dram_addr = 0;				//the address in the DRAM we are reading from
+//	int dram_base = DRAM_BASE;		//where the buffer starts	//0x0A 00 00 00 = 167,772,160 //0x0A 00 40 00 = 167,788,544 - 167,788,544 = 16384
 	int m_run_time = time_out * 60;	//multiply minutes by 60 to get seconds
 	int m_write_header = 1;			//write a file header the first time we use a file
 	XTime m_run_start; 				//timing variable
@@ -533,11 +548,20 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	unsigned int bytes_written = 0;
 	FRESULT f_res = FR_OK;
 	GENERAL_EVENT_TYPE * evts_array = NULL;
+	//Data buffer which can hold 4096*4 integers, each buffer holds 512 8-integer events, x4 for four buffers
+	unsigned int data_array[DATA_BUFFER_SIZE * 4];
+	//if this doesn't work try allocating the array dynamically and try to see if the access time goes down
+//	buffers are 4096 ints long (512 events total)
+//	unsigned int *data_array;
+//	data_array = (unsigned int *)malloc(sizeof(unsigned int) * DATA_BUFFER_SIZE * 4);
+//	memset(data_array, '\0',  sizeof(unsigned int) * DATA_BUFFER_SIZE * 4);
+
+
 
 	//timing variables //delete when not timing
-	XTime tBegin = 0;
-	XTime tStart = 0;
-	XTime tEnd = 0;
+//	XTime tBegin = 0;
+//	XTime tStart = 0;
+//	XTime tEnd = 0;
 
 	memset(&m_write_blank_space_buff, 186, 16384);
 
@@ -551,12 +575,12 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 	FIL m_raw_data_file;
 	f_res = f_open(&m_raw_data_file, "raw_data.bin", FA_OPEN_ALWAYS|FA_READ|FA_WRITE);
 
-	f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
-	if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
-		status = CMD_FAILURE;
+//	f_res = f_write(&m_raw_data_file, &data_array, DATA_BUFFER_SIZE * 4 * 4, &bytes_written);
+//	if(f_res != FR_OK || bytes_written != DATA_BUFFER_SIZE * 4 * 4)
+//		status = CMD_FAILURE;
 
 	//record that we have created a new file
-	sd_totalFilesIncrement();
+//	sd_totalFilesIncrement();
 	//record the new file information in the tx_bytes file
 //	sd_updateFileRecords("raw_data.bin", file_size(&m_raw_data_file));
 #endif
@@ -566,6 +590,10 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		valid_data = Xil_In32 (XPAR_AXI_GPIO_11_BASEADDR);
 		if(valid_data == 1)
 		{
+//**************//Start timing here for tracking the latency
+//			XTime_GetTime(&tBegin);
+//			XTime_GetTime(&tStart);
+
 			//init/start MUX to transfer data between integrator modules and the DMA
 			Xil_Out32 (XPAR_AXI_GPIO_15_BASEADDR, 1);
 			Xil_Out32 (XPAR_AXI_DMA_0_BASEADDR + 0x48, DRAM_BASE);
@@ -579,39 +607,44 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 			ClearBRAMBuffers();
 			Xil_DCacheInvalidateRange(DRAM_BASE, 65536);
 
-//**************//Start timing here for tracking the latency //here is where we just finished the DMA transfer between the FPGA and the processor
-			XTime_GetTime(&tBegin);
-			XTime_GetTime(&tStart);
+//			XTime_GetTime(&tEnd);
+//			printf("DMA Transfer took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+//*************//Time just the read-in loop
 
-			array_index = 0;
-			dram_addr = dram_base;
-			while(dram_addr < DRAM_CEILING)
-			{
-				data_array[array_index + DATA_BUFFER_SIZE * buff_num] = Xil_In32(dram_addr);
-				dram_addr += 4;
-				array_index++;
-			}
+//			dram_addr = dram_base;
+//			array_index = DATA_BUFFER_SIZE * buff_num;
+//			while(dram_addr < DRAM_CEILING)
+//			{
+//				data_array[array_index] = Xil_In32(dram_addr);
+//				dram_addr += 4;
+//				array_index++;
+//			}
 
-			XTime_GetTime(&tEnd);
-			printf("Read-in loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+//**************//here is where we just finished the DMA transfer between the FPGA and the processor
+//			XTime_GetTime(&tStart);
+			DAQReadDataIn( data_array, buff_num);
+
+//			XTime_GetTime(&tEnd);
+//			printf("Read-in loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
 //*************//Time just the read-in loop
 
 
 //*************//Time just the process data loop
-			XTime_GetTime(&tStart);
+//			XTime_GetTime(&tStart);
 
-			status_SOH = ProcessData( &data_array[DATA_BUFFER_SIZE * buff_num] );
+			buff_offset = DATA_BUFFER_SIZE * buff_num;
+			status_SOH = ProcessData( &data_array[buff_offset] );
 			buff_num++;
 
-			XTime_GetTime(&tEnd);
-			printf("ProcessData loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+//			XTime_GetTime(&tEnd);
+//			printf("ProcessData loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
 //*************//End of timing just the process data loop
 
 			if(buff_num == 4)	//keep this to every 4th buffer, that's what it's set up for...
 			{
 
 //*************//Time the writing to SD card part of the loop
-				XTime_GetTime(&tStart);
+//				XTime_GetTime(&tStart);
 
 				buff_num = 0;
 
@@ -756,15 +789,15 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 				ResetEVTsBuffer();
 				ResetEVTsIterator();
 
-				//****************//End timing of the loop here //we have finished processing and finished saving
-				XTime_GetTime(&tEnd);
-				printf("Write to SD loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
+//****************//End timing of the loop here //we have finished processing and finished saving
+//				XTime_GetTime(&tEnd);
+//				printf("Write to SD loop took %.2f us\n", 1.0 * (tEnd - tStart) / (COUNTS_PER_SECOND/1000000));
 			}
 			valid_data = 0;	//reset
 
 //****************//End timing of the loop here //we have finished processing and finished saving
-			XTime_GetTime(&tEnd);
-			printf("Loop %d-%d took %.2f us\n", m_buffers_written, buff_num, 1.0 * (tEnd - tBegin) / (COUNTS_PER_SECOND/1000000));
+//			XTime_GetTime(&tEnd);
+//			printf("Loop %d-%d took %.2f us\n", m_buffers_written, buff_num, 1.0 * (tEnd - tBegin) / (COUNTS_PER_SECOND/1000000));
 		}//END OF IF VALID DATA
 
 		//check to see if it is time to report SOH information, 1 Hz
