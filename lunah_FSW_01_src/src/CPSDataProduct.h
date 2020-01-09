@@ -13,6 +13,7 @@
 #include "SetInstrumentParam.h"	//access to the neutron cuts
 
 #define CPS_EVENT_SIZE	14
+//#define CPS_EVENT_SIZE	40
 
 /*
  * This is the CPS event structure and has the follow data fields:
@@ -41,6 +42,32 @@ typedef struct {
 	unsigned char non_n_events_LSB;
 	unsigned char high_energy_events_MSB;
 	unsigned char high_energy_events_LSB;
+//	unsigned char n_ellipse1_MSB_1;
+//	unsigned char n_ellipse1_LSB_1;
+//	unsigned char n_ellipse2_MSB_1;
+//	unsigned char n_ellipse2_LSB_1;
+//	unsigned char non_n_events_MSB_1;
+//	unsigned char non_n_events_LSB_1;
+//	unsigned char high_energy_events_MSB_1;
+//	unsigned char high_energy_events_LSB_1;
+//	unsigned char n_ellipse1_MSB_2;
+//	unsigned char n_ellipse1_LSB_2;
+//	unsigned char n_ellipse2_MSB_2;
+//	unsigned char n_ellipse2_LSB_2;
+//	unsigned char non_n_events_MSB_2;
+//	unsigned char non_n_events_LSB_2;
+//	unsigned char high_energy_events_MSB_2;
+//	unsigned char high_energy_events_LSB_2;
+//	unsigned char n_ellipse1_MSB_3;
+//	unsigned char n_ellipse1_LSB_3;
+//	unsigned char n_ellipse2_MSB_3;
+//	unsigned char n_ellipse2_LSB_3;
+//	unsigned char non_n_events_MSB_3;
+//	unsigned char non_n_events_LSB_3;
+//	unsigned char high_energy_events_MSB_3;
+//	unsigned char high_energy_events_LSB_3;
+//	unsigned char dead_time_MSB;
+//	unsigned char dead_time_LSB;
 	unsigned char time_MSB;
 	unsigned char time_LSB1;
 	unsigned char time_LSB2;

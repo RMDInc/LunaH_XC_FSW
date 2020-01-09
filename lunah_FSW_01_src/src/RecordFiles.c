@@ -235,11 +235,11 @@ int SDPrepareDIRPacket( unsigned char *packet_buffer )
 	}
 
 	PutCCSDSHeader(packet_buffer, APID_DIR, dir_group_flags, dir_sequence_count, PKT_SIZE_DIR);
-	CalculateChecksums(packet_buffer);
 	if(CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter < PKT_SIZE_DIR)
 	{
 		memset(&(packet_buffer[CCSDS_HEADER_PRIM + PKT_HEADER_DIR + iter]), APID_DIR, DATA_BYTES_DIR - iter);
 	}
+	CalculateChecksums(packet_buffer);
 
 	return status;
 }

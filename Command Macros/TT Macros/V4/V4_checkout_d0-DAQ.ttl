@@ -1,0 +1,108 @@
+; don't show the macro window
+show -1
+;setecho 0
+; hide TT
+showtt 0
+
+;Modify the ID number and Run time for a DAQ Run
+detNum = "0"
+daqIDNum = "122"
+daqRunNum = "1"
+daqRunTime = "1"
+SDCardNum = "0"
+sprintf2 logfile 'C:\Users\gstoddard\Desktop\d%sdataDAQ_%s_%s.bin' detNum daqIDNum daqRunNum
+sprintf2 msgStr 'Detector %s' detNum
+sprintf2 readtemp 'MNS_READTEMP_%s' detNum
+sprintf2 getstat 'MNS_GETSTAT_%s' detNum
+sprintf2 trigger 'MNS_TRG_%s_11000' detNum
+sprintf2 integral 'MNS_INT_%s_-52_88_472_6000' detNum
+sprintf2 enable 'MNS_ENABLE_ACT_%s' detNum
+sprintf2 setHV0 'MNS_HV_%s_0_238' detNum
+sprintf2 setHV1 'MNS_HV_%s_1_245' detNum
+sprintf2 setHV2 'MNS_HV_%s_2_235' detNum
+sprintf2 setHV3 'MNS_HV_%s_3_220' detNum
+sprintf2 nrgcal 'MNS_ECAL_%s_1.0_0.0' detNum
+sprintf2 ngates0 'MNS_NGATES_%s_0_0_288450_384600_0.2_0.4' detNum
+sprintf2 ngates1 'MNS_NGATES_%s_0_0_269220_403830_0.16_0.44' detNum
+sprintf2 runDAQ 'MNS_DAQ_%s_%s' detNum daqIDNum
+sprintf2 runSTART 'MNS_START_%s_1234321_%s' detNum daqRunTime
+sprintf2 txCPS 'MNS_TX_%s_5_%s_%s_0_0' detNum daqIDNum daqRunNum
+sprintf2 txEVT 'MNS_TX_%s_7_%s_%s_0_0' detNum daqIDNum daqRunNum
+sprintf2 tx2DH 'MNS_TX_%s_13_%s_%s_0_0' detNum daqIDNum daqRunNum
+sprintf2 txDIR 'MNS_DIR_%s_%s' detNum SDCardNum
+
+flushrecv
+
+logopen logfile 1 0
+
+setdebug 3
+
+messagebox "Press OK to set system parameters." msgStr
+
+;Temperature and No-OP command
+sendln readtemp
+pause 2
+sendln getstat
+pause 2
+
+;put in the correct parameters for a collection
+sendln trigger
+pause 2
+sendln integral
+pause 2
+sendln enable
+pause 2
+sendln setHV0
+pause 2
+sendln setHV1
+pause 2
+sendln setHV2
+pause 2
+sendln setHV3
+pause 2
+sendln nrgcal
+pause 2
+sendln ngates0
+pause 2
+sendln ngates1
+pause 2
+
+messagebox "Press OK to move to Pre-Data Acquisition state." msgStr
+sendln runDAQ
+pause 1
+
+messagebox "Press OK to move to Start Data Acquisition." msgStr
+sendln runSTART
+pause 60
+
+messagebox "Wait to collect data, then press OK." msgStr
+
+messagebox "Press OK to transfer CPS file." msgStr
+pause 1
+sendln txCPS
+pause 1
+
+messagebox "Press OK to transfer EVT file." msgStr
+pause 1
+sendln txEVT
+pause 1
+
+messagebox "Press OK to transfer 2DH file for PMT 3." msgStr
+pause 1
+sendln tx2DH
+pause 1
+ 
+messagebox "Press OK when the transfer has finished." msgStr
+
+messagebox "Press OK to request directory output packets." msgStr
+pause 1
+sendln txDIR
+pause 1
+
+messagebox "Press OK to end the macro." msgStr
+
+setdebug 0
+logclose
+
+flushrecv
+end
