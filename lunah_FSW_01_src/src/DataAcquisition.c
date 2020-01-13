@@ -801,7 +801,7 @@ int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_
 		}//END OF IF VALID DATA
 
 		//check to see if it is time to report SOH information, 1 Hz
-//		CheckForSOH(Iic, Uart_PS);	//disable SOH during DAQ so that it is easier to parse the timing output here //12-17-2019
+		CheckForSOH(Iic, Uart_PS);	//disable SOH during DAQ so that it is easier to parse the timing output here //12-17-2019
 
 		//check for timeout
 		XTime_GetTime(&m_run_current_time);
