@@ -7,16 +7,22 @@
 
 #include "lunah_utils.h"
 
-static XTime t_elapsed;	//was LocalTime
+static XTime t_elapsed;			//was LocalTime
 static XTime t_next_interval;	//added to take the place of t_elapsed
-static XTime TempTime;	//unchanged
-static XTime t_start;	//was LocalTimeStart
-static XTime t_current;	//was LocalTimeCurrent
+static XTime TempTime;			//unchanged
+static XTime t_start;			//was LocalTimeStart
+static XTime t_current;			//was LocalTimeCurrent
+static XTime wait_start;		//timer for sending packets
+static XTime wait_timer;		//timer for sending packets
 
 static int analog_board_temp;
 static int digital_board_temp;
 static int modu_board_temp;
-static int iNeutronTotal;
+static int iNeutronTotal;		//total neutron counts across all PMTs
+static int iNeutronTotal_pmt0;
+static int iNeutronTotal_pmt1;
+static int iNeutronTotal_pmt2;
+static int iNeutronTotal_pmt3;
 static int check_temp_sensor;
 static unsigned char mode_byte;
 static int soh_id_number;
@@ -48,7 +54,7 @@ XTime GetTempTime(void)
 }
 
 /*
- *  Stub file to return neuron total.
+ *  Stub file to return neutron total.
  */
 int GetNeutronTotal(void)
 {
@@ -61,9 +67,36 @@ int PutNeutronTotal(int total)
 	return iNeutronTotal;
 }
 
-int IncNeutronTotal(int increment)
+/*
+ * Take in both the number of neutrons to increment by, as well as which PMT to assign the
+ *  counts to.
+ *
+ *  @param	(int)PMT to assign the counts to (1, 2, 4, 8)
+ *  @param	(int)number of counts to increment
+ */
+int IncNeutronTotal(int pmt_id, int increment)
 {
-    iNeutronTotal += increment;
+	switch(pmt_id)
+	{
+	case PMT_ID_0:
+		iNeutronTotal_pmt0 += increment;
+		break;
+	case PMT_ID_1:
+		iNeutronTotal_pmt1 += increment;
+		break;
+	case PMT_ID_2:
+		iNeutronTotal_pmt2 += increment;
+		break;
+	case PMT_ID_3:
+		iNeutronTotal_pmt3 += increment;
+		break;
+	}
+
+	//TODO: handle a bad PMT ID, they will certainly get passed in,
+	// but we don't want to include them in the individual module totals.
+	//I do not think that we need anything special to include it. Just increment the total, but not the individual hits.
+	iNeutronTotal += increment;
+
 	return iNeutronTotal;
 }
 /*
@@ -150,7 +183,7 @@ void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 		{
 			t_next_interval++;
 		}
-		report_SOH(Iic, t_elapsed, iNeutronTotal, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
+		report_SOH(Iic, t_elapsed, Uart_PS, GETSTAT_CMD);	//use GETSTAT_CMD for heartbeat
 	}
 	return;
 }
@@ -160,7 +193,7 @@ void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 //////////////////////////// Report SOH Function ////////////////////////////////
 //This function takes in the number of neutrons currently counted and the local time
 // and pushes the SOH data product to the bus over the UART
-int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type)
+int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 {
 	//Variables
 	unsigned char report_buff[100] = "";
@@ -181,7 +214,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	switch(check_temp_sensor){
 	case 0:	//analog board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
@@ -198,13 +231,12 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 			{
 				b = b / 16;
 			}
-//			b = 23;
 			analog_board_temp = b;
 		}
 		break;
 	case 1:	//digital board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
@@ -226,7 +258,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		break;
 	case 2:	//module sensor
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 2))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
@@ -244,18 +276,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 				b = b / 16;
 			}
 			modu_board_temp = b;
-
-//			i2c_Send_Buffer[0] = 0x0;
-//			i2c_Send_Buffer[1] = 0x0;
-//			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-//			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-//			a = i2c_Recv_Buffer[0]<< 5;
-//			b = a | i2c_Recv_Buffer[1] >> 3;
-//			if(i2c_Recv_Buffer[0] >= 128)
-//				b = (b - 8192) / 16;
-//			else
-//				b = b / 16;
-//			modu_board_temp = b;
 		}
 		break;
 	default:
@@ -263,10 +283,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 		break;
 	}
 
-	//to replace the printf statement, we need to sort the integer temps into the array so they have fixed widths
-	// and since we're already using a char array, we'll sort the ints into chars
-	//do this for anlg, digi, and modu, then take that out of the cases below
-	//will still need to do this in the getstat case b/c have to include the n total and time
 	report_buff[11] = (unsigned char)(analog_board_temp >> 24);
 	report_buff[12] = (unsigned char)(analog_board_temp >> 16);
 	report_buff[13] = (unsigned char)(analog_board_temp >> 8);
@@ -281,8 +297,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 	report_buff[22] = (unsigned char)(modu_board_temp >> 16);
 	report_buff[23] = (unsigned char)(modu_board_temp >> 8);
 	report_buff[24] = (unsigned char)(modu_board_temp);
-	report_buff[25] = TAB_CHAR_CODE;
-
+	report_buff[25] = NEWLINE_CHAR_CODE;
 
 	switch(packet_type)
 	{
@@ -297,29 +312,44 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
 			status = CMD_FAILURE;
 		break;
 	case GETSTAT_CMD:
-		report_buff[26] = (unsigned char)(i_neutron_total >> 24);
-		report_buff[27] = (unsigned char)(i_neutron_total >> 16);
-		report_buff[28] = (unsigned char)(i_neutron_total >> 8);
-		report_buff[29] = (unsigned char)(i_neutron_total);
+		report_buff[26] = (unsigned char)(iNeutronTotal_pmt0 >> 24);
+		report_buff[27] = (unsigned char)(iNeutronTotal_pmt0 >> 16);
+		report_buff[28] = (unsigned char)(iNeutronTotal_pmt0 >> 8);
+		report_buff[29] = (unsigned char)(iNeutronTotal_pmt0);
 		report_buff[30] = TAB_CHAR_CODE;
-		local_time_holder = (unsigned int)local_time;
-		report_buff[31] = (unsigned char)(local_time_holder >> 24);
-		report_buff[32] = (unsigned char)(local_time_holder >> 16);
-		report_buff[33] = (unsigned char)(local_time_holder >> 8);
-		report_buff[34] = (unsigned char)(local_time_holder);
+		report_buff[31] = (unsigned char)(iNeutronTotal_pmt1 >> 24);
+		report_buff[32] = (unsigned char)(iNeutronTotal_pmt1 >> 16);
+		report_buff[33] = (unsigned char)(iNeutronTotal_pmt1 >> 8);
+		report_buff[34] = (unsigned char)(iNeutronTotal_pmt1);
 		report_buff[35] = TAB_CHAR_CODE;
-		report_buff[36] = mode_byte;
-		report_buff[37] = NEWLINE_CHAR_CODE;
-		report_buff[38] = (unsigned char)(soh_id_number >> 24);
-		report_buff[39] = (unsigned char)(soh_id_number >> 16);
-		report_buff[40] = (unsigned char)(soh_id_number >> 8);
-		report_buff[41] = (unsigned char)(soh_id_number);
-		report_buff[42] = NEWLINE_CHAR_CODE;
-		report_buff[43] = (unsigned char)(soh_run_number >> 24);
-		report_buff[44] = (unsigned char)(soh_run_number >> 16);
-		report_buff[45] = (unsigned char)(soh_run_number >> 8);
-		report_buff[46] = (unsigned char)(soh_run_number);
-		report_buff[47] = NEWLINE_CHAR_CODE;
+		report_buff[36] = (unsigned char)(iNeutronTotal_pmt2 >> 24);
+		report_buff[37] = (unsigned char)(iNeutronTotal_pmt2 >> 16);
+		report_buff[38] = (unsigned char)(iNeutronTotal_pmt2 >> 8);
+		report_buff[39] = (unsigned char)(iNeutronTotal_pmt2);
+		report_buff[40] = TAB_CHAR_CODE;
+		report_buff[41] = (unsigned char)(iNeutronTotal_pmt3 >> 24);
+		report_buff[42] = (unsigned char)(iNeutronTotal_pmt3 >> 16);
+		report_buff[43] = (unsigned char)(iNeutronTotal_pmt3 >> 8);
+		report_buff[44] = (unsigned char)(iNeutronTotal_pmt3);
+		report_buff[45] = TAB_CHAR_CODE;
+		local_time_holder = (unsigned int)local_time;
+		report_buff[46] = (unsigned char)(local_time_holder >> 24);
+		report_buff[47] = (unsigned char)(local_time_holder >> 16);
+		report_buff[48] = (unsigned char)(local_time_holder >> 8);
+		report_buff[49] = (unsigned char)(local_time_holder);
+		report_buff[50] = TAB_CHAR_CODE;
+		report_buff[51] = mode_byte;
+		report_buff[52] = TAB_CHAR_CODE;
+		report_buff[53] = (unsigned char)(soh_id_number >> 24);
+		report_buff[54] = (unsigned char)(soh_id_number >> 16);
+		report_buff[55] = (unsigned char)(soh_id_number >> 8);
+		report_buff[56] = (unsigned char)(soh_id_number);
+		report_buff[57] = TAB_CHAR_CODE;
+		report_buff[58] = (unsigned char)(soh_run_number >> 24);
+		report_buff[59] = (unsigned char)(soh_run_number >> 16);
+		report_buff[60] = (unsigned char)(soh_run_number >> 8);
+		report_buff[61] = (unsigned char)(soh_run_number);
+		report_buff[62] = NEWLINE_CHAR_CODE;
 
 		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
@@ -349,9 +379,6 @@ int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart
  * 							plus the payload data bytes plus the checksums minus one.
  * 							Len = 1 + N + 4 - 1
  *
- * @return	CMD_SUCCESS or CMD_FAILURE depending on if we sent out
- * 			the correct number of bytes with the packet.
- *
  */
 void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, int sequence_count, int length)
 {
@@ -376,7 +403,7 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, 
 	case APID_SOH:
 		SOH_buff[5] = 0x22;	//APID for SOH
 		break;
-	case APID_LS_FILES:
+	case APID_DIR:
 		SOH_buff[5] = 0x33;	//APID for LS Files
 		break;
 	case APID_TEMP:
@@ -400,13 +427,13 @@ void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, 
 	case APID_CONFIG:
 		SOH_buff[5] = 0xAA;	//APID for Configuration
 		break;
+	case DATA_TYPE_2DH_1:
+		SOH_buff[5] = 0x88;	//APID for 2D Histogram
+		break;
 	case DATA_TYPE_2DH_2:
 		SOH_buff[5] = 0x88;	//APID for 2D Histogram
 		break;
 	case DATA_TYPE_2DH_3:
-		SOH_buff[5] = 0x88;	//APID for 2D Histogram
-		break;
-	case DATA_TYPE_2DH_4:
 		SOH_buff[5] = 0x88;	//APID for 2D Histogram
 		break;
 	default:
@@ -628,6 +655,159 @@ int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type,
 }
 
 /*
+ * Delete a file on either SD card.
+ *
+ *  @param	(XUartPs) instance of the UART
+ *  @param	(char *) pointer to the receive buffer
+ *  @param	(int) the SD card number (0/1)
+ *  @param	(int) the file type that is going to be deleted
+ *  @param	(int) the ID number of the file to be deleted
+ *  @param	(int) the Run number of the file to be deleted
+ *  @param	(int) the Set number of the file to be deleted
+ *
+ *  @return	(int) status of the delete function
+ *  			0 - success
+ *  			1 - trouble constructing the file name
+ *  			2 - file type is not recognized
+ *  			3 - folder name doesn't exist
+ *  			4 - denied access when trying to delete file
+ *  			5 - f_stat failed
+ *  			6 - f_unlink failed
+ */
+int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file_type, int id_num, int run_num, int set_num )
+{
+	int status = 0;
+	unsigned int bytes_written = 0;
+	char *ptr_file_TX_filename = NULL;
+	char file_TX_folder[100] = "";
+	char file_TX_filename[100] = "";
+	char file_TX_path[100] = "";
+	char WF_FILENAME[] = "wf01.bin";
+	char log_file[] = "MNSCMDLOG.txt";
+	char config_file[] = "MNSCONF.bin";
+	FILINFO fno;			//file info structure
+	//Initialize the FILINFO struct with something //If using LFN, then we need to init these values, otherwise we don't
+	TCHAR LFName[256];
+	fno.lfname = LFName;
+	fno.lfsize = sizeof(LFName);
+	FRESULT f_res = FR_OK;	//SD card status variable type
+
+	//put the file name back together
+	//find the folder/file that was requested
+	if(file_type == DATA_TYPE_LOG)
+	{
+		//just on the root directory
+		bytes_written = snprintf(file_TX_folder, 100, "0:");
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+			status = 1;
+		ptr_file_TX_filename = log_file;
+	}
+	else if(file_type == DATA_TYPE_CFG)
+	{
+		//just on the root directory
+		bytes_written = snprintf(file_TX_folder, 100, "0:");
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+			status = 1;
+		ptr_file_TX_filename = config_file;
+	}
+	else if(file_type == DATA_TYPE_WAV)
+	{
+		//construct the folder
+		bytes_written = snprintf(file_TX_folder, 100,  "0:/WF_I%d", id_num);
+		if(bytes_written == 0)
+			status = 1;
+		//construct the file name
+		ptr_file_TX_filename = WF_FILENAME;
+	}
+	else
+	{
+		//construct the folder
+		bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + DAQ_FOLDER_SIZE)
+			status = 1;
+		//construct the file name
+		if(file_type == DATA_TYPE_EVT)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "evt_S%04d.bin", set_num);
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_CPS)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "cps.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_0)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d0.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_1)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d1.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_2)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d2.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_3)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d3.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else
+		{
+			//the file type was not recognized
+			//we should break out and not go further
+			status = 2;	//indicate that the file type is not recognized
+		}
+
+		ptr_file_TX_filename = file_TX_filename;
+	}
+
+	//write the total file path
+	bytes_written = snprintf(file_TX_path, 100, "%s/%s", file_TX_folder, ptr_file_TX_filename);
+	if(bytes_written == 0)
+		status = 1;
+
+	//check to see if the file exists
+	//check that the folder/file we just wrote exists in the file system
+	//check first so that we don't just open a blank new file; there are no protections for that
+	f_res = f_stat(file_TX_path, &fno);
+	if(f_res == FR_NO_FILE)
+	{
+		//couldn't find the folder
+		status = 3;	//folder DNE
+	}
+	else if(f_res == FR_DENIED)
+	{
+		//the file/sub-directory must not be read-only
+		//the sub-directory must be empty and must not be the current directory
+		status = 4;
+	}
+	else if(f_res == FR_OK)
+	{
+		//if it does, call f_unlink to delete the file
+		f_res = f_unlink(file_TX_path);
+		if(f_res == FR_OK)
+			status = 0;	//all things are good
+		else
+			status = 6;//TODO: error check the delete function
+	}
+	else
+		status = 5;
+
+	return status;
+}
+
+/*
  * Transfers any one file that is on the SD card. Will return command FAILURE if the file does not exist.
  *
  * @param	(XUartPS)The instance of the UART so we can push packets to the bus
@@ -635,7 +815,7 @@ int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type,
  * @param	(int)file_type	The macro for the type of file to TX back, see lunah_defines.h for the codes
  * 							 There are 9 file types:
  * 							 DATA_TYPE_EVT, DATA_TYPE_CPS, DATA_TYPE_WAV,
- * 							 DATA_TYPE_2DH_1, DATA_TYPE_2DH_2, DATA_TYPE_2DH_3, DATA_TYPE_2DH_4,
+ * 							 DATA_TYPE_2DH_0, DATA_TYPE_2DH_1, DATA_TYPE_2DH_2, DATA_TYPE_2DH_3,
  * 							 DATA_TYPE_LOG, DATA_TYPE_CFG
  * @param 	(int)id_num 	The ID number for the folder the user wants to access
  * @param	(int)run_num	The Run number for the folder the user wants to access *
@@ -687,7 +867,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	char file_TX_folder[100] = "";
 	char file_TX_filename[100] = "";
 	char file_TX_path[100] = "";
-	unsigned char packet_array[2040] = "";
+	unsigned char packet_array[2040] = "";	//TODO: check if I can drop the 2040 -> TELEMETRY_MAX_SIZE (2038)
 	DATA_FILE_HEADER_TYPE data_file_header = {};
 	DATA_FILE_SECONDARY_HEADER_TYPE data_file_2ndy_header = {};
 	CONFIG_STRUCT_TYPE config_file_header = {};
@@ -699,9 +879,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	fno.lfname = LFName;
 	fno.lfsize = sizeof(LFName);
 	FRESULT f_res = FR_OK;	//SD card status variable type
-
-	XTime wait_start;
-	XTime wait_timer;
 
 	//find the folder/file that was requested
 	if(file_type == DATA_TYPE_LOG)
@@ -733,7 +910,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	{
 		//construct the folder
 		bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
-		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + FOLDER_NAME_SIZE)
+		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + DAQ_FOLDER_SIZE)
 			status = 1;
 		//construct the file name
 		if(file_type == DATA_TYPE_EVT)
@@ -750,31 +927,31 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		}
 		else if(file_type == DATA_TYPE_CPS)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "cps_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "cps.bin");
+			if(bytes_written == 0)
+				status = 1;
+		}
+		else if(file_type == DATA_TYPE_2DH_0)
+		{
+			bytes_written = snprintf(file_TX_filename, 100, "2d0.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_1)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d1_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d1.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_2)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d2_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d2.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
 		else if(file_type == DATA_TYPE_2DH_3)
 		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d3_S%04d.bin", set_num);
-			if(bytes_written == 0)
-				status = 1;
-		}
-		else if(file_type == DATA_TYPE_2DH_4)
-		{
-			bytes_written = snprintf(file_TX_filename, 100, "2d4_S%04d.bin", set_num);
+			bytes_written = snprintf(file_TX_filename, 100, "2d3.bin");
 			if(bytes_written == 0)
 				status = 1;
 		}
@@ -890,7 +1067,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 
 			file_TX_size -= sizeof(data_file_footer);
 		}
-		else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
+		else if(file_type == DATA_TYPE_2DH_0 || file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 )
 		{
 			f_res = f_lseek(&TXFile, file_size(&TXFile) - FILE_FOOT_2DH);
 			if(f_res != FR_OK)
@@ -919,16 +1096,16 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		f_holder = data_file_header.configBuff.ECalSlope;								memcpy(&(packet_array[11]), &f_holder, sizeof(float));
 		f_holder = data_file_header.configBuff.ECalIntercept;							memcpy(&(packet_array[15]), &f_holder, sizeof(float));
 		us_holder = (unsigned short)data_file_header.configBuff.TriggerThreshold;		memcpy(&(packet_array[19]), &us_holder, sizeof(us_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationBaseline;		memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationShort;		memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationLong;			memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
-		s_holder = (unsigned short)data_file_header.configBuff.IntegrationFull;			memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationBaseline;		memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationShort;		memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationLong;			memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationFull;			memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[0];	memcpy(&(packet_array[29]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[1];	memcpy(&(packet_array[31]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[2];	memcpy(&(packet_array[33]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[3];	memcpy(&(packet_array[35]), &us_holder, sizeof(us_holder));
-		us_holder = data_file_header.IDNum;												memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
-		us_holder = data_file_header.RunNum;											memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.IDNum;												memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.RunNum;											memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
 
 		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG && file_type != DATA_TYPE_WAV)
 		{
@@ -969,13 +1146,13 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_packet_header_size = PKT_HEADER_EVT;
 			file_TX_apid = 0x77;
 			break;
-		case DATA_TYPE_2DH_1:
+		case DATA_TYPE_2DH_0:
 			/* Falls through to case 2DH_2 */
-		case DATA_TYPE_2DH_2:
+		case DATA_TYPE_2DH_1:
 			/* Falls through to case 2DH_3 */
-		case DATA_TYPE_2DH_3:
+		case DATA_TYPE_2DH_2:
 			/* Falls through to case 2DH_4 */
-		case DATA_TYPE_2DH_4:
+		case DATA_TYPE_2DH_3:
 			file_TX_data_bytes_size = DATA_BYTES_2DH - 1;	//Subtract one byte, there is an additional field (PMT ID) added to the packet
 			file_TX_packet_size = PKT_SIZE_2DH;
 			file_TX_packet_header_size = PKT_HEADER_2DH;
@@ -1006,18 +1183,18 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			bytes_to_read = file_TX_data_bytes_size;
 			file_TX_add_padding = 0;
 			if(file_TX_sequence_count == 0)
-				file_TX_group_flags = 1;	//first packet
+				file_TX_group_flags = GF_FIRST_PACKET;	//first packet // 1
 			else
-				file_TX_group_flags = 0;	//intermediate packet
+				file_TX_group_flags = GF_INTER_PACKET;	//intermediate packet // 0
 		}
 		else
 		{
 			bytes_to_read = file_TX_size;
 			file_TX_add_padding = 1;
 			if(file_TX_sequence_count == 0)
-				file_TX_group_flags = 3;	//unsegmented packet
+				file_TX_group_flags = GF_UNSEG_PACKET;	//unsegmented packet // 3
 			else
-				file_TX_group_flags = 2;	//last packet
+				file_TX_group_flags = GF_LAST_PACKET;	//last packet // 2
 		}
 
 		//need to generalize this for the CFG, LOG transfers, they don't have a data file header to read the APID from
@@ -1037,13 +1214,13 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		}
 
 		//for 2DH packets, add the PMT ID to the end of the data bytes //currently at 10+39+1984 = 2033 //10-4-2019
-		if(file_type == DATA_TYPE_2DH_1)
+		if(file_type == DATA_TYPE_2DH_0)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x01;
-		else if(file_type == DATA_TYPE_2DH_2)
+		else if(file_type == DATA_TYPE_2DH_1)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x02;
-		else if(file_type == DATA_TYPE_2DH_3)
+		else if(file_type == DATA_TYPE_2DH_2)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x04;
-		else if(file_type == DATA_TYPE_2DH_4)
+		else if(file_type == DATA_TYPE_2DH_3)
 			packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size + file_TX_data_bytes_size] = 0x08;
 
 		//calculate the checksums for the packet
@@ -1088,7 +1265,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			memset(&(packet_array[10]), '\0', 1);	//reset secondary header (reset request bits)
 			if(file_type == DATA_TYPE_EVT || file_type == DATA_TYPE_WAV || file_type == DATA_TYPE_CPS)
 				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
-			else if(file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 || file_type == DATA_TYPE_2DH_4 )
+			else if(file_type == DATA_TYPE_2DH_0 || file_type == DATA_TYPE_2DH_1 || file_type == DATA_TYPE_2DH_2 || file_type == DATA_TYPE_2DH_3 )
 				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM - file_TX_packet_header_size);
 			else if(file_type == DATA_TYPE_LOG)
 				memset(&(packet_array[CCSDS_HEADER_PRIM + file_TX_packet_header_size]), '\0', file_TX_packet_size - CCSDS_HEADER_PRIM);	//modify this for CFG, LOG
@@ -1123,6 +1300,49 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	}//END OF WHILE(m_loop_var == 1)
 
 	f_close(&TXFile);
+
+	return status;
+}
+
+/*
+ * Function to send a packet of data out across the RS-422
+ * Pass in the variables that we need, the UART handle, the packet to send, the number of bytes
+ * Pass in the total number of bytes to send. This function does no math on the bytes_to_send variable
+ *  that is passed in, so as to remain transparent about what is being done.
+ *
+ * @param	(XUartPS)	The instance of the UART so we can push packets to the bus
+ * @param	(unsigned char *)	pointer to the packet buffer
+ * @param	(int)		total bytes in the packet (should be the same for packets of the same type)
+ *
+ * @return	(int)
+ */
+int SendPacket( XUartPs Uart_PS, unsigned char *packet_buffer, int bytes_to_send )
+{
+	int status = 0;
+	int sent = 0;
+	int bytes_sent = 0;
+
+	//send the packet
+	while(sent < bytes_to_send)
+	{
+		bytes_sent = XUartPs_Send(&Uart_PS, &(packet_buffer[sent]), bytes_to_send - sent);
+		sent += bytes_sent;
+	}
+
+	while(XUartPs_IsSending(&Uart_PS))
+	{
+		//wait here
+	}
+
+	//add in a "wait time" where we allow the XB-1 flight computer enough time to have completely emptied
+	// its receive buffer so that we don't overwrite anything
+	XTime_GetTime(&wait_start);
+	while(1)
+	{
+		XTime_GetTime(&wait_timer);
+		if((float)(wait_timer - wait_start)/COUNTS_PER_SECOND >= 0.015)
+			break;
+	}
 
 	return status;
 }

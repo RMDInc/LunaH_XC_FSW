@@ -18,7 +18,6 @@
 #include "xscugic.h"
 #include "lunah_defines.h"
 #include "sleep.h"
-//TODO: Get the nanosleep function for Meg
 #include "process_data.h"
 #include "lunah_utils.h"
 #include "SetInstrumentParam.h"
@@ -42,6 +41,7 @@ FIL *GetCPSFilePointer( void );
 FIL *Get2DHFilePointer( void );
 int WriteRealTime( unsigned long long int real_time );
 void ClearBRAMBuffers( void );
+void DAQReadDataIn( unsigned int *raw_array, int buffer_number );
 int DataAcquisition( XIicPs * Iic, XUartPs Uart_PS, char * RecvBuffer, int time_out );
 
 #endif /* SRC_DATAACQUISITION_H_ */

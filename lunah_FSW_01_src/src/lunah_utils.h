@@ -18,7 +18,7 @@
 
 #define TAB_CHAR_CODE			9
 #define NEWLINE_CHAR_CODE		10
-#define SOH_PACKET_LENGTH		41
+#define SOH_PACKET_LENGTH		56	//added 15 bytes when we split the neutron counts into 4 fields
 #define TEMP_PACKET_LENGTH		19
 
 // prototypes
@@ -27,7 +27,7 @@ XTime GetLocalTime( void );
 XTime GetTempTime(void);
 int GetNeutronTotal( void );
 int PutNeutronTotal(int total);
-int IncNeutronTotal(int increment);
+int IncNeutronTotal(int pmt_id, int increment);
 int GetDigiTemp( void );
 int GetAnlgTemp( void );
 int GetModuTemp( void );
@@ -37,12 +37,14 @@ void SetRunNumber( int run_number );
 int GetIDNumber( void );
 int GetRunNumber( void );
 void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS);
-int report_SOH(XIicPs * Iic, XTime local_time, int i_neutron_total, XUartPs Uart_PS, int packet_type);
+int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type);
 void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, int sequence_count, int length);
 int reportSuccess(XUartPs Uart_PS, int report_filename);
 int reportFailure(XUartPs Uart_PS);
 void CalculateChecksums(unsigned char * packet_array);
 int CalculateDataFileChecksum(XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num, int set_num);
+int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file_type, int id_num, int run_num, int set_num );
 int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_num, int run_num,  int set_num );
+int SendPacket( XUartPs Uart_PS, unsigned char *packet_buffer, int bytes_to_send );
 
 #endif /* SRC_LUNAH_UTILS_H_ */

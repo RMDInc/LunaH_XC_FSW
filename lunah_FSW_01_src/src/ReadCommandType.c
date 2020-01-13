@@ -279,26 +279,20 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "DEL"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%s", &detectorVal, m_filename_buff);
-
-					if(ret != 2)
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal, &fourthVal, &fifthVal);
+					if(ret != 6)
 						commandNum = -1;
 					else
 						commandNum = DEL_CMD;
 				}
-				else if(!strcmp(commandBuffer, "LS"))
+				else if(!strcmp(commandBuffer, "DIR"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %s_%d", commandBuffer2, &detectorVal);
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d", &detectorVal, &firstVal);
 
 					if(ret != 2)
 						commandNum = -1;
 					else
-					{
-						if(!strcmp(commandBuffer2, "FILES"))
-							commandNum = LS_CMD;
-						else
-							commandNum = -1;
-					}
+						commandNum = DIR_CMD;
 				}
 				else if(!strcmp(commandBuffer, "TXLOG"))
 				{

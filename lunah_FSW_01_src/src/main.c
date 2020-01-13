@@ -38,12 +38,15 @@
  * Added a compiler option "m" to allow us to include math.h to be linked in so we
  *  may use the floor() function. If this can be worked around, I think we should. - GJS
  *
- * 05-24-2019
- * Stopped compiler optimization when creating the 'Release' versions of the program.
- * I believe that choosing -O0 (rather than -O2) has helped us to run through DAQ
- * and TX more smoothly. I don't know why the optimization is a problem, but we can
- * run better without it. Since we don't need to optimize anything to run on the
- * system, I won't use it. - GJS
+ * 1-7-2020
+ * We can use the compiler optimization, the issue turned out to be something else, see notes.
+ * Added "xilffs" library to be compiled in. This solves so many of the issues I had when
+ *  trying to build this project over the past couple of years.
+ * ASU - 921600 baud
+ * HSFL - 115200 baud
+ * Currently using 1 MiB stack & heap
+ * 15 ms "protection" period should be applied to all UART send commands so the XB-1 doesn't
+ *  get swamped when we are sending packets to it.
  *
  */
 
@@ -211,6 +214,10 @@ int main()
 	TCHAR LFName[256];
 	fno.lfname = LFName;
 	fno.lfsize = sizeof(LFName);
+	//packet buffer for DIR function
+	char dir_sd_card_buffer[10] = "";
+	unsigned char dir_packet_buffer[TELEMETRY_MAX_SIZE] = "";
+	int bytes_written = 0;
 
 	// ******************* APPLICATION LOOP *******************//
 
@@ -321,7 +328,7 @@ int main()
 						break;
 					case READ_TMP_CMD:
 						done = 0;
-						status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+						status = report_SOH(&Iic, GetLocalTime(), Uart_PS, READ_TMP_CMD);
 						if(status == CMD_FAILURE)
 							reportFailure(Uart_PS);
 						break;
@@ -330,6 +337,7 @@ int main()
 						reportSuccess(Uart_PS, 0);
 						break;
 					case START_CMD:
+						SetRealTime(GetRealTimeParam());
 						status = DataAcquisition(&Iic, Uart_PS, RecvBuffer, GetIntParam(1));
 						//we will return in three ways:
 						// BREAK (0)	= failure
@@ -406,7 +414,7 @@ int main()
 			wf_id_number = GetIntParam(3);
 			while(1)
 			{
-				numBytesWritten = snprintf(wf_run_folder, 100, "0:/WF_I%d", wf_id_number);
+				numBytesWritten = snprintf(wf_run_folder, 100, "0:/WF_I%04d", wf_id_number);
 				if(numBytesWritten == 0)
 					status = CMD_FAILURE;
 				f_res = f_stat(wf_run_folder, &fno);
@@ -489,6 +497,7 @@ int main()
 					dram_addr = DRAM_BASE;
 					while(dram_addr < DRAM_CEILING)
 					{
+						//TODO: cast these 32-bit values as unsigned 16-bit values so we save space and packets, etc.
 						wf_data[array_index] = Xil_In32(dram_addr);
 						dram_addr += 4;
 						array_index++;
@@ -496,6 +505,7 @@ int main()
 
 					numWFs++;
 					//have the WF, save to file //WFData
+					//NOTE: the values from the DRAM are 16 bit numbers written into 32 bit fields - the LSBs are where the values are stored
 					f_res = f_write(&WFData, wf_data, DATA_BUFFER_SIZE * sizeof(unsigned int), &numBytesWritten);
 					if(f_res != FR_OK)
 						xil_printf("3 write fail WF\n");
@@ -547,13 +557,13 @@ int main()
 			break;
 		case READ_TMP_CMD:
 			//tell the report_SOH function that we want a temp packet
-			status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, READ_TMP_CMD);
+			status = report_SOH(&Iic, GetLocalTime(), Uart_PS, READ_TMP_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
 		case GETSTAT_CMD: //Push an SOH packet to the bus
 			//instead of checking for SOH, just push one SOH packet out because it was requested
-			status = report_SOH(&Iic, GetLocalTime(), GetNeutronTotal(), Uart_PS, GETSTAT_CMD);
+			status = report_SOH(&Iic, GetLocalTime(), Uart_PS, GETSTAT_CMD);
 			if(status == CMD_FAILURE)
 				reportFailure(Uart_PS);
 			break;
@@ -585,6 +595,9 @@ int main()
 			case DATA_TYPE_CPS:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_CPS, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for CPS
 				break;
+			case DATA_TYPE_2DH_0:
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_0, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
+				break;
 			case DATA_TYPE_2DH_1:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_1, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
 				break;
@@ -593,9 +606,6 @@ int main()
 				break;
 			case DATA_TYPE_2DH_3:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_3, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
-				break;
-			case DATA_TYPE_2DH_4:
-				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_2DH_4, GetIntParam(2), GetIntParam(3), 0);	//set number always 0 for 2DH
 				break;
 			case DATA_TYPE_LOG:
 				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_LOG, 0, 0, 0);
@@ -614,22 +624,40 @@ int main()
 			{
 				//wait here
 			}
-//			while(XUartPs_IsTransmitEmpty(&Uart_PS))
-//			{
-//				//wait until we are done sending the TX FIFO
-//			}
 
-			if(status != 0)					//TEST
-				reportFailure(Uart_PS);		//TEST
+			if(status != 0)
+				reportFailure(Uart_PS);
 			break;
 		case DEL_CMD:
 			//delete a file from the SD card
-
-			//xil_printf("received DEL command\r\n");
+			SetModeByte(MODE_TRANSFER);
+			status = DeleteFile(Uart_PS, RecvBuffer, GetIntParam(1), GetIntParam(2), GetIntParam(3), GetIntParam(4), GetIntParam(5));
+			if(status == 0)
+				reportSuccess(Uart_PS, 0);
+			else
+				reportFailure(Uart_PS);
+			SetModeByte(MODE_STANDBY);
 			break;
-		case LS_CMD:
+		case DIR_CMD:
+			SetModeByte(MODE_TRANSFER);
+			SDInitDIR();
+			memset(dir_packet_buffer, 0, sizeof(unsigned char) * TELEMETRY_MAX_SIZE);
+			bytes_written = snprintf(dir_sd_card_buffer, 10, "%d:", GetIntParam(1));
+			if(bytes_written == 0 || bytes_written != 2)
+				reportFailure(Uart_PS);
+			//count the number of files/folders on the SD card
+			f_res = SDCountFilesOnCard( dir_sd_card_buffer );
+			if(f_res != FR_OK)
+				reportFailure(Uart_PS);
+			else
+				SDUpdateFileCounts();
+			//put the SD card number, most recent Real Time, Total Folders, and Total Files in the packet header
+			SDCreateDIRHeader(dir_packet_buffer, GetIntParam(1));
 			//transfer the names and sizes of the files on the SD card
-			//xil_printf("received LS_FILES command\r\n");
+			f_res = SDScanFilesOnCard(dir_sd_card_buffer, dir_packet_buffer, Uart_PS);	//we only want to read the entire Root directory for now
+			if(f_res != FR_OK)
+				reportFailure(Uart_PS);
+			SetModeByte(MODE_STANDBY);
 			break;
 		case TXLOG_CMD:
 			//transfer the system log file

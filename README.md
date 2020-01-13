@@ -114,3 +114,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 6.42 The Command macros folder has been updated with the command macros and processing programs for analyzing the data files for V4 of the FSW.
 
 - Version 6.5 Added in a 15 millisecond wait time after each UART send only when transferring files with the MNS_TX command. Updated some of the documentation files for the project to their most recent versions.
+
+- Version 7.0 Implemented the DIR function, which returns packets that contain the file and folder contents of one of the system's SD cards. Timing code was introduced for measuring the latency associated with data acquisition; it is now all commented. A bug with the HV command has been fixed. 

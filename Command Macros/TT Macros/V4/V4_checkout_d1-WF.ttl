@@ -1,0 +1,88 @@
+; don't show the macro window
+show -1
+;setecho 0
+; hide TT
+showtt 0
+
+;Modify the ID number and Loop number for a WF Run
+detNum = "1"
+wfIDNum = "3"
+wfRunNum = "1"
+wfLoopNum = "10"
+SDCardNum = "0"
+sprintf2 logfile 'C:\Users\gstoddard\Desktop\d%sdataWF_%s_%s.bin' detNum wfIDNum wfRunNum
+sprintf2 msgStr 'Detector %s' detNum
+sprintf2 readtemp 'MNS_READTEMP_%s' detNum
+sprintf2 getstat 'MNS_GETSTAT_%s' detNum
+sprintf2 trigger 'MNS_TRG_%s_11000' detNum
+sprintf2 integral 'MNS_INT_%s_-52_88_472_6000' detNum
+sprintf2 enable 'MNS_ENABLE_ACT_%s' detNum
+sprintf2 setHV0 'MNS_HV_%s_0_238' detNum
+sprintf2 setHV1 'MNS_HV_%s_1_245' detNum
+sprintf2 setHV2 'MNS_HV_%s_2_235' detNum
+sprintf2 setHV3 'MNS_HV_%s_3_220' detNum
+sprintf2 nrgcal 'MNS_ECAL_%s_1.0_0.0' detNum
+sprintf2 ngates0 'MNS_NGATES_%s_0_0_288450_384600_0.2_0.4' detNum
+sprintf2 ngates1 'MNS_NGATES_%s_0_0_269220_403830_0.16_0.44' detNum
+sprintf2 runWF 'MNS_WF_%s_0_%s_%s' detNum wfLoopNum wfIDNum
+sprintf2 txWF0 'MNS_TX_%s_6_%s_%s_0_0' detNum wfIDNum wfRunNum
+sprintf2 txDIR 'MNS_DIR_%s_%s' detNum SDCardNum
+
+flushrecv
+
+logopen logfile 1 0
+
+setdebug 3
+
+messagebox "Press OK to set system parameters." msgStr
+
+;Temperature and No-OP command 
+sendln readtemp
+pause 2
+sendln getstat
+pause 2
+
+;put in the correct parameters for a collection
+sendln trigger
+pause 2
+sendln integral
+pause 2
+sendln enable
+pause 2
+sendln setHV0
+pause 2
+sendln setHV1
+pause 2
+sendln setHV2
+pause 2
+sendln setHV3
+pause 2
+sendln nrgcal
+pause 2
+sendln ngates0
+pause 2
+sendln ngates1
+pause 2
+messagebox "Press OK to Move to Collect Waveforms." msgStr
+sendln runWF
+pause 2
+
+messagebox "Press OK to transfer WF file for the test." msgStr
+pause 1
+sendln txWF0
+pause 1
+
+messagebox "Press OK when the transfer has finished." msgStr
+
+messagebox "Press OK to request directory output packets." msgStr
+pause 1
+sendln txDIR
+pause 1
+
+messagebox "Press OK to end the macro." msgStr
+
+setdebug 0
+logclose
+
+flushrecv
+end

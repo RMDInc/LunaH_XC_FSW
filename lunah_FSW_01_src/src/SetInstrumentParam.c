@@ -77,7 +77,10 @@ void CreateDefaultConfig( void )
 		.Off_PSD[4] = 0.0,
 		.Off_PSD[5] = 0.0,
 		.Off_PSD[6] = 0.0,
-		.Off_PSD[7] = 0.0
+		.Off_PSD[7] = 0.0,
+		.TotalFiles = 0,
+		.TotalFolders =	0,
+		.MostRecentRealTime = 0
 	};
 
 	return;
@@ -142,7 +145,6 @@ int InitConfig( void )
 	uint NumBytesRd;
 	FRESULT fres = FR_OK;
 	FIL ConfigFile;
-	int RetVal = 0;
 	int ConfigSize = sizeof(ConfigBuff);
 
 	// check if the config file exists
@@ -153,6 +155,10 @@ int InitConfig( void )
 		if(fres == FR_OK)
 			fres = f_read(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesRd);
 		f_close(&ConfigFile);
+
+		//set the values for the number of files/folders on the SD cards
+		SDSetTotalFiles( ConfigBuff.TotalFiles );
+		SDSetTotalFolders( ConfigBuff.TotalFolders );
 	}
 	else if(fres == FR_NO_FILE)// The config file does not exist, create it
 	{
@@ -161,6 +167,8 @@ int InitConfig( void )
 		if(fres == FR_OK)
 			fres = f_write(&ConfigFile, &ConfigBuff, ConfigSize, &NumBytesWr);
 		f_close(&ConfigFile);
+		//call the function to scan the SD card and count the files/folder and document each folder
+		//TODO: build this function into RecordFiles.c
 	}
 	else
 	{
@@ -168,8 +176,7 @@ int InitConfig( void )
 
 	}
 
-	RetVal = (int)fres;
-	return RetVal;
+	return (int)fres;
 }
 
 /* This function will save the current system configuration to the configuration file, if it exists.
@@ -407,9 +414,15 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float scaleE, float scaleP,
 }
 
 /*
- * Set High Voltage  (note: connections to pot 2 and pot 3 are reversed - handled in the function)
+ * Set the High Voltage of the HV potentiometers on the analog board
+ *
+ * NOTE: connections to pot 1 and pot 2 are reversed - handled in the function
+ * 	What this means is that the address for PMT 1 and PMT 2 got swapped, so when
+ * 	we are trying to change the pot value for PMT 1, we need the address for PMT 2
+ * 	and the reverse for PMT 2.
  *
  * As of 7/25/2019 this swap is not going to be fixed for the Mini-NS code.
+ * 12-18-2019 - the swap is handled by this function, disregard that the two HV pot addresses are swapped.
  *
  * 		Syntax: SetHighVoltage(PMTID, Value)
  * 			PMTID = (Integer) PMT ID, 0 - 3, 4 to choose all tubes
@@ -428,14 +441,25 @@ int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
 	int status = 0;
 	int iterator = 0;
 
+	//TODO: have the system check whether or not it is enabled
+	// is this a system parameter that we should set in the configuration buffer?
+	// or is this something that should just be a global parameter we can reference?
+
+	//TODO: error checking for this function includes making sure that we keep track of the HV value that was requested
+	// even if it doesn't get set. The value can be rejected if the system/analog board is not enabled because
+	// the I2C will not respond and we'll get RetVal != XST_SUCCESS and the HV value will not be saved in the config file
+
 	// Fix swap of pot 2 and 3 connections if PmtId == 1 make it 2 and if PmtId == 2 make it 1
-	if(PmtId == 1)
+	switch(PmtId)
 	{
+	case 1:
 		PmtId = 2;
-	}
-	else if(PmtId == 2)
-	{
+		break;
+	case 2:
 		PmtId = 1;
+		break;
+	default:
+		break;
 	}
 
 	//check the PMT ID is ok
@@ -455,6 +479,12 @@ int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int Value)
 				if(RetVal == XST_SUCCESS)
 				{
 					// write to config file
+					//swap the PMT ID back before setting in the configuration file
+					//this should completely obscure the fact that there is a swap happening
+					if(PmtId == 1)
+						PmtId = 2;
+					else if(PmtId == 2)
+						PmtId = 1;
 					ConfigBuff.HighVoltageValue[PmtId] = Value;
 					SaveConfig();
 					status = CMD_SUCCESS;
@@ -569,7 +599,102 @@ int SetIntegrationTime(int Baseline, int Short, int Long, int Full)
 	return status;
 }
 
+/*
+ * Helper functions to get and set the total number of files and folders on the SD card.
+ */
+void SetSDTotalFiles( int total_files )
+{
+	ConfigBuff.TotalFiles = total_files;
+	return;
+}
 
+int GetSDTotalFiles( void )
+{
+	return ConfigBuff.TotalFiles;
+}
+
+void SetSDTotalFolders( int total_folders )
+{
+	ConfigBuff.TotalFolders = total_folders;
+	return;
+}
+
+int GetSDTotalFolders( void )
+{
+	return ConfigBuff.TotalFolders;
+}
+/*
+ * Record the state of the SD card. This function gets the values of the total number of files and folders
+ *  which are recorded by the RecordFiles module.
+ *
+ * @param	none
+ *
+ * @return
+ */
+int RecordSDState( void )
+{
+	int status = 0;
+
+	//get the values from the RecordFiles module
+	ConfigBuff.TotalFiles = SDGetTotalFiles();
+	ConfigBuff.TotalFolders = SDGetTotalFolders();
+	status = SaveConfig();
+	if(status == FR_OK)
+		status = CMD_SUCCESS;
+	else
+		status = CMD_FAILURE;
+
+	return status;
+}
+
+/*
+ * Keep track of the most recently input Real Time from the spacecraft.
+ * The Real Time is a 32-bit unsigned integer type which represents a time value and will be used
+ *  to track when operations happened on the Mini-NS, as well as time tagging when the system state
+ *  is reported either with DIR, LOG, or CFG.
+ *
+ * @param	(unsigned int)the Real Time from the spacecraft
+ *
+ * @return	(int)status variable, success/failure
+ */
+int SetRealTime( unsigned int real_time )
+{
+	int status = 0;
+
+	if(real_time < ConfigBuff.MostRecentRealTime)
+		status = 1;
+
+	ConfigBuff.MostRecentRealTime = real_time;
+
+	return status;
+}
+
+/*
+ * Helper function to allow for retrieving the most Recent Real Time.
+ * As long as we are setting this whenever we get it, this doesn't have to be labeled as "Most Recent"
+ *
+ * @param	none
+ *
+ * @return	(unsigned int)the value of the most recent Real Time recorded in the configuration file
+ */
+unsigned int GetRealTime( void )
+{
+	return ConfigBuff.MostRecentRealTime;
+}
+
+/*
+ * Applies all the settings which are currently recorded in the configuration file. This goes one-by-one
+ *  through all the different parameters that can be set and makes sure they get updated.
+ * NOTE: Make sure to call MNS_ENABLE_ACT before this to enable power to the analog board. Otherwise, the
+ *  High Voltage values will not be set on the pots.
+ * NOTE: If any of the sub-functions called here fail, then the rest of the function calls will fail, which
+ *  will result in those parameters not being update/set in the system. This function needs to be error checked
+ *  better, perhaps, to try and prevent/recover that situation.
+ *
+ *  @param	(XIicPs *)pointer to the I2C instance which lets us talk to the HV pots
+ *
+ *  @return	(int)status variable, success/failure
+ */
 int ApplyDAQConfig( XIicPs * Iic )
 {
 	int status = CMD_SUCCESS;
@@ -580,13 +705,13 @@ int ApplyDAQConfig( XIicPs * Iic )
 	if(status == CMD_SUCCESS)
 		status = SetIntegrationTime(ConfigBuff.IntegrationBaseline, ConfigBuff.IntegrationShort, ConfigBuff.IntegrationLong, ConfigBuff.IntegrationFull);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[0]);
+		status = SetHighVoltage(Iic, 0, ConfigBuff.HighVoltageValue[0]);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[1]);
+		status = SetHighVoltage(Iic, 1, ConfigBuff.HighVoltageValue[1]);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[2]);
+		status = SetHighVoltage(Iic, 2, ConfigBuff.HighVoltageValue[2]);
 	if(status == CMD_SUCCESS)
-		status = SetHighVoltage(Iic, 4, ConfigBuff.HighVoltageValue[3]);
+		status = SetHighVoltage(Iic, 3, ConfigBuff.HighVoltageValue[3]);
 	//set n cuts
 	if(status == CMD_SUCCESS)
 		status = SetNeutronCutGates(0, 1, ConfigBuff.SF_E[0], ConfigBuff.SF_PSD[0], ConfigBuff.Off_E[0], ConfigBuff.Off_PSD[0]);

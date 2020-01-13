@@ -25,10 +25,10 @@
 #define	TEC_PIN				18
 #define EVT_EVENT_SIZE		8
 #define ROOT_DIR_NAME_SIZE	3
-#define FOLDER_NAME_SIZE	11		//"I1234_R1234"
+#define DAQ_FOLDER_SIZE		11		//"I1234_R1234"
+#define WF_FOLDER_SIZE		8		//"WF_I1234"
 #define SIZEOF_FILENAME		13		//filename example: "cps_S0001.bin"
-#define DATA_PACKET_SIZE	2040
-#define PAYLOAD_MAX_SIZE	2028
+#define TELEMETRY_MAX_SIZE	2038
 #define VALID_BUFFER_SIZE	512
 #define DATA_BUFFER_SIZE	4096
 #define EVENT_BUFFER_SIZE	2048
@@ -48,7 +48,9 @@
 #define CCSDS_HEADER_PRIM	10		//with the sync marker, without the reset request byte
 #define CCSDS_HEADER_FULL	11		//with the sync marker, with the reset request byte
 #define SIZE_1_MIB			1048576	//1 MiB, rather than 1 MB (1e6 bytes)
+#define SIZE_10_MIB			10485760	//10 MiB
 #define DP_HEADER_SIZE		16384	//we put blank space past the header so we always write on a cluster boundary
+#define XB1_SEND_WAIT		0.015	//15ms wait time; this accounts for the latency on the XB-1 side of communications
 
 //PMT ID Values
 //These values are the decimal interpretations of a binary, active high signal (ie. 4=0100 -> PMT_ID_3)
@@ -67,7 +69,7 @@
 #define ENABLE_ACT_CMD	5
 #define TX_CMD			6
 #define DEL_CMD			7
-#define LS_CMD			8
+#define DIR_CMD			8
 #define TXLOG_CMD		9
 #define	CONF_CMD		10
 #define TRG_CMD			11
@@ -97,7 +99,7 @@
 #define APID_CMD_SUCC	0
 #define APID_CMD_FAIL	1
 #define APID_SOH		2
-#define APID_LS_FILES	3
+#define APID_DIR		3
 #define APID_TEMP		4
 #define APID_MNS_CPS	5
 #define APID_MNS_WAV	6
@@ -107,25 +109,26 @@
 #define APID_CONFIG		10
 
 //MNS GROUP FLAGS
-#define GF_FIRST_PACKET	0
-#define GF_LAST_PACKET	1
-#define GF_INTER_PACKET 2
-#define GF_UNSEG_PACKET 3
+#define GF_INTER_PACKET	0
+#define GF_FIRST_PACKET	1
+#define GF_LAST_PACKET	2
+#define GF_UNSEG_PACKET	3
 
 //MNS DATA PRODUCT TYPES //UPDATED 4/10/19
 #define DATA_TYPE_CPS	5
 #define DATA_TYPE_WAV	6
 #define DATA_TYPE_EVT 	7
-#define DATA_TYPE_2DH_1	8
+#define DATA_TYPE_2DH_0	8
 #define DATA_TYPE_LOG	9
 #define DATA_TYPE_CFG	10
 //the above are made to match the APID packet types
 //the below are to make it easier to sort 2dh types
-#define DATA_TYPE_2DH_2	11
-#define DATA_TYPE_2DH_3	12
-#define DATA_TYPE_2DH_4 13
+#define DATA_TYPE_2DH_1	11
+#define DATA_TYPE_2DH_2	12
+#define DATA_TYPE_2DH_3 13
 
 //MNS DATA PACKET HEADER SIZES //includes secondary header + data header
+#define PKT_HEADER_DIR	18
 #define PKT_HEADER_EVT	39
 #define PKT_HEADER_WAV	39
 #define PKT_HEADER_CPS	39
@@ -134,6 +137,7 @@
 #define PKT_HEADER_CFG	1
 
 //MNS DATA PRODUCT DATA BYTE SIZES
+#define DATA_BYTES_DIR	2006
 #define DATA_BYTES_EVT	1984
 #define DATA_BYTES_WAV	1984
 #define DATA_BYTES_CPS	1974
@@ -142,6 +146,7 @@
 #define DATA_BYTES_CFG	187
 
 //MNS DATA PACKET SIZES //Full size - 10 - 1
+#define PKT_SIZE_DIR	2027
 #define PKT_SIZE_EVT 	2026
 #define PKT_SIZE_WAV	2026
 #define PKT_SIZE_CPS	2016

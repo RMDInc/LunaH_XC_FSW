@@ -18,6 +18,7 @@
 #include "lunah_defines.h"
 #include "lunah_utils.h"
 #include "LI2C_Interface.h"
+#include "RecordFiles.h"
 
 /*
  * Mini-NS Configuration Parameter Structure
@@ -28,6 +29,8 @@
  *  configuration file, as well as to the current struct holding the parameters.
  * In this fashion, we are able to hold onto any changes that are made. This should
  *  reduce the amount of interaction necessary.
+ * Added the total files/folders values to the config file so that we can
+ *  better keep track of the state of the SD card.
  *
  * See the Mini-NS ICD for a breakdown of these parameters and how to change them.
  * Current ICD version: 10.4.0
@@ -54,6 +57,9 @@ typedef struct {
 	double SF_PSD[8];
 	double Off_E[8];
 	double Off_PSD[8];
+	int TotalFiles;
+	int TotalFolders;
+	unsigned int MostRecentRealTime;
 } CONFIG_STRUCT_TYPE;
 
 /*
@@ -138,6 +144,13 @@ int SetNeutronCutGates(int moduleID, int ellipseNum, float ECut1, float ECut2, f
 int SetHighVoltage(XIicPs * Iic, unsigned char PmtId, int value);
 int SetIntegrationTime(int Baseline, int Short, int Long, int Full);
 int SetEnergyCalParam(float Slope, float Intercept);
+void SetSDTotalFiles( int total_files );
+int GetSDTotalFiles( void );
+void SetSDTotalFolders( int total_folders );
+int GetSDTotalFolders( void );
+int RecordSDState( void );
+int SetRealTime( unsigned int real_time );
+unsigned int GetRealTime( void );
 int ApplyDAQConfig( XIicPs * Iic );
 
 #endif /* SRC_SETINSTRUMENTPARAM_H_ */

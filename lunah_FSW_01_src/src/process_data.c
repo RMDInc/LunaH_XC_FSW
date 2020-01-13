@@ -204,7 +204,7 @@ int ProcessData( unsigned int * data_raw )
 							}
 
 							m_neutron_detected = CPSUpdateTallies(energy, psd, m_pmt_ID_holder);
-							IncNeutronTotal(m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
+							IncNeutronTotal( m_pmt_ID_holder, m_neutron_detected);	//increment the neutron total by 1? TODO: check the return here and make sure it has increased?
 							if(m_neutron_detected == 1)
 								m_tagging_bit = 1;
 							else
@@ -217,8 +217,8 @@ int ProcessData( unsigned int * data_raw )
 								//handle error in tallying the event into the 2DH
 								//TODO: identify what can go wrong and handle a bad tally
 							}
-							m_x_bin_number = Get2DHArrayIndexX();
-							m_y_bin_number = Get2DHArrayIndexY();
+							m_x_bin_number = Get_2DHXIndex();
+							m_y_bin_number = Get_2DHYIndex();
 							event_holder.field3 |= (unsigned char)(m_x_bin_number >> 1);
 							event_holder.field4 |= (unsigned char)((m_x_bin_number & 0x01) << 7);
 							event_holder.field4 |= (unsigned char)(m_y_bin_number << 1);
@@ -277,6 +277,10 @@ int ProcessData( unsigned int * data_raw )
 			}
 			else
 				iter++;
+
+			break;
+		case 888888:
+			//what are we doing here?
 
 			break;
 		default:
