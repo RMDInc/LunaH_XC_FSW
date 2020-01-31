@@ -10,9 +10,9 @@
 
 #include "xparameters.h"
 
-#define MNS_DETECTOR_NUM	0
+#define MNS_DETECTOR_NUM	1
 
-//#define PRODUCE_RAW_DATA	0
+#define PRODUCE_RAW_DATA	0
 
 #define NS_TO_SAMPLES		4		//conversion factor number of nanoseconds per sample
 #define INTEG_TIME_START	200
@@ -165,5 +165,8 @@
 //Mini-NS DMA Addresses to read from
 #define DRAM_BASE		0xA000000u
 #define DRAM_CEILING	0xA004000u
+
+//DAQ Neutron Counting
+#define NEUTRON_FOUND	1
 
 #endif /* SRC_LUNAH_DEFINES_H_ */

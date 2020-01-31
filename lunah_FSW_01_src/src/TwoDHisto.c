@@ -7,13 +7,6 @@
 
 #include "TwoDHisto.h"
 
-static int m_x_bin_number;
-static int m_y_bin_number;
-static unsigned int m_oor_left;
-static unsigned int m_oor_right;
-static unsigned int m_oor_below;
-static unsigned int m_oor_above;
-static unsigned int m_valid_multi_hit_event;
 static unsigned short m_2DH_pmt0[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt1[TWODH_X_BINS][TWODH_Y_BINS];
 static unsigned short m_2DH_pmt2[TWODH_X_BINS][TWODH_Y_BINS];
@@ -35,13 +28,12 @@ int Save2DHToSD( int pmt_ID )
 {
 	int status = CMD_FAILURE;
 	unsigned int numBytesWritten = 0;
-	unsigned int m_oor_values[5] = {m_oor_left, m_oor_right, m_oor_below, m_oor_above, m_valid_multi_hit_event};
 	char *filename_pointer;
 	char filename_buff[100] = "";
 	FIL save2DH;
 	FRESULT f_res = FR_OK;
 
-	unsigned short (*m_2DH_holder)[TWODH_X_BINS][TWODH_Y_BINS];	//pointer to 2D array
+	unsigned short (*m_2DH_holder)[TWODH_X_BINS][TWODH_Y_BINS] = NULL;	//pointer to 2D array
 
 	switch(pmt_ID)
 	{
@@ -105,48 +97,21 @@ int Save2DHToSD( int pmt_ID )
 		else
 			status = CMD_SUCCESS;
 	}
-	//write the out of range values in
-	f_res = f_write(&save2DH, m_oor_values, sizeof(unsigned int) * 5, &numBytesWritten);
-	if(f_res != FR_OK || numBytesWritten != (sizeof(unsigned int) * 5))
-	{
-		//TODO: handle error checking the write
-		xil_printf("3 error writing 2dh\n");
-		status = CMD_FAILURE;
-	}
-	else
-		status = CMD_SUCCESS;
+//	//write the out of range values in
+//	f_res = f_write(&save2DH, m_oor_values, sizeof(unsigned int) * 5, &numBytesWritten);
+//	if(f_res != FR_OK || numBytesWritten != (sizeof(unsigned int) * 5))
+//	{
+//		//TODO: handle error checking the write
+//		xil_printf("3 error writing 2dh\n");
+//		status = CMD_FAILURE;
+//	}
+//	else
+//		status = CMD_SUCCESS;
 
 //	sd_updateFileRecords(filename_buff, file_size(&save2DH));
 	f_close(&save2DH);
 	return status;
 }
-
-/*
- * Retrieves and double checks the X array index for the current event being processed.
- * This value will get reported by the EVTs data product.
- *
- * @param	None
- *
- * @return	(int) bin number to be stored in an EVTs event
- */
-unsigned int Get_2DHXIndex( void )
-{
-	return m_x_bin_number;
-}
-
-/*
- * Retrieves and double checks the X array index for the current event being processed.
- * This value will get reported by the EVTs data product.
- *
- * @param	None
- *
- * @return	(int) bin number to be stored in an EVTs event
- */
-unsigned int Get_2DHYIndex( void )
-{
-		return m_y_bin_number;
-}
-
 
 /*
  * Takes energy and PSD values from an event and tallies them into 2-D Histograms.
@@ -164,126 +129,48 @@ unsigned int Get_2DHYIndex( void )
  * @param	The PMT ID from the event
  * 			Values should be the macro PMT_ID_#'s from lunah_defines (ie. PMT_ID_1, etc)
  *
- * @return	SUCCESS/FAILURE
+ * @return	1 is the point in the given bin numbers was within the 2DH bounds
+ * 			0 is the point was not in the bounds
+ * 			-1 is the point was a multi-hit and not recorded
  */
-int Tally2DH(double energy_value, double psd_value, unsigned int pmt_ID)
+int Tally2DH(int energy_bin, int psd_bin, int pmt_ID)
 {
-	int status = CMD_FAILURE;
-	//find the bin numbers
-	//this line is bothersome, as I want to floor the value, but then have to cast it anyway...
-	m_x_bin_number = (unsigned int)floor(energy_value / ((double)TWODH_ENERGY_MAX / (double)TWODH_X_BINS));
-	m_y_bin_number = (unsigned int)floor(psd_value / ((double)TWODH_PSD_MAX / (double)TWODH_Y_BINS));
+	int status = 0;
+	int m_valid_multi_hit_event = 0;
 
-	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
-		m_x_bin_number &= 0x01FF;
-	else
-		m_x_bin_number = 0x01FF;
-
-	if(0 <= m_y_bin_number && m_y_bin_number < TWODH_Y_BINS)
-		m_y_bin_number &= 0x3F;	//move to 6 bits 10-11-2019
-	else
-		m_y_bin_number = 0x3F;
-
-	//TODO: Clean this up? Maybe doing this for each hit is too time expensive...
-
-	if(0 <= m_x_bin_number)
+	if(0 <= energy_bin && energy_bin < TWODH_X_BINS)
 	{
-		if(m_x_bin_number < TWODH_X_BINS)
+		if(0 <= psd_bin && psd_bin < TWODH_Y_BINS)
 		{
-			if(0 <= m_y_bin_number)
+			//value is good
+			status = 1;
+			switch(pmt_ID)
 			{
-				if(m_y_bin_number < TWODH_Y_BINS)
-				{
-					//value is good
-					switch(pmt_ID)
-					{
-					case PMT_ID_0:
-						m_2DH_pmt0[m_x_bin_number][m_y_bin_number]++;
-						break;
-					case PMT_ID_1:
-						m_2DH_pmt1[m_x_bin_number][m_y_bin_number]++;
-						break;
-					case PMT_ID_2:
-						m_2DH_pmt2[m_x_bin_number][m_y_bin_number]++;
-						break;
-					case PMT_ID_3:
-						m_2DH_pmt3[m_x_bin_number][m_y_bin_number]++;
-						break;
-					default:
-						//don't record non-singleton hits in a 2DH
-						m_valid_multi_hit_event++;
-						break;
-					}
-				}
-				else
-					m_oor_above++;	//psd over, E good
+			case PMT_ID_0:
+				m_2DH_pmt0[energy_bin][psd_bin]++;
+				break;
+			case PMT_ID_1:
+				m_2DH_pmt1[energy_bin][psd_bin]++;
+				break;
+			case PMT_ID_2:
+				m_2DH_pmt2[energy_bin][psd_bin]++;
+				break;
+			case PMT_ID_3:
+				m_2DH_pmt3[energy_bin][psd_bin]++;
+				break;
+			default:
+				//don't record non-singleton hits in a 2DH
+				m_valid_multi_hit_event++;
+				status = -1;
+				break;
 			}
-			else
-				m_oor_below++;	//psd under, E good
 		}
 		else
-		{
-			if(0 <= m_y_bin_number)
-			{
-				if(m_y_bin_number < TWODH_Y_BINS)
-					m_oor_right++;	//psd good, E over
-				else
-					m_oor_above++;	//psd over, E over
-			}
-			else
-				m_oor_below++;	//psd under, E over
-		}
+			status = 0;
 	}
 	else
-	{
-		if(0 <= m_y_bin_number)
-		{
-			if(m_y_bin_number < TWODH_Y_BINS)
-				m_oor_left++;	//psd good, E under
-			else
-				m_oor_above++;	//psd over, E under
-		}
-		else
-			m_oor_below++;	//psd under, E under
-	}
-
-	//sorted the event into a 2dh or have tallied that it was over/under the binned region
+		status = 0;
 
 	return status;
 }
 
-/*
- * Retrieves and double checks the X array index for the current event being processed.
- * This value will get reported by the EVTs data product.
- *
- * @param	None
- *
- * @return	(int) bin number to be stored in an EVTs event
- */
-unsigned int Get2DHArrayIndexX( void )
-{
-	if(0 <= m_x_bin_number && m_x_bin_number < TWODH_X_BINS)
-		m_x_bin_number &= 0x01FF;
-	else
-		m_x_bin_number = 0x01FF;
-
-	return m_x_bin_number;
-}
-
-/*
- * Retrieves and double checks the Y array index for the current event being processed.
- * This value will get reported by the EVTs data product.
- *
- * @param	None
- *
- * @return	(int) bin number to be stored in an EVTs event
- */
-unsigned int Get2DHArrayIndexY( void )
-{
-	if(0 <= m_y_bin_number && m_y_bin_number < TWODH_Y_BINS)
-		m_y_bin_number &= 0x3F;
-	else
-		m_y_bin_number = 0x3F;
-
-	return m_y_bin_number;
-}

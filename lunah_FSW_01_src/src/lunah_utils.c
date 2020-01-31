@@ -18,11 +18,7 @@ static XTime wait_timer;		//timer for sending packets
 static int analog_board_temp;
 static int digital_board_temp;
 static int modu_board_temp;
-static int iNeutronTotal;		//total neutron counts across all PMTs
-static int iNeutronTotal_pmt0;
-static int iNeutronTotal_pmt1;
-static int iNeutronTotal_pmt2;
-static int iNeutronTotal_pmt3;
+static CPS_EVENT_STRUCT_TYPE cpsEventAgg;	//the aggregated CPS counts
 static int check_temp_sensor;
 static unsigned char mode_byte;
 static int soh_id_number;
@@ -54,51 +50,67 @@ XTime GetTempTime(void)
 }
 
 /*
- *  Stub file to return neutron total.
+ * Reset the aggregated neutron cut structure.
+ * Call this at the beginning of data acquisition to make sure things are set to 0
+ *
+ * @param	none
+ *
+ * @return	none
+ *
  */
-int GetNeutronTotal(void)
-{
-	return iNeutronTotal;
-}
 
-int PutNeutronTotal(int total)
+void ResetSOHNeutronCounts( void )
 {
-	iNeutronTotal = total;
-	return iNeutronTotal;
+	CPS_EVENT_STRUCT_TYPE cpsEmptyStruct = {};
+	cpsEventAgg = cpsEmptyStruct;
+	return;
 }
 
 /*
- * Take in both the number of neutrons to increment by, as well as which PMT to assign the
- *  counts to.
+ * Receive the count information from data processing.
  *
  *  @param	(int)PMT to assign the counts to (1, 2, 4, 8)
  *  @param	(int)number of counts to increment
  */
-int IncNeutronTotal(int pmt_id, int increment)
+int IncNeutronTotal(int pmt_id, int ellipse_1, int ellipse_2, int non_n, int high_energy, unsigned int time)
 {
+	int status = 0;
+
+	cpsEventAgg.time = time;
 	switch(pmt_id)
 	{
 	case PMT_ID_0:
-		iNeutronTotal_pmt0 += increment;
+		cpsEventAgg.n_ellipse1_0 += ellipse_1;
+		cpsEventAgg.n_ellipse2_0 += ellipse_2;
+		cpsEventAgg.non_n_events_0 += non_n;
+		cpsEventAgg.high_energy_events_0 += high_energy;
 		break;
 	case PMT_ID_1:
-		iNeutronTotal_pmt1 += increment;
+		cpsEventAgg.n_ellipse1_1 += ellipse_1;
+		cpsEventAgg.n_ellipse2_1 += ellipse_2;
+		cpsEventAgg.non_n_events_1 += non_n;
+		cpsEventAgg.high_energy_events_1 += high_energy;
 		break;
 	case PMT_ID_2:
-		iNeutronTotal_pmt2 += increment;
+		cpsEventAgg.n_ellipse1_2 += ellipse_1;
+		cpsEventAgg.n_ellipse2_2 += ellipse_2;
+		cpsEventAgg.non_n_events_2 += non_n;
+		cpsEventAgg.high_energy_events_2 += high_energy;
 		break;
 	case PMT_ID_3:
-		iNeutronTotal_pmt3 += increment;
+		cpsEventAgg.n_ellipse1_3 += ellipse_1;
+		cpsEventAgg.n_ellipse2_3 += ellipse_2;
+		cpsEventAgg.non_n_events_3 += non_n;
+		cpsEventAgg.high_energy_events_3 += high_energy;
+		break;
+	default:
+		status = -1;
 		break;
 	}
 
-	//TODO: handle a bad PMT ID, they will certainly get passed in,
-	// but we don't want to include them in the individual module totals.
-	//I do not think that we need anything special to include it. Just increment the total, but not the individual hits.
-	iNeutronTotal += increment;
-
-	return iNeutronTotal;
+	return status;
 }
+
 /*
  * Getter functions to grab the temperature which was most recently read by the system
  *
@@ -119,6 +131,80 @@ int GetAnlgTemp( void )
 int GetModuTemp( void )
 {
 	return modu_board_temp;
+}
+
+//Initialization function to "start up" all three temperature sensors on the board during startup
+int InitTempSensors( XIicPs *Iic )
+{
+	unsigned char i2c_Send_Buffer[2] = {};
+	unsigned char i2c_Recv_Buffer[2] = {};
+	int a = 0;
+	int b = 0;
+	int status = 0;
+
+	//analog board temp sensor
+	status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR3);
+	{
+		//TODO: check status here
+		//set the proper error code so that we know that the module temp sensor had a problem
+	}
+	status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, IIC_SLAVE_ADDR3);
+	a = i2c_Recv_Buffer[0]<< 5;
+	b = a | i2c_Recv_Buffer[1] >> 3;
+	if(i2c_Recv_Buffer[0] >= 128)
+	{
+		b = (b - 8192) / 16;
+	}
+	else
+	{
+		b = b / 16;
+	}
+	analog_board_temp = b;
+
+	//reset
+	a = 0; b = 0; memset(i2c_Recv_Buffer, '\0', sizeof(unsigned char) * 2);
+	//digital board sensor
+	status = IicPsMasterSend(Iic, IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR2);
+	{
+		//TODO: check status here
+		//set the proper error code so that we know that the module temp sensor had a problem
+	}
+	status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, IIC_SLAVE_ADDR2);
+	a = i2c_Recv_Buffer[0]<< 5;
+	b = a | i2c_Recv_Buffer[1] >> 3;
+	if(i2c_Recv_Buffer[0] >= 128)
+	{
+		b = (b - 8192) / 16;
+	}
+	else
+	{
+		b = b / 16;
+	}
+	digital_board_temp = b;
+
+	//reset
+	a = 0; b = 0; memset(i2c_Recv_Buffer, '\0', sizeof(unsigned char) * 2);
+	//module temp sensor
+	status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR5);
+	if(status != XST_SUCCESS)
+	{
+		//TODO: check status here
+		//set the proper error code so that we know that the module temp sensor had a problem
+	}
+	status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, IIC_SLAVE_ADDR5);
+	a = i2c_Recv_Buffer[0]<< 5;
+	b = a | i2c_Recv_Buffer[1] >> 3;
+	if(i2c_Recv_Buffer[0] >= 128)
+	{
+		b = (b - 8192) / 16;
+	}
+	else
+	{
+		b = b / 16;
+	}
+	modu_board_temp = b;
+
+	return status;
 }
 
 /*
@@ -196,31 +282,24 @@ void CheckForSOH(XIicPs * Iic, XUartPs Uart_PS)
 int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 {
 	//Variables
-	unsigned char report_buff[100] = "";
+	unsigned char report_buff[SOH_BUFFER_SIZE] = "";
 	unsigned char i2c_Send_Buffer[2] = {};
 	unsigned char i2c_Recv_Buffer[2] = {};
 	int a = 0;
 	int b = 0;
 	int status = 0;
 	int bytes_sent = 0;
-	unsigned int local_time_holder = 0;
-
-	i2c_Send_Buffer[0] = 0x0;
-	i2c_Send_Buffer[1] = 0x0;
-	int IIC_SLAVE_ADDR2 = 0x4B;	//Temp sensor on digital board
-	int IIC_SLAVE_ADDR3 = 0x48;	//Temp sensor on the analog board
-	int IIC_SLAVE_ADDR5 = 0x4A;	//Extra Temp Sensor Board, mounted near the modules
 
 	switch(check_temp_sensor){
 	case 0:	//analog board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 10))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
 
-			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
-			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR3);
+			IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR3);
+			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, IIC_SLAVE_ADDR3);
 			a = i2c_Recv_Buffer[0]<< 5;
 			b = a | i2c_Recv_Buffer[1] >> 3;
 			if(i2c_Recv_Buffer[0] >= 128)
@@ -236,13 +315,13 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 		break;
 	case 1:	//digital board
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 10))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor++;
 
-			IicPsMasterSend(Iic, IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR2);
-			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR2);
+			IicPsMasterSend(Iic, IIC_DEVICE_ID_1, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR2);
+			IicPsMasterRecieve(Iic, i2c_Recv_Buffer, IIC_SLAVE_ADDR2);
 			a = i2c_Recv_Buffer[0]<< 5;
 			b = a | i2c_Recv_Buffer[1] >> 3;
 			if(i2c_Recv_Buffer[0] >= 128)
@@ -258,13 +337,13 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 		break;
 	case 2:	//module sensor
 		XTime_GetTime(&t_current);
-		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 60))
+		if(((t_current - t_start)/COUNTS_PER_SECOND) >= (TempTime + 10))
 		{
 			TempTime = (t_current - t_start)/COUNTS_PER_SECOND; //temp time is reset
 			check_temp_sensor = 0;
 
-			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
-			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, &IIC_SLAVE_ADDR5);
+			status = IicPsMasterSend(Iic, IIC_DEVICE_ID_0, i2c_Send_Buffer, i2c_Recv_Buffer, IIC_SLAVE_ADDR5);
+			status = IicPsMasterRecieve(Iic, i2c_Recv_Buffer, IIC_SLAVE_ADDR5);
 			a = i2c_Recv_Buffer[0]<< 5;
 			b = a | i2c_Recv_Buffer[1] >> 3;
 			if(i2c_Recv_Buffer[0] >= 128)
@@ -283,26 +362,14 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 		break;
 	}
 
-	report_buff[11] = (unsigned char)(analog_board_temp >> 24);
-	report_buff[12] = (unsigned char)(analog_board_temp >> 16);
-	report_buff[13] = (unsigned char)(analog_board_temp >> 8);
-	report_buff[14] = (unsigned char)(analog_board_temp);
-	report_buff[15] = TAB_CHAR_CODE;
-	report_buff[16] = (unsigned char)(digital_board_temp >> 24);
-	report_buff[17] = (unsigned char)(digital_board_temp >> 16);
-	report_buff[18] = (unsigned char)(digital_board_temp >> 8);
-	report_buff[19] = (unsigned char)(digital_board_temp);
-	report_buff[20] = TAB_CHAR_CODE;
-	report_buff[21] = (unsigned char)(modu_board_temp >> 24);
-	report_buff[22] = (unsigned char)(modu_board_temp >> 16);
-	report_buff[23] = (unsigned char)(modu_board_temp >> 8);
-	report_buff[24] = (unsigned char)(modu_board_temp);
-	report_buff[25] = NEWLINE_CHAR_CODE;
+	memcpy(&report_buff[11], &analog_board_temp, sizeof(int));
+	memcpy(&report_buff[15], &digital_board_temp, sizeof(int));
+	memcpy(&report_buff[19], &modu_board_temp, sizeof(int));
 
 	switch(packet_type)
 	{
 	case READ_TMP_CMD:
-		PutCCSDSHeader(report_buff, APID_TEMP, GF_UNSEG_PACKET, 1, TEMP_PACKET_LENGTH);
+		PutCCSDSHeader(report_buff, APID_TEMP, GF_UNSEG_PACKET, 0, TEMP_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
 
 		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (TEMP_PACKET_LENGTH + CCSDS_HEADER_FULL));
@@ -312,49 +379,31 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
 			status = CMD_FAILURE;
 		break;
 	case GETSTAT_CMD:
-		report_buff[26] = (unsigned char)(iNeutronTotal_pmt0 >> 24);
-		report_buff[27] = (unsigned char)(iNeutronTotal_pmt0 >> 16);
-		report_buff[28] = (unsigned char)(iNeutronTotal_pmt0 >> 8);
-		report_buff[29] = (unsigned char)(iNeutronTotal_pmt0);
-		report_buff[30] = TAB_CHAR_CODE;
-		report_buff[31] = (unsigned char)(iNeutronTotal_pmt1 >> 24);
-		report_buff[32] = (unsigned char)(iNeutronTotal_pmt1 >> 16);
-		report_buff[33] = (unsigned char)(iNeutronTotal_pmt1 >> 8);
-		report_buff[34] = (unsigned char)(iNeutronTotal_pmt1);
-		report_buff[35] = TAB_CHAR_CODE;
-		report_buff[36] = (unsigned char)(iNeutronTotal_pmt2 >> 24);
-		report_buff[37] = (unsigned char)(iNeutronTotal_pmt2 >> 16);
-		report_buff[38] = (unsigned char)(iNeutronTotal_pmt2 >> 8);
-		report_buff[39] = (unsigned char)(iNeutronTotal_pmt2);
-		report_buff[40] = TAB_CHAR_CODE;
-		report_buff[41] = (unsigned char)(iNeutronTotal_pmt3 >> 24);
-		report_buff[42] = (unsigned char)(iNeutronTotal_pmt3 >> 16);
-		report_buff[43] = (unsigned char)(iNeutronTotal_pmt3 >> 8);
-		report_buff[44] = (unsigned char)(iNeutronTotal_pmt3);
-		report_buff[45] = TAB_CHAR_CODE;
-		local_time_holder = (unsigned int)local_time;
-		report_buff[46] = (unsigned char)(local_time_holder >> 24);
-		report_buff[47] = (unsigned char)(local_time_holder >> 16);
-		report_buff[48] = (unsigned char)(local_time_holder >> 8);
-		report_buff[49] = (unsigned char)(local_time_holder);
-		report_buff[50] = TAB_CHAR_CODE;
-		report_buff[51] = mode_byte;
-		report_buff[52] = TAB_CHAR_CODE;
-		report_buff[53] = (unsigned char)(soh_id_number >> 24);
-		report_buff[54] = (unsigned char)(soh_id_number >> 16);
-		report_buff[55] = (unsigned char)(soh_id_number >> 8);
-		report_buff[56] = (unsigned char)(soh_id_number);
-		report_buff[57] = TAB_CHAR_CODE;
-		report_buff[58] = (unsigned char)(soh_run_number >> 24);
-		report_buff[59] = (unsigned char)(soh_run_number >> 16);
-		report_buff[60] = (unsigned char)(soh_run_number >> 8);
-		report_buff[61] = (unsigned char)(soh_run_number);
-		report_buff[62] = NEWLINE_CHAR_CODE;
+		memcpy(&report_buff[23], &cpsEventAgg.n_ellipse1_0, sizeof(int));
+		memcpy(&report_buff[27], &cpsEventAgg.n_ellipse2_0, sizeof(int));
+		memcpy(&report_buff[31], &cpsEventAgg.non_n_events_0, sizeof(int));
+		memcpy(&report_buff[35], &cpsEventAgg.high_energy_events_0, sizeof(int));
+		memcpy(&report_buff[39], &cpsEventAgg.n_ellipse1_1, sizeof(int));
+		memcpy(&report_buff[43], &cpsEventAgg.n_ellipse2_1, sizeof(int));
+		memcpy(&report_buff[47], &cpsEventAgg.non_n_events_1, sizeof(int));
+		memcpy(&report_buff[51], &cpsEventAgg.high_energy_events_1, sizeof(int));
+		memcpy(&report_buff[55], &cpsEventAgg.n_ellipse1_2, sizeof(int));
+		memcpy(&report_buff[59], &cpsEventAgg.n_ellipse2_2, sizeof(int));
+		memcpy(&report_buff[63], &cpsEventAgg.non_n_events_2, sizeof(int));
+		memcpy(&report_buff[67], &cpsEventAgg.high_energy_events_2, sizeof(int));
+		memcpy(&report_buff[71], &cpsEventAgg.n_ellipse1_3, sizeof(int));
+		memcpy(&report_buff[75], &cpsEventAgg.n_ellipse2_3, sizeof(int));
+		memcpy(&report_buff[79], &cpsEventAgg.non_n_events_3, sizeof(int));
+		memcpy(&report_buff[83], &cpsEventAgg.high_energy_events_3, sizeof(int));
+		memcpy(&report_buff[87], &cpsEventAgg.time, sizeof(unsigned int));
+		report_buff[91] = mode_byte;
+		memcpy(&report_buff[92], &soh_id_number, sizeof(int));
+		memcpy(&report_buff[96], &soh_run_number, sizeof(int));
 
-		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 1, SOH_PACKET_LENGTH);
+		PutCCSDSHeader(report_buff, APID_SOH, GF_UNSEG_PACKET, 0, SOH_PACKET_LENGTH);
 		CalculateChecksums(report_buff);
 
-		bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)report_buff, (SOH_PACKET_LENGTH + CCSDS_HEADER_FULL));
+		bytes_sent = SendPacket(Uart_PS, report_buff, SOH_PACKET_LENGTH + CCSDS_HEADER_FULL);
 		if(bytes_sent == (SOH_PACKET_LENGTH + CCSDS_HEADER_FULL))
 			status = CMD_SUCCESS;
 		else
@@ -379,6 +428,7 @@ int report_SOH(XIicPs * Iic, XTime local_time, XUartPs Uart_PS, int packet_type)
  * 							plus the payload data bytes plus the checksums minus one.
  * 							Len = 1 + N + 4 - 1
  *
+ * @return	none
  */
 void PutCCSDSHeader(unsigned char * SOH_buff, int packet_type, int group_flags, int sequence_count, int length)
 {
@@ -478,7 +528,7 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 	int bytes_sent = 0;
 	int packet_size = 0;	//Don't record the size of the CCSDS header with this variable
 	int i_sprintf_ret = 0;
-	unsigned char cmdSuccess[100] = "";
+	unsigned char cmdSuccess[CMD_BUFFER_SIZE] = "";
 
 	//fill the data bytes
 	switch(report_filename)
@@ -522,7 +572,7 @@ int reportSuccess(XUartPs Uart_PS, int report_filename)
 	//I should look at using a regular char buffer rather than using calloc() and free() //changed 3/14/19
 	//get last command gets the size of the string minus the newline
 	//we want to add 1 (secondary header) and add 4 (checksums) minus 1
-	PutCCSDSHeader(cmdSuccess, APID_CMD_SUCC, GF_UNSEG_PACKET, 1, packet_size + CHECKSUM_SIZE);
+	PutCCSDSHeader(cmdSuccess, APID_CMD_SUCC, GF_UNSEG_PACKET, 0, packet_size + CHECKSUM_SIZE);
 	CalculateChecksums(cmdSuccess);
 
 	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdSuccess, (CCSDS_HEADER_FULL + packet_size + CHECKSUM_SIZE));
@@ -559,7 +609,7 @@ int reportFailure(XUartPs Uart_PS)
 	int status = 0;
 	int bytes_sent = 0;
 	int i_sprintf_ret = 0;
-	unsigned char cmdFailure[100] = "";
+	unsigned char cmdFailure[CMD_BUFFER_SIZE] = "";
 
 	i_sprintf_ret = snprintf((char *)(&cmdFailure[11]), 100, "%s\n", GetLastCommand());
 	if(i_sprintf_ret == GetLastCommandSize())
@@ -567,7 +617,7 @@ int reportFailure(XUartPs Uart_PS)
 	else
 		status = CMD_FAILURE;
 
-	PutCCSDSHeader(cmdFailure, APID_CMD_FAIL, GF_UNSEG_PACKET, 1, GetLastCommandSize() + CHECKSUM_SIZE);
+	PutCCSDSHeader(cmdFailure, APID_CMD_FAIL, GF_UNSEG_PACKET, 0, GetLastCommandSize() + CHECKSUM_SIZE);
 	CalculateChecksums(cmdFailure);
 
 	bytes_sent = XUartPs_Send(&Uart_PS, (u8 *)cmdFailure, (CCSDS_HEADER_FULL + i_sprintf_ret + CHECKSUM_SIZE));
@@ -679,9 +729,9 @@ int DeleteFile( XUartPs Uart_PS, char * RecvBuffer, int sd_card_number, int file
 	int status = 0;
 	unsigned int bytes_written = 0;
 	char *ptr_file_TX_filename = NULL;
-	char file_TX_folder[100] = "";
-	char file_TX_filename[100] = "";
-	char file_TX_path[100] = "";
+	char file_TX_folder[TX_FILE_STRING_BUFF_SIZE] = "";
+	char file_TX_filename[TX_FILE_STRING_BUFF_SIZE] = "";
+	char file_TX_path[TX_FILE_STRING_BUFF_SIZE] = "";
 	char WF_FILENAME[] = "wf01.bin";
 	char log_file[] = "MNSCMDLOG.txt";
 	char config_file[] = "MNSCONF.bin";
@@ -864,9 +914,9 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	char WF_FILENAME[] = "wf01.bin";
 	char log_file[] = "MNSCMDLOG.txt";
 	char config_file[] = "MNSCONF.bin";
-	char file_TX_folder[100] = "";
-	char file_TX_filename[100] = "";
-	char file_TX_path[100] = "";
+	char file_TX_folder[TX_FILE_STRING_BUFF_SIZE] = "";
+	char file_TX_filename[TX_FILE_STRING_BUFF_SIZE] = "";
+	char file_TX_path[TX_FILE_STRING_BUFF_SIZE] = "";
 	unsigned char packet_array[2040] = "";	//TODO: check if I can drop the 2040 -> TELEMETRY_MAX_SIZE (2038)
 	DATA_FILE_HEADER_TYPE data_file_header = {};
 	DATA_FILE_SECONDARY_HEADER_TYPE data_file_2ndy_header = {};
@@ -1096,16 +1146,16 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		f_holder = data_file_header.configBuff.ECalSlope;								memcpy(&(packet_array[11]), &f_holder, sizeof(float));
 		f_holder = data_file_header.configBuff.ECalIntercept;							memcpy(&(packet_array[15]), &f_holder, sizeof(float));
 		us_holder = (unsigned short)data_file_header.configBuff.TriggerThreshold;		memcpy(&(packet_array[19]), &us_holder, sizeof(us_holder));
-		s_holder = (short)data_file_header.configBuff.IntegrationBaseline;		memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
-		s_holder = (short)data_file_header.configBuff.IntegrationShort;		memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
-		s_holder = (short)data_file_header.configBuff.IntegrationLong;			memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
-		s_holder = (short)data_file_header.configBuff.IntegrationFull;			memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationBaseline;				memcpy(&(packet_array[21]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationShort;					memcpy(&(packet_array[23]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationLong;					memcpy(&(packet_array[25]), &s_holder, sizeof(s_holder));
+		s_holder = (short)data_file_header.configBuff.IntegrationFull;					memcpy(&(packet_array[27]), &s_holder, sizeof(s_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[0];	memcpy(&(packet_array[29]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[1];	memcpy(&(packet_array[31]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[2];	memcpy(&(packet_array[33]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.configBuff.HighVoltageValue[3];	memcpy(&(packet_array[35]), &us_holder, sizeof(us_holder));
-		us_holder = (unsigned short)data_file_header.IDNum;												memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
-		us_holder = (unsigned short)data_file_header.RunNum;											memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.IDNum;								memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
+		us_holder = (unsigned short)data_file_header.RunNum;							memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
 
 		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG && file_type != DATA_TYPE_WAV)
 		{
@@ -1314,11 +1364,10 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
  * @param	(unsigned char *)	pointer to the packet buffer
  * @param	(int)		total bytes in the packet (should be the same for packets of the same type)
  *
- * @return	(int)
+ * @return	(int)		the number of bytes sent by the UART
  */
 int SendPacket( XUartPs Uart_PS, unsigned char *packet_buffer, int bytes_to_send )
 {
-	int status = 0;
 	int sent = 0;
 	int bytes_sent = 0;
 
@@ -1344,5 +1393,5 @@ int SendPacket( XUartPs Uart_PS, unsigned char *packet_buffer, int bytes_to_send
 			break;
 	}
 
-	return status;
+	return bytes_sent;
 }

@@ -374,15 +374,17 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 					{
 						if(detectorVal == MNS_DETECTOR_NUM)
 						{
+							//enable the system to create a false event in the buffer, but don't start the ADC yet
 							ClearBRAMBuffers();							//tell FPGA there is a buffer it can write to
 							usleep(1);
 							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module //write false event
 							usleep(1);
 							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 0);	//disable capture module
 							usleep(1);
-							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module //Begin collecting data
-							usleep(1);
 							Xil_Out32(XPAR_AXI_GPIO_6_BASEADDR, 1);		//enable ADC
+							usleep(1);
+							Xil_Out32(XPAR_AXI_GPIO_18_BASEADDR, 1);	//enable capture module //Begin collecting data
+
 						}
 						commandNum = START_CMD;
 					}
