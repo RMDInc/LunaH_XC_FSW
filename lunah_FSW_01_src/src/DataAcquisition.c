@@ -297,10 +297,10 @@ int CreateDAQFiles( void )
 	FRESULT ffs_res;
 
 	//a blank struct to write into the CPS file //reserves space for later
-	DATA_FILE_SECONDARY_HEADER_TYPE blank_file_secondary_header_to_write = {}; //i'm assuming that we can write space even if it's blank
+	DATA_FILE_SECONDARY_HEADER_TYPE blank_file_secondary_header_to_write = {};
 
 	//gather the header information
-	//TODO: check the return was not NULL?
+	//TODO: check the pointer from GetConfigBuffer is not NULL
 	file_header_to_write.configBuff = *GetConfigBuffer();	//dereference to copy the struct into our local struct
 	file_header_to_write.IDNum = daq_run_id_number;
 	file_header_to_write.RunNum = daq_run_run_number;

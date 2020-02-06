@@ -920,7 +920,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	unsigned char packet_array[2040] = "";	//TODO: check if I can drop the 2040 -> TELEMETRY_MAX_SIZE (2038)
 	DATA_FILE_HEADER_TYPE data_file_header = {};
 	DATA_FILE_SECONDARY_HEADER_TYPE data_file_2ndy_header = {};
-	CONFIG_STRUCT_TYPE config_file_header = {};
 	DATA_FILE_FOOTER_TYPE data_file_footer = {};
 	FIL TXFile;				//file object
 	FILINFO fno;			//file info structure
@@ -941,11 +940,25 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 	}
 	else if(file_type == DATA_TYPE_CFG)
 	{
+		//if the ID and Run numbers are 0 - then send the config file on the Root directory
+		//if the ID and Run numbers are specified - then send the config file from the folder
 		//just on the root directory
-		bytes_written = snprintf(file_TX_folder, 100, "0:");
-		if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
-			status = 1;
+		if(id_num == 0 && run_num == 0)
+		{
+			bytes_written = snprintf(file_TX_folder, 100, "0:");
+			if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE)
+				status = 1;
+		}
+		else
+		{
+			//construct the folder
+			bytes_written = snprintf(file_TX_folder, 100, "0:/I%04d_R%04d", id_num, run_num);
+			if(bytes_written == 0 || bytes_written != ROOT_DIR_NAME_SIZE + DAQ_FOLDER_SIZE)
+				status = 1;
+		}
 		ptr_file_TX_filename = config_file;
+		//or it can be in the folder from the run
+		//I need to consider which config file
 	}
 	else if(file_type == DATA_TYPE_WAV)
 	{
@@ -1074,15 +1087,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 					file_TX_size -= (DP_HEADER_SIZE - sizeof(data_file_header) - sizeof(data_file_2ndy_header));	//this is correct 10-02-2019
 			}
 		}
-		else if(file_type == DATA_TYPE_CFG)	//the config file is just one config header
-		{
-			f_res = f_read(&TXFile, &config_file_header, sizeof(config_file_header), &bytes_read);
-			if(f_res != FR_OK || bytes_read != sizeof(config_file_header))
-				status = 2;
-			else
-				file_TX_size -= bytes_read;
-		}
-		//no header information in the log file //need to assign the
+		//no header information in the log file or the config file
 	}
 	//deal with footers on the files, if they exist
 	if(status == 0)
@@ -1131,12 +1136,13 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 
 			file_TX_size -= sizeof(unsigned int) * 5;
 		}
+		//no footer information in the log or config files
 		//reset the file pointer to where it was when we began
 		f_res = f_lseek(&TXFile, file_TX_file_pointer_location);
 	}
 
 	//compile the Mini-NS data header (different based on file type)
-	if(status == 0)
+	if(status == 0 && file_type != DATA_TYPE_CFG)
 	{
 		//for EVT, CPS, 2DH, WAV file types
 		//fill in the Mini-NS Data Header	//these are shared header values for CPS, 2DH, EVT, WAV, CFG //only LOG doesn't have this
@@ -1157,7 +1163,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 		us_holder = (unsigned short)data_file_header.IDNum;								memcpy(&(packet_array[37]), &us_holder, sizeof(us_holder));
 		us_holder = (unsigned short)data_file_header.RunNum;							memcpy(&(packet_array[39]), &us_holder, sizeof(us_holder));
 
-		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_CFG && file_type != DATA_TYPE_WAV)
+		if(file_type != DATA_TYPE_LOG && file_type != DATA_TYPE_WAV)
 		{
 			memcpy(&(packet_array[41]), &data_file_2ndy_header.RealTime, sizeof(data_file_2ndy_header.RealTime));
 			memcpy(&(packet_array[45]), &data_file_2ndy_header.FirstEventTime, sizeof(data_file_2ndy_header.FirstEventTime));
@@ -1169,10 +1175,12 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			memset(&(packet_array[45]), 0, sizeof(unsigned int));
 		}
 	}
+
 	if(status != 0)
 		m_loop_var = 0;	//don't loop, just exit
-	//All above information is necessary to acquire once as it stays the same in each packet
-	//This loop compiles the remaining parts of the packet and sends it, then repeats until there is no more data
+
+	//The above information is only necessary to read once, as it stays the same in each packet
+	//The following loop compiles the remaining parts of the packet and sends it, then repeats until there is no more data
 	while(m_loop_var == 1)
 	{
 		switch(file_type)
@@ -1190,7 +1198,6 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_apid = 0x66;
 			break;
 		case DATA_TYPE_EVT:
-			//what do we need to specify to make things correct for one data product or another?
 			file_TX_data_bytes_size = DATA_BYTES_EVT;
 			file_TX_packet_size = PKT_SIZE_EVT;
 			file_TX_packet_header_size = PKT_HEADER_EVT;
@@ -1220,6 +1227,7 @@ int TransferSDFile( XUartPs Uart_PS, char * RecvBuffer, int file_type, int id_nu
 			file_TX_packet_size = PKT_SIZE_CFG;
 			file_TX_packet_header_size = PKT_HEADER_CFG;
 			file_TX_apid = 0xAA;
+			data_file_header.FileTypeAPID = DATA_TYPE_CFG;	//use this for creating the correct CCSDS header
 			break;
 		default:
 			status = 3;		//problem with the file type

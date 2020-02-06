@@ -661,12 +661,7 @@ int main()
 			SetModeByte(MODE_STANDBY);
 			break;
 		case TXLOG_CMD:
-			//transfer the system log file
-			//Transfer options:
-			// 0 = data product file
-			// 1 = Log File
-			// 2 = Config file
-//			status = TransferSDFile( Uart_PS, TXLOG_CMD );
+			//transfer the log file on the board
 			if(status == 0)
 				reportSuccess(Uart_PS, 0);
 			else
@@ -674,15 +669,17 @@ int main()
 			break;
 		case CONF_CMD:
 			//transfer the configuration file
-			//Transfer options:
-			// 0 = data product file
-			// 1 = Log File
-			// 2 = Config file
-//			status = TransferSDFile( Uart_PS, CONF_CMD );
-			if(status == 0)
-				reportSuccess(Uart_PS, 0);
+			if(GetIntParam(1) == DATA_TYPE_CFG)
+			{
+				status = TransferSDFile(Uart_PS, RecvBuffer, DATA_TYPE_CFG, GetIntParam(2), GetIntParam(3), 0);
+				if(status == 0)
+					reportSuccess(Uart_PS, 0);
+				else
+					reportFailure(Uart_PS);
+			}
 			else
 				reportFailure(Uart_PS);
+
 			break;
 		case TRG_CMD:
 			//set the trigger threshold

@@ -131,4 +131,6 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
  
 - Version 7.7 - Created a version with has the streamline updates, added a fix for the 2DH files; rebuilt for d0, d1
 
-- Version 7.8 Import the changes that I made in local versions of the FSW; building and shipping this to ASU, HSFL
+- Version 7.8 - Import the changes that I made in local versions of the FSW; building and shipping this to ASU, HSFL
+
+- Version 7.9 - Added MNS_CONF to the function list, needs to be tested, rebuilt the BSP

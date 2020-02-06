@@ -43,6 +43,12 @@
  * 	4 x 4
  * 	8 x 8 x 4
  * 	Doubles are 8 bytes.
+ *
+ * 4 * 14	 = 56
+ * 8 * 8 * 4 = 256
+ * 56 + 256 = 312
+ *
+ * 	I think this is 312 bytes - 2-5-2020
  */
 typedef struct {
 	float ECalSlope;
@@ -53,6 +59,7 @@ typedef struct {
 	int IntegrationLong;
 	int IntegrationFull;
 	int HighVoltageValue[4];
+	int EventID1;
 	double SF_E[8];
 	double SF_PSD[8];
 	double Off_E[8];
@@ -60,6 +67,7 @@ typedef struct {
 	int TotalFiles;
 	int TotalFolders;
 	unsigned int MostRecentRealTime;
+	int EventID2;
 } CONFIG_STRUCT_TYPE;
 
 /*

@@ -46,7 +46,7 @@ static double MaxPSD_C0[2][4] = {{ 11.7918, 11.886, 11.7809, 12.3862 },{ 13.7109
 static double MaxPSD_C1[2][4] = {{ -0.0674961, -0.110337, -0.0786917, -0.124806 },{ -0.142347, -0.0581908, -0.0982008, -0.0627177 }};
 static double MaxPSD_C2[2][4] = {{ 0.00122686, 0.00227616, 0.00144319, 0.0023301 },{ 0.00367359, 0.00116983, 0.0021518, 0.0010931 }};
 
-static CONFIG_STRUCT_TYPE m_cfg_buff;	//172 bytes
+static CONFIG_STRUCT_TYPE m_cfg_buff;
 
 /*
  * Reset the counts per second data product counters and event structures for the run.

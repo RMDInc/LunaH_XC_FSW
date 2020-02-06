@@ -304,8 +304,8 @@ int ReadCommandType(char * RecvBuffer, XUartPs *Uart_PS) {
 				}
 				else if(!strcmp(commandBuffer, "CONF"))
 				{
-					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d", &detectorVal);
-					if(ret != 1)
+					ret = sscanf(RecvBuffer + strlen(commandMNSBuf) + strlen(commandBuffer) + 2, " %d_%d_%d_%d", &detectorVal, &firstVal, &secondVal, &thirdVal);
+					if(ret != 4)
 						commandNum = -1;
 					else
 						commandNum = CONF_CMD;

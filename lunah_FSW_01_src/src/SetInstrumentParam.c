@@ -46,6 +46,7 @@ void CreateDefaultConfig( void )
 		.HighVoltageValue[1]=11,
 		.HighVoltageValue[2]=11,
 		.HighVoltageValue[3]=11,
+		.EventID1 = 0xAA,
 		.SF_E[0] = 1.0,
 		.SF_E[1] = 1.0,
 		.SF_E[2] = 1.0,
@@ -80,7 +81,8 @@ void CreateDefaultConfig( void )
 		.Off_PSD[7] = 0.0,
 		.TotalFiles = 0,
 		.TotalFolders =	0,
-		.MostRecentRealTime = 0
+		.MostRecentRealTime = 0,
+		.EventID2 = 0xAA
 	};
 
 	return;

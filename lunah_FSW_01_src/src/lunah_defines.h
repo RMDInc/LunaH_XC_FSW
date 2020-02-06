@@ -10,7 +10,7 @@
 
 #include "xparameters.h"
 
-#define MNS_DETECTOR_NUM	1
+#define MNS_DETECTOR_NUM	0
 
 #define PRODUCE_RAW_DATA	0
 
@@ -143,7 +143,7 @@
 #define DATA_BYTES_CPS	1974
 #define DATA_BYTES_2DH	1985
 #define DATA_BYTES_LOG	1963
-#define DATA_BYTES_CFG	187
+#define DATA_BYTES_CFG	320
 
 //MNS DATA PACKET SIZES //Full size - 10 - 1
 #define PKT_SIZE_DIR	2027
@@ -151,8 +151,8 @@
 #define PKT_SIZE_WAV	2026
 #define PKT_SIZE_CPS	2016
 #define PKT_SIZE_2DH	2027
-#define PKT_SIZE_LOG	2029	//TODO: define this
-#define PKT_SIZE_CFG	191
+#define PKT_SIZE_LOG	2029
+#define PKT_SIZE_CFG	324
 
 //MNS DATA FILE FOOTER SIZES //The main data products have a footer in the file
 #define FILE_FOOT_2DH	20
