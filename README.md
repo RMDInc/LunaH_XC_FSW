@@ -138,3 +138,5 @@ running the Packet Reader on the output packets, a validation spreadsheet, and t
 - Version 7.91 - Rebuilt the FSBL_bsp using the correct XILFFS file
 
 - Version 7.91.D - Corrected the baud rate settings in the bsp, generated boot files
+
+- Version 7.91.E - Updated the source and executable code for the analysis scripts, updated a few documents

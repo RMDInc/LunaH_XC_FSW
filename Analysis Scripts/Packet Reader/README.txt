@@ -1,1 +1,0 @@
-Use this executable to processor a binary log of all the Mini-NS output. This program will scrape out each packet individually and write the identifying information into a text file. It will also create a new file for each data product found within the packets. These data product files can be further processed into text output using the Data Product Reader analysis script.
